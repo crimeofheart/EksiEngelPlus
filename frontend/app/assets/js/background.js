@@ -926,11 +926,15 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   
   if(programController.earlyStop) {
     log.info("bg", "(updatePlannedProcessesList just before finished) notification page's queue will be updated.");
-    notificationHandler.updatePlannedProcessesList("");
     let remainingProcessesArray = processQueue.itemAttributes;
-    for (const element of remainingProcessesArray)
+    // It's important to get remainingProcessesArray *before* clearing the queue.
+    // The finishErrorEarlyStop might trigger UI updates for each stopped item.
+    for (const element of remainingProcessesArray) {
       notificationHandler.finishErrorEarlyStop(element.banSource, element.banMode);
+    }
     processQueue.clear();
+    // After clearing the queue, update the UI to reflect it's now empty.
+    notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes); // Should now be an empty array
   }
   
   log.info("bg", "Program has been finished (successfull:" + successfulAction + ", performed:" + performedAction + ", planned:" + authorNameList.length + ")");

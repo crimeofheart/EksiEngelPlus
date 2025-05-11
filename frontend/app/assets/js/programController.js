@@ -16,6 +16,7 @@ class ProgramController
   {
     this._earlyStop = false;
     this._migrationInProgress = false;
+    this._isBlockedListRefreshInProgress = false; // New flag for blocked list refresh
     this._isMutedListRefreshInProgress = false; // New flag for muted list refresh
     this._blockMutedUsersInProgress = false; // Flag for blocking muted users
     this._blockTitlesInProgress = false; // Flag for blocking titles of blocked/muted
@@ -25,7 +26,12 @@ class ProgramController
 
   get isActive()
   {
-    return processQueue.isRunning;
+    return processQueue.isRunning ||
+           this._migrationInProgress ||
+           this._isMutedListRefreshInProgress ||
+           this._isBlockedListRefreshInProgress ||
+           this._blockMutedUsersInProgress ||
+           this._blockTitlesInProgress;
   }
 
   set tabId(val)

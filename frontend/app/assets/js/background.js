@@ -311,19 +311,24 @@ chrome.runtime.onMessage.addListener(async function messageListener_Popup(messag
     let wrapperProcessHandler = processHandler.bind(null, obj.banSource, obj.banMode, obj.entryUrl, obj.authorName, obj.authorId, obj.targetType, obj.clickSource, obj.titleName, obj.titleId, obj.timeSpecifier);
     wrapperProcessHandler.banSource = obj.banSource;
     wrapperProcessHandler.banMode = obj.banMode;
-    wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes(); 
+    wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes();
     processQueue.enqueue(wrapperProcessHandler);
     log.info("bg", "number of waiting processes in the queue: " + processQueue.size);
-    
-    // The call to ensureNotificationTabExistsAndIsReady() and updatePlannedProcessesList()
-    // was removed from here. processHandler() is now solely responsible for these actions
-    // when a process from the queue begins execution, preventing duplicate updates.
+
+    // Ensure notification tab is ready and then update the list
+    // This will show the item in the queue even if processHandler doesn't run immediately
+    (async () => {
+      const notificationTabReady = await ensureNotificationTabExistsAndIsReady();
+      if (notificationTabReady) {
+        notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+      }
+    })();
 
     if (!responseSent) {
-        sendResponse({status: 'ok', message: 'Process enqueued.'}); 
+        sendResponse({status: 'ok', message: 'Process enqueued.'});
         responseSent = true;
     }
-    return true; 
+    return true;
   }
 });
 

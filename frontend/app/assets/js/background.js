@@ -126,167 +126,247 @@ chrome.runtime.onMessage.addListener(async function messageListener_Popup(messag
       return;
     }
 
+    // Helper to create a descriptive string for banMode if not a standard BAN/UNDOBAN
+    const getDisplayMode = (action) => {
+      switch (action) {
+        case "startMigration":
+        case "blockMutedUsers":
+        case "blockTitlesOfBlockedMuted":
+        case "startTitleMigration":
+          return "PROCESS"; // General process mode
+        case "refreshMutedList":
+        case "refreshBlockedList":
+          return "REFRESH";
+        default:
+          return "UNKNOWN";
+      }
+    };
+
     if (message.action === "startMigration" || message.action === "startTitleMigration") {
       const isTitleMigration = message.action === "startTitleMigration";
-      log.info("bg", `Handling ${isTitleMigration ? "title " : ""}migration request from popup.`);
-      if (isTitleMigration) {
-        programController.migrateBlockedTitlesToUnblocked();
-      } else {
-        programController.migrateBlockedToMuted();
+      const specificTaskInProgress = isTitleMigration ? programController.isBlockTitlesInProgress : programController.isMigrationInProgress;
+      const taskName = isTitleMigration ? "Title Unblock" : "User Migration (Blocked to Muted)";
+      const banSource = isTitleMigration ? enums.BanSource.TITLE : enums.BanSource.MIGRATE_BLOCKED_TO_MUTED; // TITLE for unblocking, MIGRATE for the other
+      const banMode = isTitleMigration ? enums.BanMode.UNDOBAN : "PROCESS"; // UNDOBAN for title unblock
+
+      if (specificTaskInProgress) {
+        log.warn("bg", `${taskName} is already in progress.`);
+        notificationHandler.notify(`${taskName} işlemi zaten devam ediyor.`);
+      } else if (programController.isActive && processQueue.size === 0 && !processQueue.isRunning) {
+        // Only block if truly another different major task is running and queue is not just about to pick this up
+        log.warn("bg", `Cannot start ${taskName} while another operation is active.`);
+        notificationHandler.notify(`Başka bir işlem aktifken ${taskName} başlatılamaz. Sıraya eklendi.`);
       }
-      return true; 
+
+      let wrapperProcessHandler = async () => {
+        log.info("bg", `Queue executing ${taskName}`);
+        if (isTitleMigration) await programController.migrateBlockedTitlesToUnblocked();
+        else await programController.migrateBlockedToMuted();
+      };
+      wrapperProcessHandler.banSource = banSource;
+      wrapperProcessHandler.banMode = banMode;
+      wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes();
+      processQueue.enqueue(wrapperProcessHandler);
+      notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+
+      if (!responseSent) {
+        sendResponse({ status: 'ok', message: `${taskName} process enqueued.` });
+        responseSent = true;
+      }
+      return true;
     } else if (message.action === "refreshMutedList") {
-      log.info("bg", "Handling refreshMutedList request from popup.");
       if (programController.isMutedListRefreshInProgress) {
         log.warn("bg", "Muted list refresh is already in progress. Ignoring new request.");
-        if (g_notificationTabId) { 
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "mutedListRefreshComplete", success: false, error: "Muted list refresh is already running."
-            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
-        }
-        if (!responseSent) {
-            sendResponse({ status: 'error', message: 'Refresh already in progress' });
-            responseSent = true;
-        }
-        return;
+        notificationHandler.notify("Sessiz listesi yenileme zaten devam ediyor.");
+      } else if (programController.isActive && processQueue.size === 0 && !processQueue.isRunning) {
+        log.warn("bg", "Cannot start muted list refresh while another operation is active.");
+        notificationHandler.notify("Başka bir işlem aktifken sessiz listesi yenileme başlatılamaz. Sıraya eklendi.");
       }
-      programController.isMutedListRefreshInProgress = true;
-      programController.earlyStop = false;
-      const updateProgress = async (progress) => {
-        if (g_notificationTabId) {
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "mutedListRefreshProgress", count: progress.currentCount
-            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
-        }
-        await storageHandler.saveMutedUserCount(progress.currentCount);
-      };
-      try {
-        const result = await scrapingHandler.scrapeAllMutedUsers(updateProgress);
-        if (result.success) {
-          await storageHandler.saveMutedUserList(result.usernames);
-          await storageHandler.saveMutedUserCount(result.count);
-          log.info("bg", `Successfully scraped and saved ${result.count} muted users.`);
+
+      let wrapperProcessHandler = async () => {
+        log.info("bg", "Queue executing Muted List Refresh.");
+        if (programController.isMutedListRefreshInProgress) return; // Re-check before starting
+        programController.isMutedListRefreshInProgress = true;
+        programController.earlyStop = false;
+        const updateProgress = async (progress) => {
           if (g_notificationTabId) {
               chrome.tabs.sendMessage(g_notificationTabId, {
-                action: "mutedListRefreshComplete", success: true, count: result.count
+                action: "mutedListRefreshProgress", count: progress.currentCount
               }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
           }
-        } else {
-          if (result.stoppedEarly) {
-            log.info("bg", "Muted user scraping stopped by user.");
+          await storageHandler.saveMutedUserCount(progress.currentCount);
+        };
+        try {
+          const result = await scrapingHandler.scrapeAllMutedUsers(updateProgress);
+          if (result.success) {
+            await storageHandler.saveMutedUserList(result.usernames);
+            await storageHandler.saveMutedUserCount(result.count);
+            log.info("bg", `Successfully scraped and saved ${result.count} muted users.`);
             if (g_notificationTabId) {
                 chrome.tabs.sendMessage(g_notificationTabId, {
-                  action: "mutedListRefreshComplete", success: false, stoppedEarly: true, count: result.count || 0, error: result.error || "Process stopped by user"
+                  action: "mutedListRefreshComplete", success: true, count: result.count
                 }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
             }
           } else {
-            log.err("bg", "Error scraping muted users:", result.error);
-            if (g_notificationTabId) {
-                chrome.tabs.sendMessage(g_notificationTabId, {
-                  action: "mutedListRefreshComplete", success: false, error: result.error
-                }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+            if (result.stoppedEarly) {
+              log.info("bg", "Muted user scraping stopped by user.");
+              if (g_notificationTabId) {
+                  chrome.tabs.sendMessage(g_notificationTabId, {
+                    action: "mutedListRefreshComplete", success: false, stoppedEarly: true, count: result.count || 0, error: result.error || "Process stopped by user"
+                  }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+              }
+            } else {
+              log.err("bg", "Error scraping muted users:", result.error);
+              if (g_notificationTabId) {
+                  chrome.tabs.sendMessage(g_notificationTabId, {
+                    action: "mutedListRefreshComplete", success: false, error: result.error
+                  }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+              }
             }
           }
+        } catch (e) {
+          log.err("bg", `Unexpected error during refreshMutedList: ${e}`);
+          if (g_notificationTabId) {
+              chrome.tabs.sendMessage(g_notificationTabId, {
+                action: "mutedListRefreshComplete", success: false, error: e.message || "Unknown error"
+              }).catch(err => log.warn("bg", `Error sending message to notification tab: ${err}`));
+          }
+        } finally {
+          programController.isMutedListRefreshInProgress = false;
         }
-      } catch (e) {
-        log.err("bg", `Unexpected error during refreshMutedList: ${e}`);
-        if (g_notificationTabId) {
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "mutedListRefreshComplete", success: false, error: e.message || "Unknown error"
-            }).catch(err => log.warn("bg", `Error sending message to notification tab: ${err}`));
-        }
-      } finally {
-        programController.isMutedListRefreshInProgress = false;
-        if (!responseSent) {
-            sendResponse({ status: 'ok', message: 'Refresh initiated' });
-            responseSent = true;
-        }
-      }
+      };
+      wrapperProcessHandler.banSource = enums.BanSource.REFRESH_MUTED_LIST;
+      wrapperProcessHandler.banMode = getDisplayMode(message.action);
+      wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes();
+      processQueue.enqueue(wrapperProcessHandler);
+      notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+
+      if (!responseSent) { sendResponse({ status: 'ok', message: 'Muted list refresh enqueued.' }); responseSent = true; }
       return true;
     } else if (message.action === "refreshBlockedList") {
-      log.info("bg", "Handling refreshBlockedList request from popup.");
       if (programController.isBlockedListRefreshInProgress) {
         log.warn("bg", "Blocked list refresh is already in progress. Ignoring new request.");
-        if (g_notificationTabId) {
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "blockedListRefreshComplete", success: false, error: "Blocked list refresh is already running."
-            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
-        }
-        if (!responseSent) {
-            sendResponse({ status: 'error', message: 'Refresh already in progress' });
-            responseSent = true;
-        }
-        return;
+        notificationHandler.notify("Engelli listesi yenileme zaten devam ediyor.");
+      } else if (programController.isActive && processQueue.size === 0 && !processQueue.isRunning) {
+        log.warn("bg", "Cannot start blocked list refresh while another operation is active.");
+        notificationHandler.notify("Başka bir işlem aktifken engelli listesi yenileme başlatılamaz. Sıraya eklendi.");
       }
-      programController.isBlockedListRefreshInProgress = true;
-      programController.earlyStop = false;
-      const updateProgress = async (progress) => {
-        if (g_notificationTabId) {
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "blockedListRefreshProgress", count: progress.currentCount
-            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
-        }
-        await storageHandler.saveBlockedUserCount(progress.currentCount);
-      };
-      try {
-        const result = await scrapingHandler.scrapeAllBlockedUsers(updateProgress);
-        if (result.success) {
-          await storageHandler.saveBlockedUserList(result.usernames);
-          await storageHandler.saveBlockedUserCount(result.count);
-          log.info("bg", `Successfully scraped and saved ${result.count} blocked users.`);
+
+      let wrapperProcessHandler = async () => {
+        log.info("bg", "Queue executing Blocked List Refresh.");
+        if (programController.isBlockedListRefreshInProgress) return; // Re-check
+        programController.isBlockedListRefreshInProgress = true;
+        programController.earlyStop = false;
+        const updateProgress = async (progress) => {
           if (g_notificationTabId) {
               chrome.tabs.sendMessage(g_notificationTabId, {
-                action: "blockedListRefreshComplete", success: true, count: result.count
+                action: "blockedListRefreshProgress", count: progress.currentCount
               }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
           }
-        } else {
-          if (result.stoppedEarly) {
-            log.info("bg", "Blocked user scraping stopped by user.");
+          await storageHandler.saveBlockedUserCount(progress.currentCount);
+        };
+        try {
+          const result = await scrapingHandler.scrapeAllBlockedUsers(updateProgress);
+          if (result.success) {
+            await storageHandler.saveBlockedUserList(result.usernames);
+            await storageHandler.saveBlockedUserCount(result.count);
+            log.info("bg", `Successfully scraped and saved ${result.count} blocked users.`);
             if (g_notificationTabId) {
                 chrome.tabs.sendMessage(g_notificationTabId, {
-                  action: "blockedListRefreshComplete", success: false, stoppedEarly: true, count: result.count || 0, error: result.error || "Process stopped by user"
+                  action: "blockedListRefreshComplete", success: true, count: result.count
                 }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
             }
           } else {
-            log.err("bg", "Error scraping blocked users:", result.error);
-            if (g_notificationTabId) {
-                chrome.tabs.sendMessage(g_notificationTabId, {
-                  action: "blockedListRefreshComplete", success: false, error: result.error
-                }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+            if (result.stoppedEarly) {
+              log.info("bg", "Blocked user scraping stopped by user.");
+              if (g_notificationTabId) {
+                  chrome.tabs.sendMessage(g_notificationTabId, {
+                    action: "blockedListRefreshComplete", success: false, stoppedEarly: true, count: result.count || 0, error: result.error || "Process stopped by user"
+                  }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+              }
+            } else {
+              log.err("bg", "Error scraping blocked users:", result.error);
+              if (g_notificationTabId) {
+                  chrome.tabs.sendMessage(g_notificationTabId, {
+                    action: "blockedListRefreshComplete", success: false, error: result.error
+                  }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+              }
             }
           }
+        } catch (e) {
+          log.err("bg", `Unexpected error during refreshBlockedList: ${e}`);
+          if (g_notificationTabId) {
+              chrome.tabs.sendMessage(g_notificationTabId, {
+                action: "blockedListRefreshComplete", success: false, error: e.message || "Unknown error"
+              }).catch(err => log.warn("bg", `Error sending message to notification tab: ${err}`));
+          }
+        } finally {
+          programController.isBlockedListRefreshInProgress = false;
         }
-      } catch (e) {
-        log.err("bg", `Unexpected error during refreshBlockedList: ${e}`);
-        if (g_notificationTabId) {
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "blockedListRefreshComplete", success: false, error: e.message || "Unknown error"
-            }).catch(err => log.warn("bg", `Error sending message to notification tab: ${err}`));
-        }
-      } finally {
-        programController.isBlockedListRefreshInProgress = false;
-        if (!responseSent) {
-            sendResponse({ status: 'ok', message: 'Refresh initiated' });
-            responseSent = true;
-        }
-      }
+      };
+      wrapperProcessHandler.banSource = enums.BanSource.REFRESH_BLOCKED_LIST;
+      wrapperProcessHandler.banMode = getDisplayMode(message.action);
+      wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes();
+      processQueue.enqueue(wrapperProcessHandler);
+      notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+
+      if (!responseSent) { sendResponse({ status: 'ok', message: 'Blocked list refresh enqueued.' }); responseSent = true; }
       return true;
     } else if (message.action === "blockMutedUsers") {
-      log.info("bg", "Handling blockMutedUsers request.");
-      programController.blockMutedUsers(); 
-      if (!responseSent) {
-        sendResponse({ status: 'ok', message: 'Block Muted Users process initiated' });
-        responseSent = true;
+      if (programController.isBlockMutedUsersInProgress) {
+        log.warn("bg", "Block Muted Users process is already in progress.");
+        notificationHandler.notify("Sessizleri engelleme işlemi zaten devam ediyor.");
+      } else if (programController.isActive && processQueue.size === 0 && !processQueue.isRunning) {
+        log.warn("bg", "Cannot start Block Muted Users while another operation is active.");
+        notificationHandler.notify("Başka bir işlem aktifken sessizleri engelleme başlatılamaz.");
       }
-      return true; 
-    } else if (message.action === "blockTitlesOfBlockedMuted") {
-      log.info("bg", "Handling blockTitlesOfBlockedMuted request.");
-      programController.blockTitlesOfBlockedMuted(); 
+
+      let wrapperProcessHandler = async () => {
+        log.info("bg", "Queue executing Block Muted Users.");
+        await programController.blockMutedUsers();
+      };
+      wrapperProcessHandler.banSource = enums.BanSource.BLOCK_MUTED_USERS;
+      wrapperProcessHandler.banMode = getDisplayMode(message.action);
+      wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes();
+      processQueue.enqueue(wrapperProcessHandler);
+      notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+
       if (!responseSent) {
-        sendResponse({ status: 'ok', message: 'Block Titles of Blocked/Muted process initiated' });
+        sendResponse({ status: 'ok', message: 'Block Muted Users process enqueued.' });
         responseSent = true;
       }
       return true;
+    } else if (message.action === "blockTitlesOfBlockedMuted") {
+      if (programController.isBlockTitlesInProgress) {
+        log.warn("bg", "Block Titles of Blocked/Muted process is already in progress.");
+        notificationHandler.notify("Engellilerin başlıklarını engelleme işlemi zaten devam ediyor.");
+      } else if (programController.isActive && processQueue.size === 0 && !processQueue.isRunning) {
+        log.warn("bg", "Cannot start Block Titles of Blocked/Muted while another operation is active.");
+        notificationHandler.notify("Başka bir işlem aktifken engellilerin başlıklarını engelleme başlatılamaz.");
+      }
+
+      let wrapperProcessHandler = async () => {
+        log.info("bg", "Queue executing Block Titles of Blocked/Muted.");
+        await programController.blockTitlesOfBlockedMuted();
+      };
+      wrapperProcessHandler.banSource = enums.BanSource.BLOCKED_MUTED_TITLES; // Already exists
+      wrapperProcessHandler.banMode = getDisplayMode(message.action);
+      wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes();
+      processQueue.enqueue(wrapperProcessHandler);
+      notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+
+      if (!responseSent) {
+        sendResponse({ status: 'ok', message: 'Block Titles of Blocked/Muted process enqueued.' });
+        responseSent = true;
+      }
+      return true;
+    }
+    // Fallthrough for actions not explicitly handled above that require notification tab
+    // but don't have specific programController flags to check beyond the general isActive.
+    // This ensures sendResponse is called if no other branch handles it.
+    if (!responseSent) {
+        sendResponse({ status: 'ok', message: 'Action received and will be processed if no other operation is active.' });
+        responseSent = true;
     }
   } else if (message && message.earlyStop !== undefined) {
     log.info("bg", "Received early stop message");

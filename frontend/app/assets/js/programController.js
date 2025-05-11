@@ -89,6 +89,24 @@ class ProgramController
     }
   }
 
+  get isMigrationInProgress() {
+    return this._migrationInProgress;
+  }
+
+  get isBlockedListRefreshInProgress() {
+    return this._isBlockedListRefreshInProgress;
+  }
+
+  get isBlockMutedUsersInProgress() {
+    return this._blockMutedUsersInProgress;
+  }
+
+  get isBlockTitlesInProgress() {
+    return this._blockTitlesInProgress;
+  }
+
+  // isMutedListRefreshInProgress getter already exists
+
 
   // Private helper method for retrying actions with delay
   async _performActionWithRetry(banMode, id, isTargetUser, isTargetTitle, isTargetMute, retries = 3) {
@@ -164,20 +182,6 @@ class ProgramController
          chrome.tabs.sendMessage(this.tabId, {
            action: "updateMigrationStatus",
            statusText: "Migration already in progress."
-         });
-       } catch (e) {
-         log.warn("progctrl", `Error sending status update: ${e}`);
-       }
-       return;
-    }
-
-    // Check if the main processQueue is running something else
-    if (processQueue.isRunning) {
-       log.warn("progctrl", "Cannot start migration while another operation is running in the queue.");
-       try {
-         chrome.tabs.sendMessage(this.tabId, {
-           action: "updateMigrationStatus",
-           statusText: "Cannot start migration while another operation is running."
          });
        } catch (e) {
          log.warn("progctrl", `Error sending status update: ${e}`);
@@ -351,12 +355,6 @@ class ProgramController
     if (this._blockMutedUsersInProgress) {
       log.warn("progctrl", "Blocking muted users is already in progress.");
       notificationHandler.notify("Sessize alınmış kullanıcıları engelleme zaten devam ediyor.");
-      return;
-    }
-
-    if (processQueue.isRunning) {
-      log.warn("progctrl", "Cannot start blocking muted users while another operation is running.");
-      notificationHandler.notify("Başka bir işlem çalışırken sessize alınmış kullanıcıları engelleme başlatılamaz.");
       return;
     }
 
@@ -558,12 +556,6 @@ class ProgramController
       return;
     }
 
-    if (processQueue.isRunning) {
-      log.warn("progctrl", "Cannot start blocking titles while another operation is running.");
-      notificationHandler.notify("Başka bir işlem çalışırken başlık engelleme başlatılamaz.");
-      return;
-    }
-
     this._blockTitlesInProgress = true;
     this.earlyStop = false;
 
@@ -747,12 +739,6 @@ class ProgramController
     if (this._blockTitlesInProgress) { // Reusing this flag for simplicity, could create a new one if needed
       log.warn("progctrl", "Unblocking blocked titles is already in progress.");
       notificationHandler.notify("Engellenen başlıkların engelini kaldırma işlemi zaten devam ediyor.");
-      return;
-    }
-
-    if (processQueue.isRunning) {
-      log.warn("progctrl", "Cannot start unblocking titles while another operation is running.");
-      notificationHandler.notify("Başka bir işlem çalışırken engellenen başlıkların engelini kaldırma başlatılamaz.");
       return;
     }
 

@@ -5,7 +5,11 @@ export const BanSource = {
   LIST:       "4",   /* Ban/Undoban authors in the list that will be filled by user */
   UNDOBANALL: "5",   /* Undoban all banned authors */
   TITLE:      "6",   /* Ban all authors that wrote a specific title */
-  BLOCKED_MUTED_TITLES: "7" /* Block titles of blocked and muted users */
+  BLOCKED_MUTED_TITLES: "7", /* Block titles of blocked and muted users */
+  MIGRATE_BLOCKED_TO_MUTED: "8", /* Migrate blocked users to muted */
+  BLOCK_MUTED_USERS: "9",        /* Block users who are currently muted */
+  REFRESH_MUTED_LIST: "10",      /* Refresh the list of muted users from server */
+  REFRESH_BLOCKED_LIST: "11"     /* Refresh the list of blocked users from server */
 };
 
 export const BanMode = {

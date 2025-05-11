@@ -315,14 +315,9 @@ chrome.runtime.onMessage.addListener(async function messageListener_Popup(messag
     processQueue.enqueue(wrapperProcessHandler);
     log.info("bg", "number of waiting processes in the queue: " + processQueue.size);
     
-    (async () => {
-      const ready = await ensureNotificationTabExistsAndIsReady();
-      if (ready) {
-        notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
-      } else {
-        log.warn("bg", "Notification tab not ready, could not update planned processes list immediately after enqueue.");
-      }
-    })();
+    // The call to ensureNotificationTabExistsAndIsReady() and updatePlannedProcessesList()
+    // was removed from here. processHandler() is now solely responsible for these actions
+    // when a process from the queue begins execution, preventing duplicate updates.
 
     if (!responseSent) {
         sendResponse({status: 'ok', message: 'Process enqueued.'}); 
@@ -828,13 +823,21 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
 
   if(config.sendData) await commHandler.sendData(action, action_config);
 
-  if (programController.earlyStop) {
-    if (banSource !== enums.BanSource.UNDOBANALL) { 
-        notificationHandler.finishErrorEarlyStop(banSource, banMode);
+  // Conditional final notifications to avoid redundancy for SINGLE and UNDOBANALL
+  if (banSource !== enums.BanSource.SINGLE && banSource !== enums.BanSource.UNDOBANALL) {
+    // This block is for LIST, FAV, FOLLOW, TITLE
+    if (programController.earlyStop) {
+      notificationHandler.finishErrorEarlyStop(banSource, banMode);
+    } else {
+      notificationHandler.finishSuccess(banSource, banMode, successfulAction, performedAction, authorNameList.length);
     }
-  } else {
-    notificationHandler.finishSuccess(banSource, banMode, successfulAction, performedAction, authorNameList.length);
+  } else if (banSource === enums.BanSource.SINGLE && programController.earlyStop) {
+    // For a single action that was stopped early, it needs an explicit early stop message
+    // as its own completion (line 398) might not have been reached.
+    notificationHandler.finishErrorEarlyStop(banSource, banMode);
   }
+  // If banSource IS SINGLE and NOT earlyStop: its completion is considered handled by notifyOngoing at line 398.
+  // If banSource IS UNDOBANALL: its completion/error was handled within its own block (lines 774-778).
   
   if(programController.earlyStop) {
     log.info("bg", "(updatePlannedProcessesList just before finished) notification page's queue will be updated.");

@@ -16,345 +16,320 @@ import { storageHandler } from './storageHandler.js';
 log.info("bg", "initialized");
 let g_notificationTabId = 0;
 
+async function ensureNotificationTabExistsAndIsReady() {
+  log.info("bg", "Ensuring notification tab exists and is ready (without forcing focus)...");
+  let currentNotificationTabId = g_notificationTabId; 
+
+  try {
+    // 1. Check if g_notificationTabId points to a valid, existing tab
+    if (currentNotificationTabId) {
+      try {
+        await chrome.tabs.get(currentNotificationTabId);
+        log.info("bg", `Confirmed stored notification tab ID ${currentNotificationTabId} exists.`);
+        // No explicit activation here
+      } catch (e) {
+        log.warn("bg", `Stored notification tab ID ${currentNotificationTabId} not found or invalid: ${e}. Will query/create.`);
+        currentNotificationTabId = 0; 
+      }
+    }
+
+    // 2. If no valid stored ID, query by URL
+    if (!currentNotificationTabId) {
+      const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL("assets/html/notification.html") });
+      if (tabs && tabs.length > 0) {
+        currentNotificationTabId = tabs[0].id;
+        log.info("bg", `Found existing notification tab by URL: ${currentNotificationTabId}`);
+        // No explicit activation here
+      }
+    }
+
+    // 3. If still no tab ID, create a new one (inactive)
+    if (!currentNotificationTabId) {
+      const notificationUrl = chrome.runtime.getURL("assets/html/notification.html");
+      const tab = await chrome.tabs.create({ active: false, url: notificationUrl }); // Ensure tab is created inactive
+      currentNotificationTabId = tab.id;
+      log.info("bg", `Created new inactive notification tab: ${currentNotificationTabId}`);
+    }
+
+    g_notificationTabId = currentNotificationTabId;
+    programController.tabId = g_notificationTabId;
+
+    // 4. Wait for the page to be ready
+    log.info("bg", `Waiting for notification page (ID: ${g_notificationTabId}) to be ready...`);
+    const waitForNotificationPage = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`Timeout waiting for notification page (ID: ${g_notificationTabId}) to load`));
+      }, 5000);
+
+      const messageListener = (msg, sender) => {
+        if (sender.tab && sender.tab.id === g_notificationTabId && msg && msg.action === "notificationPageReady") {
+          clearTimeout(timeout);
+          chrome.runtime.onMessage.removeListener(messageListener);
+          log.info("bg", `Notification page (ID: ${g_notificationTabId}) sent ready message.`);
+          resolve();
+        }
+      };
+      chrome.runtime.onMessage.addListener(messageListener);
+
+      try {
+        chrome.tabs.sendMessage(g_notificationTabId, { action: "ping" }, response => {
+          if (chrome.runtime.lastError) {
+            log.info("bg", `Ping to notification tab (ID: ${g_notificationTabId}) failed, waiting for ready message: ${chrome.runtime.lastError.message}`);
+            return;
+          }
+          if (response && response.status === "ok") {
+            clearTimeout(timeout);
+            chrome.runtime.onMessage.removeListener(messageListener);
+            log.info("bg", `Notification page (ID: ${g_notificationTabId}) responded to ping.`);
+            resolve();
+          }
+        });
+      } catch (e) {
+        log.warn("bg", `Error sending ping to notification tab (ID: ${g_notificationTabId}): ${e}`);
+      }
+    });
+
+    await waitForNotificationPage;
+    log.info("bg", `Notification page (ID: ${g_notificationTabId}) is ready.`);
+    await utils.sleep(150);
+    log.info("bg", "Added 150ms delay after page ready.");
+    return true; 
+  } catch (e) {
+    log.err("bg", `Error in ensureNotificationTabExistsAndIsReady: ${e}`);
+    g_notificationTabId = 0; 
+    return false; 
+  }
+}
+
 chrome.runtime.onMessage.addListener(async function messageListener_Popup(message, sender, sendResponse) {
   log.info("bg", "Received message:", message);
+  let responseSent = false; 
 
-  // Add new actions that require the notification tab
   const actionsRequiringNotification = [
     "startMigration",
     "startTitleMigration",
     "refreshMutedList",
-    "refreshBlockedList", // Added
-    "blockMutedUsers", // Added
-    "blockTitlesOfBlockedMuted" // Added
+    "refreshBlockedList",
+    "blockMutedUsers",
+    "blockTitlesOfBlockedMuted"
   ];
 
-  // Check if the message requires the notification tab
   if (message && actionsRequiringNotification.includes(message.action)) {
     log.info("bg", `Handling action ${message.action} requiring notification tab.`);
-
-    // --- Ensure Notification Tab Exists (Standard Logic) ---
-    try {
-      let tabExists = false;
-      if (g_notificationTabId) { // Check if we have a stored ID
-        try {
-          await chrome.tabs.get(g_notificationTabId);
-          tabExists = true; // Tab still exists
-        } catch (e) {
-          log.warn("bg", "Stored notification tab ID not found, creating new one.");
-          g_notificationTabId = 0; // Reset ID
-        }
+    const notificationTabReady = await ensureNotificationTabExistsAndIsReady();
+    if (!notificationTabReady) {
+      log.err("bg", `Failed to ensure notification tab was ready for action: ${message.action}. Aborting.`);
+      if (!responseSent) {
+        sendResponse({ status: 'error', message: 'Could not open or confirm notification page readiness.' });
+        responseSent = true;
       }
-      if (!tabExists) {
-         // Check if any notification tab is already open (e.g., after browser restart)
-         const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL("assets/html/notification.html") });
-         if (tabs && tabs.length > 0) {
-             g_notificationTabId = tabs[0].id;
-             log.info("bg", `Found existing notification tab: ${g_notificationTabId}`);
-         } else {
-             // Create a new tab if none exists
-             const notificationUrl = chrome.runtime.getURL("assets/html/notification.html");
-             const tab = await chrome.tabs.create({ active: false, url: notificationUrl });
-             g_notificationTabId = tab.id;
-             log.info("bg", `Created new notification tab: ${g_notificationTabId} for ${message.action}`);
-         }
-      }
-      programController.tabId = g_notificationTabId; // Set the ID in programController
-
-      // Wait for the notification page to be fully loaded before proceeding
-      log.info("bg", "Waiting for notification page to be ready...");
-
-      // Create a promise that resolves when the notification page is ready
-      const waitForNotificationPage = new Promise((resolve, reject) => {
-        // Set a timeout to avoid waiting forever
-        const timeout = setTimeout(() => {
-          reject(new Error("Timeout waiting for notification page to load"));
-        }, 5000); // 5 second timeout
-
-        // Listen for a ready message from the notification page
-        const messageListener = (message, sender) => {
-          if (sender.tab && sender.tab.id === g_notificationTabId &&
-              message && message.action === "notificationPageReady") {
-            clearTimeout(timeout);
-            chrome.runtime.onMessage.removeListener(messageListener);
-            resolve();
-          }
-        };
-
-        chrome.runtime.onMessage.addListener(messageListener);
-
-        // Also try to send a ping to see if the page is already loaded
-        try {
-          chrome.tabs.sendMessage(g_notificationTabId, { action: "ping" }, response => {
-            // Check for runtime.lastError to prevent uncaught errors in the console
-            if (chrome.runtime.lastError) {
-              // This is expected if the page isn't loaded yet, so just log it
-              log.info("bg", "Ping failed, waiting for ready message: " + chrome.runtime.lastError.message);
-              return;
-            }
-
-            if (response && response.status === "ok") {
-              clearTimeout(timeout);
-              chrome.runtime.onMessage.removeListener(messageListener);
-              resolve();
-            }
-          });
-        } catch (e) {
-          // Ignore errors here, we'll wait for the ready message
-          log.warn("bg", `Error sending ping to notification tab: ${e}`);
-        }
-      });
-
-      try {
-        await waitForNotificationPage;
-        log.info("bg", "Notification page is ready.");
-        await utils.sleep(150); // Add a small delay to ensure message port is stable
-        log.info("bg", "Added 150ms delay after page ready.");
-      } catch (e) {
-        log.warn("bg", `Timed out waiting for notification page: ${e}. Proceeding anyway.`);
-        // We'll proceed even if we time out, as the page might still load
-      }
-
-    } catch (e) {
-      log.err("bg", `Error handling notification tab before ${message.action}: ${e}`);
-      sendResponse({ status: 'error', message: 'Could not open notification page.' });
-      return; // Abort if we can't ensure notification page exists
+      return;
     }
-    // --- End Notification Tab Handling ---
 
     if (message.action === "startMigration" || message.action === "startTitleMigration") {
       const isTitleMigration = message.action === "startTitleMigration";
       log.info("bg", `Handling ${isTitleMigration ? "title " : ""}migration request from popup.`);
-
-      // Call the appropriate migration function (they handle checks internally)
       if (isTitleMigration) {
         programController.migrateBlockedTitlesToUnblocked();
       } else {
         programController.migrateBlockedToMuted();
       }
-
-      // Indicate that the response will be sent asynchronously
-      // The actual response (success/failure) will be sent via chrome.tabs.sendMessage
-      // from programController.js when the operation completes.
-      return true; // Indicate asynchronous response
+      return true; 
     } else if (message.action === "refreshMutedList") {
       log.info("bg", "Handling refreshMutedList request from popup.");
-
-      // Check if a refresh process is already in progress
       if (programController.isMutedListRefreshInProgress) {
         log.warn("bg", "Muted list refresh is already in progress. Ignoring new request.");
-        // Optionally send a message back to the notification page to indicate this
-        chrome.tabs.sendMessage(g_notificationTabId, {
-          action: "mutedListRefreshComplete", // Use the complete action to signal state
-          success: false,
-          error: "Muted list refresh is already running."
-        });
-        sendResponse({ status: 'error', message: 'Refresh already in progress' });
-        return; // Stop here if already running
+        if (g_notificationTabId) { 
+            chrome.tabs.sendMessage(g_notificationTabId, {
+              action: "mutedListRefreshComplete", success: false, error: "Muted list refresh is already running."
+            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+        }
+        if (!responseSent) {
+            sendResponse({ status: 'error', message: 'Refresh already in progress' });
+            responseSent = true;
+        }
+        return;
       }
-
-      // Set the flag to indicate the process is starting
       programController.isMutedListRefreshInProgress = true;
-      // Reset early stop flag before starting a new process
       programController.earlyStop = false;
-
-
-      // Define a function to send progress updates to the notification page
       const updateProgress = async (progress) => {
-        // Send progress update to the notification page
-        chrome.tabs.sendMessage(g_notificationTabId, {
-          action: "mutedListRefreshProgress", // New action for real-time updates
-          count: progress.currentCount // Include the current count
-          // currentPage is not needed for this specific update
-        });
-        // Save the current count to storage
+        if (g_notificationTabId) {
+            chrome.tabs.sendMessage(g_notificationTabId, {
+              action: "mutedListRefreshProgress", count: progress.currentCount
+            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+        }
         await storageHandler.saveMutedUserCount(progress.currentCount);
       };
-
-      // Call scrapeAllMutedUsers with the progress callback
       try {
         const result = await scrapingHandler.scrapeAllMutedUsers(updateProgress);
-
         if (result.success) {
           await storageHandler.saveMutedUserList(result.usernames);
-          // Save the final count to storage
           await storageHandler.saveMutedUserCount(result.count);
           log.info("bg", `Successfully scraped and saved ${result.count} muted users.`);
-          // Send final success message to notification page
-          chrome.tabs.sendMessage(g_notificationTabId, {
-            action: "mutedListRefreshComplete",
-            success: true,
-            count: result.count
-          });
+          if (g_notificationTabId) {
+              chrome.tabs.sendMessage(g_notificationTabId, {
+                action: "mutedListRefreshComplete", success: true, count: result.count
+              }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+          }
         } else {
-          // Check if the process was stopped early by the user
           if (result.stoppedEarly) {
             log.info("bg", "Muted user scraping stopped by user.");
-            // Send a specific message to notification page for early stop
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "mutedListRefreshComplete",
-              success: false, // Still technically not a full success
-              stoppedEarly: true, // Indicate it was stopped early
-              count: result.count || 0, // Send current count if available
-              error: result.error || "Process stopped by user" // Provide a user-friendly message
-            });
+            if (g_notificationTabId) {
+                chrome.tabs.sendMessage(g_notificationTabId, {
+                  action: "mutedListRefreshComplete", success: false, stoppedEarly: true, count: result.count || 0, error: result.error || "Process stopped by user"
+                }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+            }
           } else {
-            // Handle actual errors during scraping
             log.err("bg", "Error scraping muted users:", result.error);
-            // Send error message to notification page
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "mutedListRefreshComplete",
-              success: false,
-              error: result.error
-            });
+            if (g_notificationTabId) {
+                chrome.tabs.sendMessage(g_notificationTabId, {
+                  action: "mutedListRefreshComplete", success: false, error: result.error
+                }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+            }
           }
         }
       } catch (e) {
         log.err("bg", `Unexpected error during refreshMutedList: ${e}`);
-        chrome.tabs.sendMessage(g_notificationTabId, {
-          action: "mutedListRefreshComplete",
-          success: false,
-          error: e.message || "Unknown error"
-        });
+        if (g_notificationTabId) {
+            chrome.tabs.sendMessage(g_notificationTabId, {
+              action: "mutedListRefreshComplete", success: false, error: e.message || "Unknown error"
+            }).catch(err => log.warn("bg", `Error sending message to notification tab: ${err}`));
+        }
       } finally {
-        // Ensure the flag is reset when the process finishes (success, error, or early stop)
         programController.isMutedListRefreshInProgress = false;
-        // Send a response to the popup (even if there was an error or early stop)
-        sendResponse({ status: 'ok', message: 'Refresh initiated' });
+        if (!responseSent) {
+            sendResponse({ status: 'ok', message: 'Refresh initiated' });
+            responseSent = true;
+        }
       }
-      return true; // Indicate asynchronous response
-      return; // Stop further processing of this message
-    } else if (message.action === "refreshBlockedList") { // Added handler for blocked list refresh
+      return true;
+    } else if (message.action === "refreshBlockedList") {
       log.info("bg", "Handling refreshBlockedList request from popup.");
-
-      // Check if a refresh process is already in progress (assuming a similar flag exists)
-      if (programController.isBlockedListRefreshInProgress) { // Assuming this flag exists
+      if (programController.isBlockedListRefreshInProgress) {
         log.warn("bg", "Blocked list refresh is already in progress. Ignoring new request.");
-        // Optionally send a message back to the notification page to indicate this
-        chrome.tabs.sendMessage(g_notificationTabId, {
-          action: "blockedListRefreshComplete", // New action for blocked list completion
-          success: false,
-          error: "Blocked list refresh is already running."
-        });
-        sendResponse({ status: 'error', message: 'Refresh already in progress' });
-        return; // Stop here if already running
+        if (g_notificationTabId) {
+            chrome.tabs.sendMessage(g_notificationTabId, {
+              action: "blockedListRefreshComplete", success: false, error: "Blocked list refresh is already running."
+            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+        }
+        if (!responseSent) {
+            sendResponse({ status: 'error', message: 'Refresh already in progress' });
+            responseSent = true;
+        }
+        return;
       }
-
-      // Set the flag to indicate the process is starting
-      programController.isBlockedListRefreshInProgress = true; // Assuming this flag exists
-      // Reset early stop flag before starting a new process
+      programController.isBlockedListRefreshInProgress = true;
       programController.earlyStop = false;
-
-      // Define a function to send progress updates to the notification page
       const updateProgress = async (progress) => {
-        // Send progress update to the notification page
-        chrome.tabs.sendMessage(g_notificationTabId, {
-          action: "blockedListRefreshProgress", // New action for real-time updates
-          count: progress.currentCount // Include the current count
-        });
-        // Save the current count to storage
-        await storageHandler.saveBlockedUserCount(progress.currentCount); // Use blocked user storage
+        if (g_notificationTabId) {
+            chrome.tabs.sendMessage(g_notificationTabId, {
+              action: "blockedListRefreshProgress", count: progress.currentCount
+            }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+        }
+        await storageHandler.saveBlockedUserCount(progress.currentCount);
       };
-
-      // Call scrapeAllBlockedUsers with the progress callback (Assuming this function exists)
       try {
-        const result = await scrapingHandler.scrapeAllBlockedUsers(updateProgress); // Assuming this function exists
-
+        const result = await scrapingHandler.scrapeAllBlockedUsers(updateProgress);
         if (result.success) {
-          await storageHandler.saveBlockedUserList(result.usernames); // Use blocked user storage
-          // Save the final count to storage
-          await storageHandler.saveBlockedUserCount(result.count); // Use blocked user storage
+          await storageHandler.saveBlockedUserList(result.usernames);
+          await storageHandler.saveBlockedUserCount(result.count);
           log.info("bg", `Successfully scraped and saved ${result.count} blocked users.`);
-          // Send final success message to notification page
-          chrome.tabs.sendMessage(g_notificationTabId, {
-            action: "blockedListRefreshComplete", // New action for blocked list completion
-            success: true,
-            count: result.count
-          });
+          if (g_notificationTabId) {
+              chrome.tabs.sendMessage(g_notificationTabId, {
+                action: "blockedListRefreshComplete", success: true, count: result.count
+              }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+          }
         } else {
-          // Check if the process was stopped early by the user
           if (result.stoppedEarly) {
             log.info("bg", "Blocked user scraping stopped by user.");
-            // Send a specific message to notification page for early stop
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "blockedListRefreshComplete", // New action for blocked list completion
-              success: false, // Still technically not a full success
-              stoppedEarly: true, // Indicate it was stopped early
-              count: result.count || 0, // Send current count if available
-              error: result.error || "Process stopped by user" // Provide a user-friendly message
-            });
+            if (g_notificationTabId) {
+                chrome.tabs.sendMessage(g_notificationTabId, {
+                  action: "blockedListRefreshComplete", success: false, stoppedEarly: true, count: result.count || 0, error: result.error || "Process stopped by user"
+                }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+            }
           } else {
-            // Handle actual errors during scraping
             log.err("bg", "Error scraping blocked users:", result.error);
-            // Send error message to notification page
-            chrome.tabs.sendMessage(g_notificationTabId, {
-              action: "blockedListRefreshComplete", // New action for blocked list completion
-              success: false,
-              error: result.error
-            });
+            if (g_notificationTabId) {
+                chrome.tabs.sendMessage(g_notificationTabId, {
+                  action: "blockedListRefreshComplete", success: false, error: result.error
+                }).catch(e => log.warn("bg", `Error sending message to notification tab: ${e}`));
+            }
           }
         }
       } catch (e) {
         log.err("bg", `Unexpected error during refreshBlockedList: ${e}`);
-        chrome.tabs.sendMessage(g_notificationTabId, {
-          action: "blockedListRefreshComplete", // New action for blocked list completion
-          success: false,
-          error: e.message || "Unknown error"
-        });
+        if (g_notificationTabId) {
+            chrome.tabs.sendMessage(g_notificationTabId, {
+              action: "blockedListRefreshComplete", success: false, error: e.message || "Unknown error"
+            }).catch(err => log.warn("bg", `Error sending message to notification tab: ${err}`));
+        }
       } finally {
-        // Ensure the flag is reset when the process finishes (success, error, or early stop)
-        programController.isBlockedListRefreshInProgress = false; // Assuming this flag exists
-        // Send a response to the popup (even if there was an error or early stop)
-        sendResponse({ status: 'ok', message: 'Refresh initiated' });
+        programController.isBlockedListRefreshInProgress = false;
+        if (!responseSent) {
+            sendResponse({ status: 'ok', message: 'Refresh initiated' });
+            responseSent = true;
+        }
       }
-      return true; // Indicate asynchronous response
-      return; // Stop further processing of this message
+      return true;
     } else if (message.action === "blockMutedUsers") {
       log.info("bg", "Handling blockMutedUsers request.");
-      // Call programController function (implementation needed there)
-      programController.blockMutedUsers();
-      sendResponse({ status: 'ok', message: 'Block Muted Users process initiated' });
-      return true; // Indicate asynchronous response
-      return;
+      programController.blockMutedUsers(); 
+      if (!responseSent) {
+        sendResponse({ status: 'ok', message: 'Block Muted Users process initiated' });
+        responseSent = true;
+      }
+      return true; 
     } else if (message.action === "blockTitlesOfBlockedMuted") {
       log.info("bg", "Handling blockTitlesOfBlockedMuted request.");
-      // Call programController function (implementation needed there)
-      programController.blockTitlesOfBlockedMuted();
-      sendResponse({ status: 'ok', message: 'Block Titles of Blocked/Muted process initiated' });
-      return true; // Indicate asynchronous response
-      return;
-
+      programController.blockTitlesOfBlockedMuted(); 
+      if (!responseSent) {
+        sendResponse({ status: 'ok', message: 'Block Titles of Blocked/Muted process initiated' });
+        responseSent = true;
+      }
+      return true;
     }
-    // New handlers will be inserted here in the next step
-  }
-
-  // Handle early stop message
-  if (message && message.earlyStop !== undefined) {
+  } else if (message && message.earlyStop !== undefined) {
     log.info("bg", "Received early stop message");
     programController.earlyStop = true;
-    sendResponse({status: 'ok', message: 'Early stop received'});
-    return; // Don't process further
-  }
+    if (!responseSent) {
+        sendResponse({status: 'ok', message: 'Early stop received'});
+        responseSent = true;
+    }
+    return; 
+  } else { 
+    const obj = utils.filterMessage(message, "banSource", "banMode");
+    if(obj.resultType === enums.ResultType.FAIL) {
+      log.info("bg", "Received message doesn't match known action types. Ignoring.");
+      if (!responseSent) {
+        sendResponse({status: 'ok', message: 'Unknown action or already handled.'});
+        responseSent = true;
+      }
+      return;
+    }
+    
+    log.info("bg", "a new process added to the queue, banSource: " + obj.banSource + ", banMode: " + obj.banMode);
+    let wrapperProcessHandler = processHandler.bind(null, obj.banSource, obj.banMode, obj.entryUrl, obj.authorName, obj.authorId, obj.targetType, obj.clickSource, obj.titleName, obj.titleId, obj.timeSpecifier);
+    wrapperProcessHandler.banSource = obj.banSource;
+    wrapperProcessHandler.banMode = obj.banMode;
+    wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes(); 
+    processQueue.enqueue(wrapperProcessHandler);
+    log.info("bg", "number of waiting processes in the queue: " + processQueue.size);
+    
+    (async () => {
+      const ready = await ensureNotificationTabExistsAndIsReady();
+      if (ready) {
+        notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+      } else {
+        log.warn("bg", "Notification tab not ready, could not update planned processes list immediately after enqueue.");
+      }
+    })();
 
-  // Existing logic for standard ban/unban operations
-  // Ensure response is sent if it wasn't a migration message
-  sendResponse({status: 'ok'});
-
- const obj = utils.filterMessage(message, "banSource", "banMode");
- if(obj.resultType === enums.ResultType.FAIL) {
-    // If it's not a migration message and doesn't fit the banSource/banMode structure, ignore it.
-    log.info("bg", "Received message doesn't match known action types.");
-  return;
+    if (!responseSent) {
+        sendResponse({status: 'ok', message: 'Process enqueued.'}); 
+        responseSent = true;
+    }
+    return true; 
   }
-	
-  log.info("bg", "a new process added to the queue, banSource: " + obj.banSource + ", banMode: " + obj.banMode);
-  let wrapperProcessHandler = processHandler.bind(null, obj.banSource, obj.banMode, obj.entryUrl, obj.authorName, obj.authorId, obj.targetType, obj.clickSource, obj.titleName, obj.titleId, obj.timeSpecifier);
-  wrapperProcessHandler.banSource = obj.banSource; // Keep associating metadata for queue display if needed
-  wrapperProcessHandler.banMode = obj.banMode;
-  wrapperProcessHandler.creationDateInStr = new Date().getHours() + ":" + new Date().getMinutes(); 
-  processQueue.enqueue(wrapperProcessHandler);
-  log.info("bg", "number of waiting processes in the queue: " + processQueue.size);
-  notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
 });
 
 async function processHandler(banSource, banMode, entryUrl, singleAuthorName, singleAuthorId, targetType, clickSource, titleName, titleId, timeSpecifier)
@@ -371,26 +346,18 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
            ", titleId: "          + titleId
            );
   
-  // create a notification page if not exist
-  try
-  {
-    let tab2 = await chrome.tabs.get(g_notificationTabId);
+  const notificationTabReady = await ensureNotificationTabExistsAndIsReady();
+  if (!notificationTabReady) {
+    log.err("bg", `Failed to ensure notification tab was ready for processHandler (${banSource}, ${banMode}). Process will likely fail to notify fully.`);
   }
-  catch(e)
-  {
-    // not exist, so create one
-    let tab = await chrome.tabs.create({ active: false, url: chrome.runtime.getURL("assets/html/notification.html") });
-    g_notificationTabId = tab.id;
-  }
-  programController.tabId = g_notificationTabId;
   notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
 
   let authorNameList = [];
   let authorIdList = [];
   let entryMetaData = {};
   
-  await handleConfig(); // load config
-  relationHandler.reset(); // reset the counters to reuse
+  await handleConfig();
+  relationHandler.reset();
 
   notificationHandler.notifyControlAccess();
   const isEksiSozlukAccessible = await handleEksiSozlukURL();
@@ -414,96 +381,61 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   if(banSource === enums.BanSource.SINGLE)
   {
     notificationHandler.notifyOngoing(0, 0, 1);
-    
     let res = await relationHandler.performAction(banMode, singleAuthorId, targetType == enums.TargetType.USER, targetType == enums.TargetType.TITLE, targetType == enums.TargetType.MUTE);
     authorIdList.push(singleAuthorId);
     authorNameList.push(singleAuthorName);
-    
     if(res.resultType == enums.ResultType.FAIL)
     {
-      // performAction failed because to too many request
-
-      // while waiting cooldown, send periodic notifications to user 
-      // this also provides that chrome doesn't kill the extension for being idle
       await new Promise(async resolve => 
       {
-        // wait 1 minute (+2 sec to ensure)
         let waitTimeInSec = 62;
         for(let i = 1; i <= waitTimeInSec; i++)
         {
-          if(programController.earlyStop)
-            break;
-          
+          if(programController.earlyStop) break;
           notificationHandler.notifyCooldown(waitTimeInSec-i);
-          
-          // wait 1 sec
           await new Promise(resolve2 => { setTimeout(resolve2, 1000); }); 
         }
-          
         resolve();        
       }); 
-      
       if(!programController.earlyStop)
         res = await relationHandler.performAction(banMode, singleAuthorId, targetType == enums.TargetType.USER, targetType == enums.TargetType.TITLE, targetType == enums.TargetType.MUTE);
     }
-    
     notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, authorNameList.length);
   }
   else if(banSource === enums.BanSource.LIST)
   {
-    authorNameList = await utils.getUserList(); // names will be loaded from storage
+    authorNameList = await utils.getUserList();
     utils.cleanUserList(authorNameList);
-    
-    // stop if there is no user
-    log.info("bg", "number of user to ban " + authorNameList.length);
     if(authorNameList.length === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
       log.err("bg", "Program has been finished (finishErrorNoAccount)");
       return;
     }
-
     notificationHandler.notifyOngoing(0, 0, authorNameList.length);
-    
     for (let i = 0; i < authorNameList.length; i++)
     {
-      if(programController.earlyStop)
-        break;
-      
+      if(programController.earlyStop) break;
       let authorId = await scrapingHandler.scrapeAuthorIdFromAuthorProfilePage(authorNameList[i]);
       authorIdList.push(authorId);
-      
       let res;
       if(banMode == enums.BanMode.BAN)
         res = await relationHandler.performAction(banMode, authorId, !config.enableMute, config.enableTitleBan, config.enableMute);
       else
         res = await relationHandler.performAction(banMode, authorId, true, true, true);
-      
       if(res.resultType == enums.ResultType.FAIL)
       {
-        // performAction failed because to too many request
-
-        // while waiting cooldown, send periodic notifications to user 
-        // this also provides that chrome doesn't kill the extension for being idle
         await new Promise(async resolve => 
         {
-          // wait 1 minute (+2 sec to ensure)
           let waitTimeInSec = 62;
           for(let i = 1; i <= waitTimeInSec; i++)
           {
-            if(programController.earlyStop)
-              break;
-            
-            // send message to notification page
+            if(programController.earlyStop) break;
             notificationHandler.notifyCooldown(waitTimeInSec-i);
-            
-            // wait 1 sec
             await new Promise(resolve2 => { setTimeout(resolve2, 1000); }); 
           }
-            
           resolve();        
         }); 
-        
         if(!programController.earlyStop)
         {
           if(banMode == enums.BanMode.BAN)
@@ -512,37 +444,24 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
             res = await relationHandler.performAction(banMode, authorId, true, true, true);
         }
       }
-
-      // send message to notification page
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, authorNameList.length);
     }
-    
   }
   else if(banSource === enums.BanSource.FAV)
   {
     notificationHandler.notifyScrapeFavs();
-
     entryMetaData = await scrapingHandler.scrapeMetaDataFromEntryPage(entryUrl);
-    let scrapedRelations = await scrapingHandler.scrapeAuthorNamesFromFavs(entryUrl); // names will be scraped
-    
-    log.info("bg", "number of user to ban (before analysis): " + scrapedRelations.size);
-    
-    // stop if there is no user
+    let scrapedRelations = await scrapingHandler.scrapeAuthorNamesFromFavs(entryUrl);
     if(scrapedRelations.size === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
       log.err("bg", "Program has been finished (error_NoAccount)");
       return;
     }
-    
-    // analysis before operation 
     if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN)
     {
-      // scrape the authors that ${clientName} follows
       notificationHandler.notifyScrapeFollowings();
       let mapFollowing = await scrapingHandler.scrapeFollowing(clientName);
-      
-      // remove the authors that ${clientName} follows from the list to protect    
       notificationHandler.notifyAnalysisProtectFollowedUsers();  
       for (let name of scrapedRelations.keys()) {
         if (mapFollowing.has(name))
@@ -551,11 +470,8 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     }
     if(config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions)
     {
-      // scrape the authors that ${clientName} blocked
       notificationHandler.notifyScrapeBanned();
       let mapBlocked = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
-      
-      // update the list with info obtained from mapBlocked
       notificationHandler.notifyAnalysisOnlyRequiredActions();
       for (let name of scrapedRelations.keys()) {
         if (mapBlocked.has(name))
@@ -566,120 +482,73 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
         }
       }
     }
-      
-    log.info("bg", "number of user to ban (after analysis): " + scrapedRelations.size);
-    
-    // stop if there is no user
     if(scrapedRelations.size === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
-      log.err("bg", "Program has been finished (error_NoAccount)");
+      log.err("bg", "Program has been finished (error_NoAccount after analysis)");
       return;
     }
-
-    // --- Fetch Author IDs for FAV source ---
-    notificationHandler.notifyScrapeIDs(); // Notify user about fetching IDs
+    notificationHandler.notifyScrapeIDs();
     let validScrapedRelations = new Map();
-    authorNameList = []; // Reset lists
-    authorIdList = [];
+    authorNameList = []; authorIdList = [];
     let favIndex = 0;
     for (const [name, relation] of scrapedRelations) {
       if(programController.earlyStop) break;
       favIndex++;
-      notificationHandler.notifyScrapeIDsProgress(favIndex, scrapedRelations.size); // Update progress
+      notificationHandler.notifyScrapeIDsProgress(favIndex, scrapedRelations.size);
       const authorId = await scrapingHandler.scrapeAuthorIdFromAuthorProfilePage(name);
       if (authorId && authorId !== "0") {
-        relation.authorId = authorId; // Update the relation object with the fetched ID
-        validScrapedRelations.set(name, relation); // Add to the map with valid IDs
-        authorNameList.push(name); // Keep track for final summary
-        authorIdList.push(authorId);
+        relation.authorId = authorId;
+        validScrapedRelations.set(name, relation);
+        authorNameList.push(name); authorIdList.push(authorId);
       } else {
         log.warn("bg", `Could not fetch authorId for fav user: ${name}`);
       }
-      await utils.sleep(50); // Small delay between ID fetches
+      await utils.sleep(50);
     }
-    scrapedRelations = validScrapedRelations; // Use the map with valid IDs
-    log.info("bg", "number of user to ban (after fetching IDs): " + scrapedRelations.size);
-    // --- End Fetch Author IDs ---
-
-    // stop if there is no user after fetching IDs
+    scrapedRelations = validScrapedRelations;
     if(scrapedRelations.size === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
       log.err("bg", "Program has been finished (error_NoAccount after fetching IDs)");
       return;
     }
-
-    notificationHandler.notifyOngoing(0, 0, scrapedRelations.size); // Update total count
-
+    notificationHandler.notifyOngoing(0, 0, scrapedRelations.size);
     for (const [name, value] of scrapedRelations)
     {
-      if(programController.earlyStop)
-        break;
-
-      // value.isBannedUser and others are null if analysis is not enabled
-      let res = await relationHandler.performAction(banMode,
-                                                    value.authorId, // Use the fetched authorId
-                                                    (!value.isBannedUser && !config.enableMute),
-                                                    (!value.isBannedTitle && config.enableTitleBan),
-                                                    (!value.isBannedMute && config.enableMute));
-
+      if(programController.earlyStop) break;
+      let res = await relationHandler.performAction(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
       if(res.resultType == enums.ResultType.FAIL)
       {
-        // performAction failed because to too many request
-
-        // while waiting cooldown, send periodic notifications to user 
-        // this also provides that chrome doesn't kill the extension for being idle
         await new Promise(async resolve => 
         {
-          // wait 1 minute (+2 sec to ensure)
           let waitTimeInSec = 62;
           for(let j = 1; j <= waitTimeInSec; j++)
           {
-            if(programController.earlyStop)
-              break;
-            
-            // send message to notification page
+            if(programController.earlyStop) break;
             notificationHandler.notifyCooldown(waitTimeInSec-j);
-            
-            // wait 1 sec
             await new Promise(resolve2 => { setTimeout(resolve2, 1000); }); 
           }
-            
           resolve();        
         }); 
-        
         if(!programController.earlyStop)
         {
-          // value.isBannedUser and others are null if analysis is not enabled
-          res = await relationHandler.performAction(banMode, 
-                                                    value.authorId, 
-                                                    (!value.isBannedUser && !config.enableMute),
-                                                    (!value.isBannedTitle && config.enableTitleBan), 
-                                                    (!value.isBannedMute && config.enableMute));
+          res = await relationHandler.performAction(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
         }
       }
-      
-      // send message to notification page
-      notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size); // Use size of map with valid IDs
+      notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size);
     }
   }
   else if (banSource === enums.BanSource.FOLLOW)
   {
-    notificationHandler.notifyScrapeFollowers(); // Notify user
-
-    let scrapedRelations = await scrapingHandler.scrapeFollower(singleAuthorName); // Scrape followers of the target author
-    log.info("bg", "number of followers to ban (before analysis): " + scrapedRelations.size);
-
-    // stop if there is no user
+    notificationHandler.notifyScrapeFollowers();
+    let scrapedRelations = await scrapingHandler.scrapeFollower(singleAuthorName);
     if(scrapedRelations.size === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
       log.err("bg", "Program has been finished (error_NoAccount - followers)");
       return;
     }
-
-    // Optional Analysis (similar to FAV)
     if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN)
     {
       notificationHandler.notifyScrapeFollowings();
@@ -698,7 +567,6 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       for (let name of scrapedRelations.keys()) {
         if (mapBlocked.has(name))
         {
-          // Ensure the relation object exists before trying to update it
           if (!scrapedRelations.has(name)) continue;
           scrapedRelations.get(name).isBannedUser = mapBlocked.get(name).isBannedUser;
           scrapedRelations.get(name).isBannedTitle = mapBlocked.get(name).isBannedTitle;
@@ -706,43 +574,26 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
         }
       }
     }
-
-    log.info("bg", "number of followers to ban (after analysis): " + scrapedRelations.size);
-
-    // stop if there is no user after analysis
     if(scrapedRelations.size === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
       log.err("bg", "Program has been finished (error_NoAccount - followers after analysis)");
       return;
     }
-
     authorNameList = Array.from(scrapedRelations, ([name, value]) => name);
     authorIdList = Array.from(scrapedRelations, ([name, value]) => value.authorId);
-
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size);
-    notificationHandler.notifyStatus("Takipçiler engelleniyor..."); // Added specific status before blocking loop
-
+    notificationHandler.notifyStatus("Takipçiler engelleniyor...");
     for (const [name, value] of scrapedRelations)
     {
       if(programController.earlyStop) break;
-
-      // Ensure authorId is valid before proceeding
       if (!value.authorId || value.authorId === "0") {
           log.warn("bg", `Skipping follower with invalid ID: ${name}`);
-          // Decrement performedAction counter if necessary, or adjust total count initially
           continue;
       }
-
-      let res = await relationHandler.performAction(banMode,
-                                                    value.authorId,
-                                                    (!value.isBannedUser && !config.enableMute),
-                                                    (!value.isBannedTitle && config.enableTitleBan),
-                                                    (!value.isBannedMute && config.enableMute));
-
+      let res = await relationHandler.performAction(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
       if(res.resultType == enums.ResultType.FAIL)
       {
-        // Cooldown logic (copied from FAV)
         await new Promise(async resolve =>
         {
           let waitTimeInSec = 62;
@@ -754,36 +605,24 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
           }
           resolve();
         });
-
         if(!programController.earlyStop)
         {
-          res = await relationHandler.performAction(banMode,
-                                                    value.authorId,
-                                                    (!value.isBannedUser && !config.enableMute),
-                                                    (!value.isBannedTitle && config.enableTitleBan),
-                                                    (!value.isBannedMute && config.enableMute));
+          res = await relationHandler.performAction(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
         }
       }
-
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size);
     }
   }
   else if (banSource === enums.BanSource.TITLE)
   {
-    notificationHandler.notifyScrapeTitleAuthors(timeSpecifier); // Notify user
-
+    notificationHandler.notifyScrapeTitleAuthors(timeSpecifier);
     let scrapedRelations = await scrapingHandler.scrapeAuthorsFromTitle(titleName, titleId, timeSpecifier);
-    log.info("bg", `number of authors in title (${timeSpecifier}) to ban (before analysis): ${scrapedRelations.size}`);
-
-    // stop if there is no user
     if(scrapedRelations.size === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
       log.err("bg", "Program has been finished (error_NoAccount - title authors)");
       return;
     }
-
-    // Optional Analysis (similar to FAV/FOLLOW)
     if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN)
     {
       notificationHandler.notifyScrapeFollowings();
@@ -802,7 +641,6 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       for (let name of scrapedRelations.keys()) {
         if (mapBlocked.has(name))
         {
-           // Ensure the relation object exists before trying to update it
           if (!scrapedRelations.has(name)) continue;
           scrapedRelations.get(name).isBannedUser = mapBlocked.get(name).isBannedUser;
           scrapedRelations.get(name).isBannedTitle = mapBlocked.get(name).isBannedTitle;
@@ -810,41 +648,25 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
         }
       }
     }
-
-    log.info("bg", `number of authors in title (${timeSpecifier}) to ban (after analysis): ${scrapedRelations.size}`);
-
-    // stop if there is no user after analysis
     if(scrapedRelations.size === 0)
     {
       notificationHandler.finishErrorNoAccount(banSource, banMode);
       log.err("bg", "Program has been finished (error_NoAccount - title authors after analysis)");
       return;
     }
-
     authorNameList = Array.from(scrapedRelations, ([name, value]) => name);
     authorIdList = Array.from(scrapedRelations, ([name, value]) => value.authorId);
-
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size);
-
     for (const [name, value] of scrapedRelations)
     {
       if(programController.earlyStop) break;
-
-       // Ensure authorId is valid before proceeding
       if (!value.authorId || value.authorId === "0") {
           log.warn("bg", `Skipping title author with invalid ID: ${name}`);
           continue;
       }
-
-      let res = await relationHandler.performAction(banMode,
-                                                    value.authorId,
-                                                    (!value.isBannedUser && !config.enableMute),
-                                                    (!value.isBannedTitle && config.enableTitleBan),
-                                                    (!value.isBannedMute && config.enableMute));
-
+      let res = await relationHandler.performAction(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
       if(res.resultType == enums.ResultType.FAIL)
       {
-        // Cooldown logic (copied from FAV)
         await new Promise(async resolve =>
         {
           let waitTimeInSec = 62;
@@ -856,184 +678,116 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
           }
           resolve();
         });
-
         if(!programController.earlyStop)
         {
-          res = await relationHandler.performAction(banMode,
-                                                    value.authorId,
-                                                    (!value.isBannedUser && !config.enableMute),
-                                                    (!value.isBannedTitle && config.enableTitleBan),
-                                                    (!value.isBannedMute && config.enableMute));
+          res = await relationHandler.performAction(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
         }
       }
-
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size);
     }
   }
   else if (banSource === enums.BanSource.UNDOBANALL) {
       log.info("bg", "Handling UNDOBANALL request.");
       notificationHandler.notify("Tüm engeller ve sessize almalar kaldırılıyor...");
+      let totalProcessed = 0, totalSuccessful = 0, totalFailed = 0, totalPlanned = 0;
 
-      let totalProcessed = 0;
-      let totalSuccessful = 0;
-      let totalFailed = 0;
-      let totalPlanned = 0;
-
-      // --- Process Blocked Users ---
       notificationHandler.notify("Engellenen kullanıcılar alınıyor...");
       const blockedUsersResult = await scrapingHandler.scrapeAllBlockedUsers();
-
       if (blockedUsersResult.success && blockedUsersResult.usernames.length > 0) {
           const blockedUsers = blockedUsersResult.usernames.map(username => ({ authorName: username, authorId: null }));
           totalPlanned += blockedUsers.length;
           notificationHandler.notify(`Engellenen ${blockedUsers.length} kullanıcı bulundu. Engeller kaldırılıyor...`);
           notificationHandler.notifyOngoing(totalSuccessful, totalProcessed, totalPlanned);
-
           for (let i = 0; i < blockedUsers.length; i++) {
               if (programController.earlyStop) break;
-
               const user = blockedUsers[i];
               notificationHandler.notifyStatus(`Engel kaldırılıyor: ${user.authorName} (${totalProcessed + 1}/${totalPlanned})`);
-
-              // Scrape ID
               const authorId = await scrapingHandler.scrapeAuthorIdFromAuthorProfilePage(user.authorName);
               if (!authorId || authorId === "0") {
                   log.err("bg", `Could not scrape user ID for ${user.authorName}. Skipping unblock.`);
-                  totalFailed++;
-                  totalProcessed++;
+                  totalFailed++; totalProcessed++;
                   notificationHandler.notifyStatus(`ID alınamadı, engel kaldırılamadı: ${user.authorName}`);
                   continue;
               }
-
-              // Perform Unblock Action (User)
               const unblockUserResult = await programController._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
-
               if (unblockUserResult.earlyStop) break;
-
               if (unblockUserResult.resultType === enums.ResultType.SUCCESS) {
-                  log.info("bg", `Successfully unblocked user: ${user.authorName}`);
                   totalSuccessful++;
-                  // No need to remove from blocked list storage, as it's refreshed on demand
               } else {
-                  log.err("bg", `Failed to unblock user: ${user.authorName}`);
                   totalFailed++;
               }
               totalProcessed++;
               notificationHandler.notifyOngoing(totalSuccessful, totalProcessed, totalPlanned);
-              await utils.sleep(500); // Small delay
+              await utils.sleep(500);
           }
       } else if (!blockedUsersResult.success) {
           log.err("bg", `Failed to fetch blocked users: ${blockedUsersResult.error}`);
           notificationHandler.notify(`Engellenen kullanıcılar alınamadı: ${blockedUsersResult.error}`);
-          totalFailed += blockedUsersResult.count || 0; // Add any partially scraped count to failed
+          totalFailed += blockedUsersResult.count || 0;
       } else {
-          log.info("bg", "No blocked users found to unblock.");
           notificationHandler.notify("Engellenen kullanıcı bulunamadı.");
       }
 
-      // Check for early stop before processing muted users
       if (programController.earlyStop) {
-          log.info("bg", "Operation stopped early after processing blocked users.");
           notificationHandler.notify("İşlem kullanıcı tarafından durduruldu.");
-          // Final notification will be handled after the try/catch/finally block
       } else {
-          // --- Process Muted Users ---
           notificationHandler.notify("Sessize alınan kullanıcılar alınıyor...");
-          const mutedUsersResult = await scrapingHandler.scrapeAllMutedUsers(); // Assuming this exists and works like scrapeAllBlockedUsers
-
+          const mutedUsersResult = await scrapingHandler.scrapeAllMutedUsers();
           if (mutedUsersResult.success && mutedUsersResult.usernames.length > 0) {
               const mutedUsers = mutedUsersResult.usernames.map(username => ({ authorName: username, authorId: null }));
-              totalPlanned += mutedUsers.length; // Add to total planned
+              totalPlanned += mutedUsers.length;
               notificationHandler.notify(`Sessize alınan ${mutedUsers.length} kullanıcı bulundu. Sessize almalar kaldırılıyor...`);
-              notificationHandler.notifyOngoing(totalSuccessful, totalProcessed, totalPlanned); // Update progress with new total planned
-
+              notificationHandler.notifyOngoing(totalSuccessful, totalProcessed, totalPlanned);
               for (let i = 0; i < mutedUsers.length; i++) {
                   if (programController.earlyStop) break;
-
                   const user = mutedUsers[i];
                   notificationHandler.notifyStatus(`Sessize alma kaldırılıyor: ${user.authorName} (${totalProcessed + 1}/${totalPlanned})`);
-
-                  // Scrape ID
                   const authorId = await scrapingHandler.scrapeAuthorIdFromAuthorProfilePage(user.authorName);
                   if (!authorId || authorId === "0") {
                       log.err("bg", `Could not scrape user ID for ${user.authorName}. Skipping unmute.`);
-                      totalFailed++;
-                      totalProcessed++;
+                      totalFailed++; totalProcessed++;
                       notificationHandler.notifyStatus(`ID alınamadı, sessize alma kaldırılamadı: ${user.authorName}`);
                       continue;
                   }
-
-                  // Perform Unmute Action (Mute)
                   const unmuteResult = await programController._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
-
                   if (unmuteResult.earlyStop) break;
-
                   if (unmuteResult.resultType === enums.ResultType.SUCCESS) {
-                      log.info("bg", `Successfully unmuted user: ${user.authorName}`);
                       totalSuccessful++;
-                      // Need to remove from muted list storage
-                      // This will be handled after the loop
                   } else {
-                      log.err("bg", `Failed to unmute user: ${user.authorName}`);
                       totalFailed++;
                   }
                   totalProcessed++;
                   notificationHandler.notifyOngoing(totalSuccessful, totalProcessed, totalPlanned);
-                  await utils.sleep(500); // Small delay
+                  await utils.sleep(500);
               }
-
-              // Update muted user list in storage after processing
               if (!programController.earlyStop) {
-                   // If not stopped early, the muted list should now be empty
                    await storageHandler.saveMutedUserList([]);
                    await storageHandler.saveMutedUserCount(0);
-                   log.info("bg", "Cleared muted user list in storage.");
               } else {
-                   // If stopped early, the muted list in storage is no longer accurate.
-                   // It's safer to clear it or mark it as needing refresh.
-                   // Clearing seems simpler for now.
                    await storageHandler.saveMutedUserList([]);
                    await storageHandler.saveMutedUserCount(0);
-                   log.info("bg", "Cleared muted user list in storage due to early stop.");
               }
-
-
           } else if (!mutedUsersResult.success) {
               log.err("bg", `Failed to fetch muted users: ${mutedUsersResult.error}`);
               notificationHandler.notify(`Sessize alınan kullanıcılar alınamadı: ${mutedUsersResult.error}`);
-               totalFailed += mutedUsersResult.count || 0; // Add any partially scraped count to failed
+              totalFailed += mutedUsersResult.count || 0;
           } else {
-              log.info("bg", "No muted users found to unmute.");
               notificationHandler.notify("Sessize alınan kullanıcı bulunamadı.");
           }
       }
 
-
-      // Final status update
       if (programController.earlyStop) {
           notificationHandler.finishErrorEarlyStop(banSource, banMode);
-          log.info("bg", `Program has been finished (early stop. Successful: ${totalSuccessful}, Performed: ${totalProcessed}, Planned: ${totalPlanned})`);
       } else {
           notificationHandler.finishSuccess(banSource, banMode, totalSuccessful, totalProcessed, totalPlanned);
-          log.info("bg", `Program has been finished (successfull: ${totalSuccessful}, performed: ${totalProcessed}, planned: ${totalPlanned})`);
       }
-
-      // Clear blocked user list in storage after processing
-      // This is important because the list is now empty on the server side
       if (!programController.earlyStop) {
           await storageHandler.saveBlockedUserList([]);
           await storageHandler.saveBlockedUserCount(0);
-          log.info("bg", "Cleared blocked user list in storage.");
       } else {
-          // If stopped early, the blocked list in storage is no longer accurate.
-          // Clearing seems simpler for now.
           await storageHandler.saveBlockedUserList([]);
           await storageHandler.saveBlockedUserCount(0);
-          log.info("bg", "Cleared blocked user list in storage due to early stop.");
       }
-
-
-      // The rest of the processHandler logic (sending analytics, clearing flags) will run after this block.
   }
 
   let successfulAction = relationHandler.successfulAction;
@@ -1042,109 +796,67 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   let eksi_engel_user = createEksiSozlukUser(clientName, clientId);
   let fav_author = createEksiSozlukUser(entryMetaData.authorName, entryMetaData.authorId);
   let fav_title = createEksiSozlukTitle(entryMetaData.titleName, entryMetaData.titleId);
-  let fav_entry = createEksiSozlukEntry(fav_title /* TODO */, entryMetaData.entryId);
+  let fav_entry = createEksiSozlukEntry(fav_title, entryMetaData.entryId);
 
-  // TODO: extremely inefficient solution, delete authorNameList and authorId arrays
-  let author_list = authorIdList.map((id, index) => {
-    return {
+  let author_list = authorIdList.map((id, index) => ({
       eksisozluk_id: id,
       eksisozluk_name: authorNameList[index]
-    }
-  });
-  // filter id==0 authors (these authors only come with BanSource::LIST)
-  author_list = author_list.filter(function(item){
-    const {eksisozluk_id, eksisozluk_name} = item;
-    return eksisozluk_id != 0;  
-  });
+  })).filter(item => item.eksisozluk_id != 0);
 
   let action = new Action({
-    eksi_engel_user:  eksi_engel_user,
-    version:          chrome.runtime.getManifest().version,
-    user_agent:       userAgent,
-    ban_source:       banSource,
-    ban_mode:         banMode,
-    author_list:      author_list,
-    author_list_size: author_list.length,
-    planned_action:   authorNameList.length,
-    performed_action: performedAction,
-    successful_action:successfulAction,
-    is_early_stopped: programController.earlyStop,
-    log_level:        null,
-    log:              null,
-    target_type:      targetType,
-    click_source:     clickSource,
-    fav_title:        fav_title,
-    fav_entry:        fav_entry,
-    fav_author:       fav_author,
-    time_specifier:   timeSpecifier
+    eksi_engel_user, version: chrome.runtime.getManifest().version, user_agent: userAgent,
+    ban_source: banSource, ban_mode: banMode, author_list, author_list_size: author_list.length,
+    planned_action: authorNameList.length, performed_action: performedAction, successful_action: successfulAction,
+    is_early_stopped: programController.earlyStop, log_level: null, log: null, target_type: targetType,
+    click_source: clickSource, fav_title, fav_entry, fav_author, time_specifier: timeSpecifier
   });
 
-  // log_level and log
-  if(config.sendLog && log.isEnabled)
-  {
+  if(config.sendLog && log.isEnabled) {
     action.log_level = log.level;
     action.log = log.getData().toString();
-  }
-  else
-  {
+  } else {
     action.log_level = log.constructor.Levels.DISABLED; 
     action.log = null;
   }
 
   let action_config = new ActionConfig({
-    eksi_sozluk_url: config.EksiSozlukURL,
-    send_data: config.sendData,
-    enable_noob_ban: config.enableNoobBan,
-    enable_mute: config.enableTitleBan,
-    enable_anaylsis_before_operations: config.enableAnalysisBeforeOperation,
+    eksi_sozluk_url: config.EksiSozlukURL, send_data: config.sendData, enable_noob_ban: config.enableNoobBan,
+    enable_mute: config.enableTitleBan, enable_anaylsis_before_operations: config.enableAnalysisBeforeOperation,
     enable_only_required_actions: config.enableOnlyRequiredActions,
-    enable_protect_followed_users: config.enableProtectFollowedUsers,
-    ban_premium_icons: config.banPremiumIcons
+    enable_protect_followed_users: config.enableProtectFollowedUsers, ban_premium_icons: config.banPremiumIcons
   });
 
-  if(config.sendData)
-    await commHandler.sendData(action, action_config);
+  if(config.sendData) await commHandler.sendData(action, action_config);
 
-  notificationHandler.finishSuccess(banSource, banMode, successfulAction, performedAction, authorNameList.length);
+  if (programController.earlyStop) {
+    if (banSource !== enums.BanSource.UNDOBANALL) { 
+        notificationHandler.finishErrorEarlyStop(banSource, banMode);
+    }
+  } else {
+    notificationHandler.finishSuccess(banSource, banMode, successfulAction, performedAction, authorNameList.length);
+  }
   
-  // if early stop was generated, erase planned processes in notification page
-  if(programController.earlyStop)
-  {
+  if(programController.earlyStop) {
     log.info("bg", "(updatePlannedProcessesList just before finished) notification page's queue will be updated.");
-    notificationHandler.updatePlannedProcessesList(""); // erase the processes in the planned processes table
-    // add the remaining processes to completed process table
+    notificationHandler.updatePlannedProcessesList("");
     let remainingProcessesArray = processQueue.itemAttributes;
     for (const element of remainingProcessesArray)
       notificationHandler.finishErrorEarlyStop(element.banSource, element.banMode);
-    processQueue.clear(); // clear the remaining planned processes in the queue 
+    processQueue.clear();
   }
   
   log.info("bg", "Program has been finished (successfull:" + successfulAction + ", performed:" + performedAction + ", planned:" + authorNameList.length + ")");
-
-  programController.earlyStop = false; // reset to reuse
+  programController.earlyStop = false;
   log.resetData();
 }
 
-// this listener fired every time when the extension installed or updated.
-chrome.runtime.onInstalled.addListener(async (details) => 
-{
-  
+chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === chrome.runtime.OnInstalledReason.INSTALL || 
-      details.reason === chrome.runtime.OnInstalledReason.UPDATE) 
-  {
-    // first install or extension is updated
+      details.reason === chrome.runtime.OnInstalledReason.UPDATE) {
     log.info("bg", "program installed or updated.");
-    
-    // erase local storage, because config file could have been changed in the new version.
     await chrome.storage.local.clear();
-    
-    // handle config of the extension
     await handleConfig();
-    
-    // analytics
     await commHandler.sendAnalyticsData({click_type:enums.ClickType.INSTALL_OR_UPDATE});
-    
-    // open welcome page
-    let tab = await chrome.tabs.create({ url: chrome.runtime.getURL("assets/html/welcome.html") });
+    await chrome.tabs.create({ url: chrome.runtime.getURL("assets/html/welcome.html") });
   }
 });

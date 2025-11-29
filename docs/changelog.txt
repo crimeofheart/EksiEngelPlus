@@ -2,12 +2,12 @@ Versiyon notları (son kullanıcı için)
 -------------------------------------------------
 
 v0.1
-yayın: 2025
-major: EksiEngelPlus'e yeniden markalandı. Ekşi Engel'den türetilmiş yeni sürüm.
+yayın: 29.11.2025
+yeni isim: EksiEngelPlus. Ekşi Engel'den türetilmiş yeni sürüm.
 
 v3.2
 yayın: 
-bug fix: EksiEngelPlus serverı taşındığı için URL adresleri güncel değildi.
+bug fix: EksiEngel serverı taşındığı için URL adresleri güncel değildi.
 
 v3.1 
 yayın: 03.03.2024  
@@ -38,7 +38,7 @@ yeni özellik: sayfalardan footer kaldırıldı
 
 v2.5
 yayın: 06.04.2023
-bug fix: EksiEngelPlus'in, Ekşi Sözlük'ün mahkeme kararı ile engellenmesi üzerine geçtiği yeni domain 
+bug fix: EksiEngel'in, Ekşi Sözlük'ün mahkeme kararı ile engellenmesi üzerine geçtiği yeni domain 
          eksisozluk2023.com üzerinde çalışması sağlandı. 
 
 v2.4
@@ -270,7 +270,7 @@ webserver taşındı. bu kapsamda çeşitli değişikler yaşandı.
   
 v3.2 
 gönderim: 09.04.2024 yayın: 2025
-bug fix: EksiEngelPlus serverı taşındığı için URL adresleri güncel değildi.
+bug fix: EksiEngel serverı taşındığı için URL adresleri güncel değildi.
 
 v3.3
 gönderim: yayın: 

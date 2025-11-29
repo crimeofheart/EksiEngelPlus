@@ -18,4 +18,4 @@ Ekşi Sözlük'te üç çeşit engelleme metodu bulunuyor ve EksiEngelPlus hepsi
 Ek Özellikler:
 - Turuncu ve yeşil tikleri gizleyin.
 
-Versiyon notları için: Extension içindeki versiyon notlarına bakın
+Versiyon notları için: Extension içindeki versiyon notlarına bakın.

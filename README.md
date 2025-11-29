@@ -49,7 +49,7 @@ This data is planned to be used later to obtain the information of the most bloc
 
 Ekşi Engel in Chrome Webstore: [link](https://chrome.google.com/webstore/detail/ek%C5%9Fi-engel/cpfbfacaggnedffhdgdgmhkobijckkha)
 
-Version notes: [link](https://h-enes-simsek.github.io/EksiEngel/releaseNotes.html)  
+Version notes: Extension içindeki versiyon notlarına bakın  
 
 <div float="left">
 <img src="frontend/publish/ss/entryMenu.png" width="480" height="300">

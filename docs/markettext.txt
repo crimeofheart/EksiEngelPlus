@@ -3,14 +3,14 @@ Web Mağazası Metni
 Ekşi Sözlük'te toplu olarak engelleme/başlıklarını engelleme işlemi yapın.
 Görmek istemediğiniz Ekşi Sözlük hesaplarını ve açtıkları başlıkları engelleyebilirsiniz. Eğer yüzlerce hesabı engellemek isterseniz bu eklenti arka planda sizin yerinize yapar.
 
-Ekşi Engel ile neler yapabilirsiniz?
+EksiEngelPlus ile neler yapabilirsiniz?
 - Bir entry'i favorileyen tüm yazarları engelleyin.
 - Bir yazarın tüm takipçilerini engelleyin.
 - Bir başlığa yazmış herkesi engelleyin.
 - Bir liste halinde gireceğiniz yazarları engelleyin veya engelini kaldırın.
 - Engellediğiniz tüm yazarların engelini kaldırın.
 
-Ekşi Sözlük'te üç çeşit engelleme metodu bulunuyor ve Ekşi Engel hepsini destekliyor.
+Ekşi Sözlük'te üç çeşit engelleme metodu bulunuyor ve EksiEngelPlus hepsini destekliyor.
 - Yazarı engelle
 - Başlıklarını engelle
 - Sessize al
@@ -18,4 +18,4 @@ Ekşi Sözlük'te üç çeşit engelleme metodu bulunuyor ve Ekşi Engel hepsini
 Ek Özellikler:
 - Turuncu ve yeşil tikleri gizleyin.
 
-Versiyon notları için: https://h-enes-simsek.github.io/EksiEngel
+Versiyon notları için: Extension içindeki versiyon notlarına bakın

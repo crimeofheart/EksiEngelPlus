@@ -15,90 +15,106 @@ import { storageHandler } from './storageHandler.js';
 
 log.info("bg", "initialized");
 let g_notificationTabId = 0;
+let g_notificationTabCreationInProgress = null;
 
 async function ensureNotificationTabExistsAndIsReady() {
   log.info("bg", "Ensuring notification tab exists and is ready (without forcing focus)...");
-  let currentNotificationTabId = g_notificationTabId; 
+  
+  // If tab creation is already in progress, wait for it to complete
+  if (g_notificationTabCreationInProgress) {
+    log.info("bg", "Tab creation already in progress, waiting...");
+    return g_notificationTabCreationInProgress;
+  }
 
-  try {
-    // 1. Check if g_notificationTabId points to a valid, existing tab
-    if (currentNotificationTabId) {
-      try {
-        await chrome.tabs.get(currentNotificationTabId);
-        log.info("bg", `Confirmed stored notification tab ID ${currentNotificationTabId} exists.`);
-        // No explicit activation here
-      } catch (e) {
-        log.warn("bg", `Stored notification tab ID ${currentNotificationTabId} not found or invalid: ${e}. Will query/create.`);
-        currentNotificationTabId = 0; 
-      }
-    }
+  // Create a promise to track this tab creation process
+  g_notificationTabCreationInProgress = (async () => {
+    let currentNotificationTabId = g_notificationTabId; 
 
-    // 2. If no valid stored ID, query by URL
-    if (!currentNotificationTabId) {
-      const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL("assets/html/notification.html") });
-      if (tabs && tabs.length > 0) {
-        currentNotificationTabId = tabs[0].id;
-        log.info("bg", `Found existing notification tab by URL: ${currentNotificationTabId}`);
-        // No explicit activation here
-      }
-    }
-
-    // 3. If still no tab ID, create a new one (inactive)
-    if (!currentNotificationTabId) {
-      const notificationUrl = chrome.runtime.getURL("assets/html/notification.html");
-      const tab = await chrome.tabs.create({ active: false, url: notificationUrl }); // Ensure tab is created inactive
-      currentNotificationTabId = tab.id;
-      log.info("bg", `Created new inactive notification tab: ${currentNotificationTabId}`);
-    }
-
-    g_notificationTabId = currentNotificationTabId;
-    programController.tabId = g_notificationTabId;
-
-    // 4. Wait for the page to be ready
-    log.info("bg", `Waiting for notification page (ID: ${g_notificationTabId}) to be ready...`);
-    const waitForNotificationPage = new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error(`Timeout waiting for notification page (ID: ${g_notificationTabId}) to load`));
-      }, 5000);
-
-      const messageListener = (msg, sender) => {
-        if (sender.tab && sender.tab.id === g_notificationTabId && msg && msg.action === "notificationPageReady") {
-          clearTimeout(timeout);
-          chrome.runtime.onMessage.removeListener(messageListener);
-          log.info("bg", `Notification page (ID: ${g_notificationTabId}) sent ready message.`);
-          resolve();
+    try {
+      // 1. Check if g_notificationTabId points to a valid, existing tab
+      if (currentNotificationTabId) {
+        try {
+          await chrome.tabs.get(currentNotificationTabId);
+          log.info("bg", `Confirmed stored notification tab ID ${currentNotificationTabId} exists.`);
+          // No explicit activation here
+        } catch (e) {
+          log.warn("bg", `Stored notification tab ID ${currentNotificationTabId} not found or invalid: ${e}. Will query/create.`);
+          currentNotificationTabId = 0; 
         }
-      };
-      chrome.runtime.onMessage.addListener(messageListener);
+      }
 
-      try {
-        chrome.tabs.sendMessage(g_notificationTabId, { action: "ping" }, response => {
-          if (chrome.runtime.lastError) {
-            log.info("bg", `Ping to notification tab (ID: ${g_notificationTabId}) failed, waiting for ready message: ${chrome.runtime.lastError.message}`);
-            return;
-          }
-          if (response && response.status === "ok") {
+      // 2. If no valid stored ID, query by URL
+      if (!currentNotificationTabId) {
+        const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL("assets/html/notification.html") });
+        if (tabs && tabs.length > 0) {
+          currentNotificationTabId = tabs[0].id;
+          g_notificationTabId = currentNotificationTabId;
+          log.info("bg", `Found existing notification tab by URL: ${currentNotificationTabId}`);
+          // No explicit activation here
+        }
+      }
+
+      // 3. If still no tab ID, create a new one (inactive)
+      if (!currentNotificationTabId) {
+        const notificationUrl = chrome.runtime.getURL("assets/html/notification.html");
+        const tab = await chrome.tabs.create({ active: false, url: notificationUrl }); // Ensure tab is created inactive
+        currentNotificationTabId = tab.id;
+        log.info("bg", `Created new inactive notification tab: ${currentNotificationTabId}`);
+      }
+
+      g_notificationTabId = currentNotificationTabId;
+      programController.tabId = g_notificationTabId;
+
+      // 4. Wait for the page to be ready
+      log.info("bg", `Waiting for notification page (ID: ${g_notificationTabId}) to be ready...`);
+      const waitForNotificationPage = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error(`Timeout waiting for notification page (ID: ${g_notificationTabId}) to load`));
+        }, 5000);
+
+        const messageListener = (msg, sender) => {
+          if (sender.tab && sender.tab.id === g_notificationTabId && msg && msg.action === "notificationPageReady") {
             clearTimeout(timeout);
             chrome.runtime.onMessage.removeListener(messageListener);
-            log.info("bg", `Notification page (ID: ${g_notificationTabId}) responded to ping.`);
+            log.info("bg", `Notification page (ID: ${g_notificationTabId}) sent ready message.`);
             resolve();
           }
-        });
-      } catch (e) {
-        log.warn("bg", `Error sending ping to notification tab (ID: ${g_notificationTabId}): ${e}`);
-      }
-    });
+        };
+        chrome.runtime.onMessage.addListener(messageListener);
 
-    await waitForNotificationPage;
-    log.info("bg", `Notification page (ID: ${g_notificationTabId}) is ready.`);
-    await utils.sleep(150);
-    log.info("bg", "Added 150ms delay after page ready.");
-    return true; 
-  } catch (e) {
-    log.err("bg", `Error in ensureNotificationTabExistsAndIsReady: ${e}`);
-    g_notificationTabId = 0; 
-    return false; 
-  }
+        try {
+          chrome.tabs.sendMessage(g_notificationTabId, { action: "ping" }, response => {
+            if (chrome.runtime.lastError) {
+              log.info("bg", `Ping to notification tab (ID: ${g_notificationTabId}) failed, waiting for ready message: ${chrome.runtime.lastError.message}`);
+              return;
+            }
+            if (response && response.status === "ok") {
+              clearTimeout(timeout);
+              chrome.runtime.onMessage.removeListener(messageListener);
+              log.info("bg", `Notification page (ID: ${g_notificationTabId}) responded to ping.`);
+              resolve();
+            }
+          });
+        } catch (e) {
+          log.warn("bg", `Error sending ping to notification tab (ID: ${g_notificationTabId}): ${e}`);
+        }
+      });
+
+      await waitForNotificationPage;
+      log.info("bg", `Notification page (ID: ${g_notificationTabId}) is ready.`);
+      await utils.sleep(150);
+      log.info("bg", "Added 150ms delay after page ready.");
+      return true; 
+    } catch (e) {
+      log.err("bg", `Error in ensureNotificationTabExistsAndIsReady: ${e}`);
+      g_notificationTabId = 0; 
+      return false; 
+    } finally {
+      g_notificationTabCreationInProgress = null;
+    }
+  })();
+
+  return g_notificationTabCreationInProgress;
 }
 
 chrome.runtime.onMessage.addListener(async function messageListener_Popup(message, sender, sendResponse) {

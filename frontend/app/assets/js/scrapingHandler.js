@@ -2,6 +2,9 @@ import {log} from './log.js';
 import * as enums from './enums.js';
 import {JSDOM} from './jsdom.js';
 import {config} from './config.js';
+import * as utils from './utils.js';
+import { programController } from './programController.js'; // Import programController
+
 
 function Relation(authorName, authorId, isBannedUser, isBannedTitle, isBannedMute, doIFollow, doTheyFollowMe) {
   this.authorId = authorId;               // this author's id
@@ -294,9 +297,28 @@ class ScrapingHandler
             'x-requested-with': 'XMLHttpRequest'
           }
       });
+      
+      // Check if the request was successful
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status} ${response.statusText} for URL: ${targetUrl}`);
+      }
+
+      // Check content type before parsing JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        // Attempt to read the response as text to include in the error message
+        let responseBody = "";
+        try {
+          responseBody = await response.text();
+        } catch (textError) {
+          responseBody = "(Could not read response body)";
+        }
+        throw new Error(`Expected JSON, but received Content-Type: ${contentType}. Response body: ${responseBody.substring(0, 100)}...`);
+      }
+
       responseJson = await response.json();
       let isLast = responseJson.Relations.IsLast;
-      
+
       let authorNameList = [];
       let authorIdList = [];
       let authorNumber = responseJson.Relations.Items.length;
@@ -312,10 +334,12 @@ class ScrapingHandler
     }
     catch(err)
     {
-      log.err("scraping", "scrapeAuthorNamesFromBannedAuthorPagePartially: " + err);
-      return {authorIdList: [], authorNameList: [], isLast: true};
+      // Log the error and re-throw it to ensure the caller knows about the failure
+      log.err("scraping", `#scrapeAuthorNamesFromBannedAuthorPagePartially failed for page ${index}, type ${targetTypeTextInURL}: ${err}`);
+      // Re-throw the original error or a new one with more context
+      throw new Error(`Failed to scrape page ${index} for type ${targetTypeTextInURL}: ${err.message || err}`);
     }
-    
+
   }
   
   // Simplified version that only fetches the first page of blocked users
@@ -508,6 +532,253 @@ class ScrapingHandler
       return scrapedRelations;
     }
   }
+
+  /**
+   * Scrapes all pages of muted users from Ekşi Sözlük.
+   * Handles pagination and polite delays, reporting progress via callback.
+   * @param {function({currentPage: number, currentCount: number}): void} [progressCallback] - Optional callback for progress updates.
+   * @returns {Promise<{success: boolean, count?: number, usernames?: string[], error?: string}>}
+   */
+  async scrapeAllMutedUsers(progressCallback) {
+    log.info("scraping", "Starting to scrape all muted users...");
+    let allMutedUsernames = [];
+    let totalCount = 0;
+    let index = 0;
+    let isLast = false;
+    const politeDelayMs = 500; // Delay between page requests in milliseconds
+    const maxRetries = 3; // Max retries for errors (excluding 429)
+    const retryDelayMs = 1000; // Delay before retrying a failed page fetch
+    const rateLimitDelayMs = 65000; // Delay after hitting a 429 error (65 seconds)
+
+    try {
+      while (!isLast) {
+        // Check for early stop request
+        if (programController.earlyStop) {
+          log.info("scraping", "Muted user scraping stopped by user.");
+          return { success: false, error: 'Process stopped by user', stoppedEarly: true };
+        }
+        index++;
+        let attempt = 0;
+        let success = false;
+
+        while (attempt < maxRetries && !success) {
+          attempt++;
+          log.info("scraping", `Fetching muted users page ${index}, attempt ${attempt}...`);
+
+          try {
+            // Note: #scrapeAuthorNamesFromBannedAuthorPagePartially needs modification
+            // to throw or return specific error on 429 for proper handling here.
+            // Assuming for now it might throw or return an empty/error state.
+            const partialListObj = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(enums.TargetType.MUTE, index);
+
+            // Basic check if the response structure is as expected
+            if (partialListObj && typeof partialListObj.isLast === 'boolean' && Array.isArray(partialListObj.authorNameList)) {
+              if (partialListObj.authorNameList.length > 0) {
+                allMutedUsernames.push(...partialListObj.authorNameList);
+                // Assuming IDs and Names length match, count based on names found
+                totalCount += partialListObj.authorNameList.length;
+                log.info("scraping", `Found ${partialListObj.authorNameList.length} users on page ${index}. Total: ${totalCount}`);
+              } else {
+                log.info("scraping", `Found 0 users on page ${index}.`);
+              }
+              isLast = partialListObj.isLast;
+              success = true; // Mark as successful fetch for this page
+
+              // Report progress if callback is provided
+              if (progressCallback && typeof progressCallback === 'function') {
+                try {
+                  progressCallback({ currentPage: index, currentCount: totalCount });
+                } catch (cbError) {
+                  log.err("scraping", `Progress callback error: ${cbError}`);
+                }
+              }
+
+            } else {
+              // Handle potential error case where partial function returns unexpected result
+              log.warn("scraping", `Unexpected result fetching page ${index}, attempt ${attempt}.`);
+              // Don't throw immediately, allow retry
+            }
+          } catch (err) {
+            // Check if it's a rate limit error (requires modification in partial func or checking response status if possible)
+            // Example pseudo-code: if (err.status === 429) { ... }
+            log.warn("scraping", `Error fetching page ${index}, attempt ${attempt}: ${err.message || err}`);
+            // If it was the last attempt, rethrow to exit the main loop
+            if (attempt >= maxRetries) {
+                 throw new Error(`Failed to fetch page ${index} after ${maxRetries} attempts.`);
+            }
+            // Wait before retrying
+            await utils.sleep(retryDelayMs);
+          }
+        } // End retry loop
+
+        if (!success) {
+            // If all retries failed for a page
+            throw new Error(`Failed to fetch page ${index} definitively.`);
+        }
+
+        if (!isLast) {
+          await utils.sleep(politeDelayMs); // Wait before fetching the next page
+        }
+      } // End page loop
+
+      log.info("scraping", `Successfully scraped all muted users. Total count: ${totalCount}`);
+      return { success: true, count: totalCount, usernames: allMutedUsernames };
+
+    } catch (err) {
+      log.err("scraping", `Error scraping all muted users: ${err.message || err}`);
+      return { success: false, error: err.message || 'Unknown error during scraping' };
+    }
+  }
+
+  // Scrapes all pages of blocked users
+  async scrapeAllBlockedUsers(progressCallback) {
+    log.info("scraping", "Starting to scrape all blocked users...");
+    let scrapedUsernames = [];
+    let scrapedUserIds = []; // Keep track of IDs if needed
+    let isLast = false;
+    let index = 0;
+    let totalCount = 0;
+
+    try {
+      while (!isLast) {
+        // Check for early stop request before fetching the next page
+        if (programController.earlyStop) {
+          log.info("scraping", "Blocked user scraping stopped early by user request.");
+          // Return the count found so far
+          return { success: false, usernames: scrapedUsernames, count: totalCount, stoppedEarly: true, error: "Process stopped by user" };
+        }
+
+        index++;
+        log.info("scraping", `Fetching page ${index} of blocked users...`);
+        let partialListObj;
+        try {
+          // Use USER target type
+          partialListObj = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(enums.TargetType.USER, index);
+        } catch (pageError) {
+          log.err("scraping", `Error fetching page ${index} of blocked users: ${pageError}`);
+          // Stop on page error, return count found so far
+          throw new Error(`Failed to fetch page ${index} of blocked users: ${pageError.message || pageError}`);
+        }
+
+        const partialNameList = partialListObj.authorNameList;
+        const partialIdList = partialListObj.authorIdList;
+        isLast = partialListObj.isLast;
+
+        scrapedUsernames.push(...partialNameList);
+        scrapedUserIds.push(...partialIdList); // Store IDs if needed later
+        totalCount += partialNameList.length;
+
+        log.info("scraping", `Found ${partialNameList.length} blocked users on page ${index}. Total found: ${totalCount}`);
+
+        // Call the progress callback if provided
+        if (progressCallback && typeof progressCallback === 'function') {
+          try {
+            // Pass the current total count
+            await progressCallback({ currentCount: totalCount });
+          } catch (callbackError) {
+            log.warn("scraping", `Error in progress callback for blocked users: ${callbackError}`);
+            // Continue even if callback fails
+          }
+        }
+
+        // Optional delay can be added here if needed: await utils.delay(config.scrapeDelayMs);
+      }
+
+      log.info("scraping", `Successfully scraped all ${totalCount} blocked users.`);
+      return { success: true, usernames: scrapedUsernames, count: totalCount };
+
+    } catch (err) {
+      log.err("scraping", `Error during scrapeAllBlockedUsers: ${err}`);
+      // Check if it was an early stop triggered by an error within the loop/page fetch
+      if (programController.earlyStop) {
+         // Return count found so far
+         return { success: false, usernames: scrapedUsernames, count: totalCount, stoppedEarly: true, error: err.message || "Process stopped due to error" };
+      }
+      // Return count found so far even on other errors
+      return { success: false, usernames: scrapedUsernames, count: totalCount, error: err.message || "Unknown error during scraping" };
+    }
+  }
+
+  /**
+   * Scrapes all pages of users whose titles are blocked from Ekşi Sözlük.
+   * Handles pagination and polite delays, reporting progress via callback.
+   * @param {function({currentPage: number, currentCount: number}): void} [progressCallback] - Optional callback for progress updates.
+   * @returns {Promise<{success: boolean, count?: number, users?: {authorId: string, authorName: string}[], error?: string}>}
+   */
+  async scrapeAllUsersWithBlockedTitles(progressCallback) {
+    log.info("scraping", "Starting to scrape all users with blocked titles...");
+    let scrapedUsers = []; // Store objects with authorId and authorName
+    let isLast = false;
+    let index = 0;
+    let totalCount = 0;
+    const politeDelayMs = 500; // Delay between page requests in milliseconds
+
+    try {
+      while (!isLast) {
+        // Check for early stop request before fetching the next page
+        if (programController.earlyStop) {
+          log.info("scraping", "Scraping users with blocked titles stopped early by user request.");
+          // Return the count found so far
+          return { success: false, users: scrapedUsers, count: totalCount, stoppedEarly: true, error: "Process stopped by user" };
+        }
+
+        index++;
+        log.info("scraping", `Fetching page ${index} of users with blocked titles...`);
+        let partialListObj;
+        try {
+          // Use TITLE target type
+          partialListObj = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(enums.TargetType.TITLE, index);
+        } catch (pageError) {
+          log.err("scraping", `Error fetching page ${index} of users with blocked titles: ${pageError}`);
+          // Stop on page error, return count found so far
+          throw new Error(`Failed to fetch page ${index} of users with blocked titles: ${pageError.message || pageError}`);
+        }
+
+        const partialNameList = partialListObj.authorNameList;
+        const partialIdList = partialListObj.authorIdList;
+        isLast = partialListObj.isLast;
+
+        // Add users to the list, storing both ID and Name
+        for(let i = 0; i < partialIdList.length; i++) {
+            scrapedUsers.push({ authorId: partialIdList[i], authorName: partialNameList[i] });
+        }
+        totalCount += partialIdList.length;
+
+
+        log.info("scraping", `Found ${partialIdList.length} users with blocked titles on page ${index}. Total found: ${totalCount}`);
+
+        // Call the progress callback if provided
+        if (progressCallback && typeof progressCallback === 'function') {
+          try {
+            // Pass the current total count
+            await progressCallback({ currentCount: totalCount });
+          } catch (callbackError) {
+            log.warn("scraping", `Error in progress callback for users with blocked titles: ${callbackError}`);
+            // Continue even if callback fails
+          }
+        }
+
+        // Optional delay can be added here if needed: await utils.delay(config.scrapeDelayMs);
+        if (!isLast) {
+           await utils.sleep(politeDelayMs); // Wait before fetching the next page
+        }
+      }
+
+      log.info("scraping", `Successfully scraped all ${totalCount} users with blocked titles.`);
+      return { success: true, users: scrapedUsers, count: totalCount };
+
+    } catch (err) {
+      log.err("scraping", `Error during scrapeAllUsersWithBlockedTitles: ${err}`);
+      // Check if it was an early stop triggered by an error within the loop/page fetch
+      if (programController.earlyStop) {
+         // Return count found so far
+         return { success: false, users: scrapedUsers, count: totalCount, stoppedEarly: true, error: err.message || "Process stopped due to error" };
+      }
+      // Return count found so far even on other errors
+      return { success: false, users: scrapedUsers, count: totalCount, error: err.message || "Unknown error during scraping" };
+    }
+  }
+
 
   #scrapeFollowerPartially = async (scrapedRelations, authorName, index) =>
   {
@@ -820,6 +1091,24 @@ class ScrapingHandler
     } catch (err) {
       log.err("scraping", `scrapeAuthorRelationship: authorId: ${authorId}, err: ${err}`);
       return null;
+    }
+  }
+
+  /**
+   * Scrapes a single page of muted users from Ekşi Sözlük.
+   * @param {number} pageIndex - The index of the page to scrape (1-based).
+   * @returns {Promise<{authorIdList: string[], authorNameList: string[], isLast: bool}>}
+   * @throws {Error} If the scraping fails.
+   */
+  async scrapeMutedUsersPage(pageIndex) {
+    log.info("scraping", `Scraping muted users page ${pageIndex}...`);
+    try {
+      // Call the private method with the MUTE target type
+      const partialListObj = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(enums.TargetType.MUTE, pageIndex);
+      return partialListObj;
+    } catch (error) {
+      log.err("scraping", `Error in scrapeMutedUsersPage for page ${pageIndex}: ${error.message || error}`);
+      throw error; // Re-throw the error
     }
   }
 }

@@ -11,7 +11,7 @@
 
 <body>
 
-<h2 style="text-align: center;margin-top:10px;">Ekşi Engel Version Notes</h2>
+<h2 style="text-align: center;margin-top:10px;">EksiEngelPlus Version Notes</h2>
 
 <div id="release-notes"></div>
 
@@ -98,7 +98,7 @@ function createChange(changeText) {
           var issuePieces = piece.match(/#(\d+)/i);
 
           if (issuePieces) {
-            var link = $("<a>").attr("href", 'https://github.com/h-enes-simsek/EksiEngel/issues/' + issuePieces[1]).text(piece);
+            var link = $("<a>").attr("href", 'https://github.com/crimeofheart/EksiEngelPlus/issues/' + issuePieces[1]).text(piece);
             changeDescriptionContainer = changeDescriptionContainer.append(link);
           } else {
             changeDescriptionContainer = changeDescriptionContainer.append(document.createTextNode(piece));

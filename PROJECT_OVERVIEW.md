@@ -1,8 +1,8 @@
-# Ekşi Engel Project Overview
+# EksiEngelPlus Project Overview
 
 ## Summary
 
-The project "Ekşi Engel" is a Chrome browser extension designed to facilitate mass blocking/unblocking of users on Ekşi Sözlük. It provides various blocking options including blocking individual users, their titles, users who favorited specific entries, and followers of specific users.
+The project "EksiEngelPlus" is a Chrome browser extension designed to facilitate mass blocking/unblocking of users on Ekşi Sözlük. It provides various blocking options including blocking individual users, their titles, users who favorited specific entries, and followers of specific users.
 
 *   **Frontend (Browser Extension):**
     *   **UI:** A popup (`popup.html`/`.js`) provides the main extension menu and triggers actions.

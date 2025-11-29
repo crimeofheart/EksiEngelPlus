@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Ekşi Engel",
-	"author": "Hasan Enes Şimşek",
-  "version": "3.2",
+  "name": "EksiEngelPlus",
+	"author": "crimeofheart",
+  "version": "0.1",
   "description": "Ekşi Sözlük'te toplu olarak engelleme/başlıklarını engelleme işlemi yapın.",
   "icons": {
     "16": "assets/img/eksiengel16.png",
@@ -17,7 +17,7 @@
       "48": "assets/img/eksiengel48.png",
       "128": "assets/img/eksiengel128.png"
     },
-    "default_title": "Ekşi Engel",
+    "default_title": "EksiEngelPlus",
     "default_popup": "assets/html/popup.html"
   },
   "permissions": [

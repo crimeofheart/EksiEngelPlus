@@ -1,5 +1,6 @@
 // queue implementation
-class Queue 
+import { programController } from './programController.js';
+class Queue
 {
   constructor() { this._items = []; }
   enqueue(item) { this._items.push(item); }
@@ -47,9 +48,12 @@ class AutoQueue extends Queue
     });
   }
 
-  async dequeue() 
+  async dequeue()
   {
+    // If a promise from this queue is already pending, don't start another.
+    // If no promise from this queue is pending, but a major programController task is active, also wait.
     if (this._pendingPromise) return false;
+    if (programController && programController.isActive) return false;
 
     let item = super.dequeue();
 

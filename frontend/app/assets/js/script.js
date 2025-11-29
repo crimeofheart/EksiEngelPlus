@@ -43,20 +43,26 @@
         titleId: titleId,
         timeSpecifier: timeSpecifier
       }, 
-      function(response) 
+      function(response)
       {
-        let lastError = chrome.runtime.lastError;
-        if(lastError)
-        {
-          //console.log("Eksi Engel: could not establish a connection with a page");
+        if (chrome.runtime.lastError) {
+          // Check if the error is due to context invalidation
+          if (chrome.runtime.lastError.message?.includes("Extension context invalidated")) {
+            console.warn("Eksi Engel: Connection to background script lost (Extension updated/reloaded?). Please reload the page.");
+            // Optionally, display a user-friendly message on the page itself
+          } else {
+            // Log other potential errors
+            console.error("Eksi Engel: Error sending message:", chrome.runtime.lastError.message);
+          }
         }
-        else
+        else if (response && response.status === 'ok')
         {
+          //console.log("Eksi Engel: established a connection with a page");
           //console.log("Eksi Engel: established a connection with a page");
           
           // notify the user about their action with using eksisozluk notification API, known classes: class="success" and class="error"
           let ul = document.createElement("ul"); 
-          ul.innerHTML = `<ul><li class="success" style=""><img src=${eksiEngelIconURL}> Ekşi Engel, istediğiniz işlemi sıraya ekledi.<a class="close">×</a></li></ul>`;
+          ul.innerHTML = `<ul><li class="success" style=""><img src=${eksiEngelIconURL}> EksiEngelPlus, istediğiniz işlemi sıraya ekledi.<a class="close">×</a></li></ul>`;
           document.getElementById('user-notifications').appendChild(ul);
         
           // close the notifications after a while automatically
@@ -668,6 +674,47 @@
 
     //console.log("Eksi Engel: Main DOM observer started.");
   };
+
+  // Add a message listener to handle requests from the background script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === "hideTitlesByAuthorId") {
+          console.log(`Eksi Engel: Received request to hide titles by author ID: ${request.authorId}`);
+          let hiddenCount = 0;
+          try {
+              // Find all elements that represent entries or titles by this author ID
+              // This might need refinement based on the actual DOM structure of Eksi Sozluk
+              // Common selectors might target entry containers or title links with author data attributes
+              const elementsToHide = document.querySelectorAll(`[data-author-id="${request.authorId}"]`);
+
+              elementsToHide.forEach(element => {
+                  // Decide which elements to hide. This might be the entry itself, or the title link.
+                  // For hiding titles, we likely want to hide the entire entry container or the title link in a list.
+                  // Let's try hiding the closest entry container or the element itself if it's a title link.
+                  const entryContainer = element.closest('li[data-id]') || element.closest('article[data-id]');
+                  if (entryContainer) {
+                      entryContainer.style.display = 'none';
+                      hiddenCount++;
+                      console.debug(`Eksi Engel: Hidden entry by author ID ${request.authorId}`);
+                  } else if (element.matches('a.topic-link, a.title')) { // Example selectors for title links
+                       element.style.display = 'none';
+                       hiddenCount++;
+                       console.debug(`Eksi Engel: Hidden title link by author ID ${request.authorId}`);
+                  }
+                  // Add other selectors if needed based on where author IDs appear near titles/entries
+              });
+
+              console.log(`Eksi Engel: Hid ${hiddenCount} elements for author ID: ${request.authorId}`);
+              sendResponse({ success: true, hiddenCount: hiddenCount });
+
+          } catch (error) {
+              console.error(`Eksi Engel: Error hiding titles for author ID ${request.authorId}:`, error);
+              sendResponse({ success: false, error: error.message });
+          }
+          return true; // Indicate that the response will be sent asynchronously
+      }
+      // Add other message handlers here if needed
+  });
+
 
   // --- Initial Scan and Observer Start ---
 

@@ -17,14 +17,22 @@ Ekşi Engel can perform the following actions.
 
 - To unblock all blocked authors
 
-Ekşi Sözlük has three different block types, and Ekşi Engel supports them all. 
+
+## New: Muted User List Management
+
+You can now view, refresh, and export your list of muted users directly from the extension popup.
+
+- **View Muted User Count:** See the total number of users you have muted.
+- **Refresh Muted List:** Scrape your Ekşi Sözlük muted users page to get the most up-to-date list.
+- **Export Muted List (CSV):** Download a CSV file containing the usernames of all muted users.
+
+Ekşi Sözlük has three different block types, and Ekşi Engel supports them all.
 
 - The ban on an author
 
 - The ban on all pages that were created by an author
  
 - The mute on an author
-
 After the authors to be blocked/unblocked are received from the user, the blocking/unblocking process is performed respectively for the accounts in the list.
 
 Operations take place in a newly opened tab, while the user can navigate freely in other tabs. In addition, the user is informed about the ongoing process and how many authors have been successfully blocked.
@@ -41,13 +49,13 @@ This data is planned to be used later to obtain the information of the most bloc
 
 Ekşi Engel in Chrome Webstore: [link](https://chrome.google.com/webstore/detail/ek%C5%9Fi-engel/cpfbfacaggnedffhdgdgmhkobijckkha)
 
-Version notes: [link](https://h-enes-simsek.github.io/EksiEngel/releaseNotes.html)  
+Version notes: Extension içindeki versiyon notlarına bakın  
 
 <div float="left">
 <img src="frontend/publish/ss/entryMenu.png" width="480" height="300">
 <br>
 <img src="frontend/publish/ss/authorMenu.png" width="480" height="300">
-<img src="frontend/publish/ss/popup.png" width="480" height="300">
+<img src="frontend/publish/ss/popup.png">
 <img src="frontend/publish/ss/authorListPage.png" width="480" height="300">
-<img src="frontend/publish/ss/notification.png" width="480" height="300">
+<img src="frontend/publish/ss/notification.png" width="480">
 </div>

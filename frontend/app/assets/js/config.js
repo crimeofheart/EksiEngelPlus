@@ -2,78 +2,80 @@ import * as enums from './enums.js';
 import * as utils from './utils.js';
 import {log} from './log.js';
 
-export let config = 
-{
-  "EksiSozlukURL":       "https://eksisozluk.com",
-  "whereIsEksiSozlukURL":"https://eksiengel.hesimsek.com/api/where_is_eksisozluk",
-  "serverURL":           "https://eksiengel.hesimsek.com/api/action/",
-
-  "sendData":           true,                             /* send data to server */   
-    "sendLog":          true,                             /* send log data to server */
-  
-  "enableLog":          true,                             /* enable/disable logger */
-    "logConsole":       true,                             /* log into console as well */
-    
-  "enableNoobBan":      false,                            /* enable/disable noob author scraping for FAV */
-  "enableMute":         false,                            /* enable/disable TargetType.MUTE operations */
-  "enableTitleBan":     true,                             /* enable/disable title ban */
-  
-  "enableAnalysisBeforeOperation": true,                  /* do analysis before performing any operation */
-    "enableOnlyRequiredActions": false,                    /* do analysis to reduce unnecessary blocking/unblocking actions */
-    "enableProtectFollowedUsers": false,                   /* do not block if an author is followed by the user */
-    
-  "banPremiumIcons": false                               /* hide premium icons, green and yellow badges */
+export let config = {
+  "EksiSozlukURL": "https://eksisozluk.com",
+  "whereIsEksiSozlukURL": "https://eksiengelplus.duzgun.org/api/where_is_eksisozluk",
+  "serverURL": "https://eksiengelplus.duzgun.org/api/action/",
+  "sendData": true,
+  "sendLog": true,
+  "enableLog": true,
+  "logConsole": true,
+  "enableNoobBan": true,
+  "enableMute": true,
+  "enableTitleBan": false,
+  "enableAnalysisBeforeOperation": true,
+  "enableOnlyRequiredActions": false,
+  "enableProtectFollowedUsers": true,
+  "banPremiumIcons": false,
+  "enableDateFilter": false,
+  "dateFilterRules": []
 };
 
-export async function getConfig()
-{
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get("config", function(items){
-      if(!chrome.runtime.error)
-      {
-        if(items != undefined && items.config != undefined && Object.keys(items.config).length !== 0)
-        {
-          resolve(items.config);  
-        }
-        else 
-        {
-          resolve(false);
-        }
-      }
-      else 
-      {
-        resolve(false);
-      }
-    }); 
-  });
+// Helper function to create default date filter rules
+export function createDefaultDateFilterRules() {
+  return [
+    {
+      id: "block-new-users",
+      criteria: enums.DateFilterCriteria.NEWER_THAN,
+      value: 3650,
+      valueType: "days",
+      action: enums.DateFilterAction.ENGELLE,
+      description: "Yapılacak işlem 10 yıldan yeni hesapları kapsar",
+      isDefault: true
+    }
+  ];
 }
 
-export async function saveConfig(config)
-{
-  log.info("config", "A config saved into storage");
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.set({ "config": config }, function(){
-      if(!chrome.runtime.error){
-        resolve(true);
-      }else{
-        resolve(false);
-      }
+// Helper function to get default date bulk action config
+export function createDefaultDateBulkConfig() {
+  return {
+    lastSource: enums.DateBulkSource.MUTED_USERS,
+    lastCriteria: enums.DateFilterCriteria.OLDER_THAN,
+    lastValue: 3650,
+    lastValueType: "days",
+    lastAction: enums.DateBulkAction.SESSIZDEN_CIKAR
+  };
+}
+
+export async function getConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get("config", (items) => {
+      if (!chrome.runtime.error && items && items.config && Object.keys(items.config).length !== 0) resolve(items.config);
+      else resolve(false);
     });
   });
 }
 
-// load config from storage, if not exist save default config storage
-export async function handleConfig()
-{
-  let c = await getConfig();
-  if(c)
-  {
+export async function saveConfig(config) {
+  log.info("config", "A config saved into storage");
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ "config": config }, () => resolve(!chrome.runtime.error));
+  });
+}
+
+export async function handleConfig() {
+  const c = await getConfig();
+  if (c) {
     log.info("config", "Config restored from storage");
-    Object.assign(config, c); // Update the properties of the existing exported object
-  }
-  else
-  {
+    Object.assign(config, c);
+    if (!config.dateFilterRules || config.dateFilterRules.length === 0) {
+      log.info("config", "Applying default date filter rules");
+      config.dateFilterRules = createDefaultDateFilterRules();
+      saveConfig(config);
+    }
+  } else {
     log.info("config", "No config in storage, hardcoded config will be saved into storage");
+    config.dateFilterRules = createDefaultDateFilterRules();
     saveConfig(config);
   }
 }

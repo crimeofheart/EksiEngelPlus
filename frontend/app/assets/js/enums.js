@@ -1,75 +1,91 @@
 export const BanSource = {
-  SINGLE:     "1",   /* Ban/Undoban a author */
-  FAV:        "2",   /* Ban all authors that favorited a specific entry */
-  FOLLOW:     "3",   /* Ban all authors that followed a specific author */
-  LIST:       "4",   /* Ban/Undoban authors in the list that will be filled by user */
-  UNDOBANALL: "5",   /* Undoban all banned authors */
-  TITLE:      "6",   /* Ban all authors that wrote a specific title */
-  BLOCKED_MUTED_TITLES: "7", /* Block titles of blocked and muted users */
-  MIGRATE_BLOCKED_TO_MUTED: "8", /* Migrate blocked users to muted */
-  BLOCK_MUTED_USERS: "9",        /* Block users who are currently muted */
-  REFRESH_MUTED_LIST: "10",      /* Refresh the list of muted users from server */
-  REFRESH_BLOCKED_LIST: "11"     /* Refresh the list of blocked users from server */
+  SINGLE: "1",
+  FAV: "2",
+  FOLLOW: "3",
+  LIST: "4",
+  UNDOBANALL: "5",
+  TITLE: "6",
+  BLOCKED_MUTED_TITLES: "7",
+  MIGRATE_BLOCKED_TO_MUTED: "8",
+  BLOCK_MUTED_USERS: "9",
+  REFRESH_MUTED_LIST: "10",
+  REFRESH_BLOCKED_LIST: "11",
+  DATE_BASED_BULK: "12",
+  UNMUTEALL: "13",
+  REFRESH_FOLLOWED_LIST: "14"
 };
 
-export const BanMode = {
-  BAN:     "1",
-  UNDOBAN: "2"
-};
-
-export const TargetType = {
-  USER:  "1",
-  TITLE: "2",
-  MUTE:  "3"
-};
+export const BanMode = { BAN: "1", UNDOBAN: "2" };
+export const TargetType = { USER: "1", TITLE: "2", MUTE: "3", FOLLOW: "4" };
 
 export const ClickSource = {
-  ENTRY:     "1",
-  PROFILE:   "2",
-  QUESTION:  "3",
-  FOLLOWING: "4",    /* Obsolete due to new Eksi Sozluk design */
-  FOLLOWER:  "5",    /* Obsolete due to new Eksi Sozluk design */
-  TITLE:     "6"
+  ENTRY: "1",
+  PROFILE: "2",
+  QUESTION: "3",
+  FOLLOWING: "4",
+  FOLLOWER: "5",
+  TITLE: "6"
 }
 
-export const ResultType = {
-  SUCCESS:  "SUCCESS",
-  FAIL:     "FAIL"
-};
-
-export const ResultTypeHttpReq = {
-  SUCCESS:      "SUCCESS",
-  FAIL:         "FAIL",
-  TOO_MANY_REQ: "TOO_MANY_REQ",
-};
+export const ResultType = { SUCCESS: "SUCCESS", FAIL: "FAIL" };
+export const ResultTypeHttpReq = { SUCCESS: "SUCCESS", FAIL: "FAIL", TOO_MANY_REQ: "TOO_MANY_REQ" };
 
 export const ClickType = {
-  EXTENSION_ICON:  "EXTENSION_ICON",                          /* user has pressed extension icon */
-  EXTENSION_MENU_BAN_LIST: "EXTENSION_MENU_BAN_LIST",         /* user has pressed list ban button in extension menu */
-  EXTENSION_MENU_UNDOBANALL: "EXTENSION_MENU_UNDOBANALL",     /* user has pressed undobanall button in extension menu */
-  EXTENSION_MENU_FAQ: "EXTENSION_MENU_FAQ",                   /* user has pressed faq button in extension menu */
-  FAQ_LINK_ENTRY_LIMIT: "FAQ_LINK_ENTRY_LIMIT",               /* user has pressed the link about entry limit in faq.html */
-  WELCOME_LINK_ENTRY_LIMIT: "WELCOME_LINK_ENTRY_LIMIT",       /* user has pressed the link about entry limit in welcome.html */
-  INSTALL_OR_UPDATE: "INSTALL_OR_UPDATE",                     /* user has installed or updated the extension */
-  WELCOME_PAGE: "WELCOME_PAGE",                               /* user has seen the welcome.html  */
-  EXTENSION_MENU_MIGRATE: "EXTENSION_MENU_MIGRATE",           /* user has pressed migrate button in extension menu */
-  EXTENSION_MENU_MIGRATE_TITLES: "EXTENSION_MENU_MIGRATE_TITLES", /* user has pressed migrate titles button in extension menu */
+  EXTENSION_ICON: "EXTENSION_ICON",
+  EXTENSION_MENU_BAN_LIST: "EXTENSION_MENU_BAN_LIST",
+  EXTENSION_MENU_UNDOBANALL: "EXTENSION_MENU_UNDOBANALL",
+  EXTENSION_MENU_FAQ: "EXTENSION_MENU_FAQ",
+  FAQ_LINK_ENTRY_LIMIT: "FAQ_LINK_ENTRY_LIMIT",
+  WELCOME_LINK_ENTRY_LIMIT: "WELCOME_LINK_ENTRY_LIMIT",
+  INSTALL_OR_UPDATE: "INSTALL_OR_UPDATE",
+  WELCOME_PAGE: "WELCOME_PAGE",
+  EXTENSION_MENU_MIGRATE: "EXTENSION_MENU_MIGRATE",
+  EXTENSION_MENU_MIGRATE_TITLES: "EXTENSION_MENU_MIGRATE_TITLES",
+  EXTENSION_MENU_UNMUTEALL: "EXTENSION_MENU_UNMUTEALL"
 };
 
 export const NotificationType = {
   UPDATE_PLANNED_PROCESSES: "UPDATE_PLANNED_PROCESSES",
-  ONGOING:                  "ONGOING",
-  COOLDOWN:                 "COOLDOWN",
-  FINISH:                   "FINISH",
-  NOTIFY:                   "NOTIFY",
-  MIGRATION_UPDATE:         "MIGRATION_UPDATE",
-  UPDATE_COUNTS:            "UPDATE_COUNTS", // New action to trigger count updates
+  ONGOING: "ONGOING",
+  COOLDOWN: "COOLDOWN",
+  FINISH: "FINISH",
+  NOTIFY: "NOTIFY",
+  MIGRATION_UPDATE: "MIGRATION_UPDATE",
+  UPDATE_COUNTS: "UPDATE_COUNTS"
 };
 
-export const TimeSpecifier = {
-  LAST_24_H: "1",
-  LAST_1_W:  "2",
-  LAST_1_M:  "3",
-  LAST_3_M:  "4",
-  ALL:       "5",
+export const TimeSpecifier = { LAST_24_H: "1", LAST_1_W: "2", LAST_1_M: "3", LAST_3_M: "4", ALL: "5" };
+
+export const TaskCategory = { BLOCKING: "BLOCKING", MIGRATION: "MIGRATION", REFRESH: "REFRESH", UNBLOCKING: "UNBLOCKING", ANALYSIS: "ANALYSIS" };
+export const TaskComplexity = { SIMPLE: "SIMPLE", MODERATE: "MODERATE", COMPLEX: "COMPLEX", HEAVY: "HEAVY" };
+export const TaskPriority = { LOW: "LOW", NORMAL: "NORMAL", HIGH: "HIGH", URGENT: "URGENT" };
+export const TaskStatus = { QUEUED: "QUEUED", PROCESSING: "PROCESSING", COMPLETED: "COMPLETED", FAILED: "FAILED", CANCELLED: "CANCELLED", PAUSED: "PAUSED" };
+
+// Date-based user filtering enums
+export const DateFilterCriteria = {
+  NEWER_THAN: "NEWER_THAN",      // Account is newer than X days
+  OLDER_THAN: "OLDER_THAN",      // Account is older than X days
+  BEFORE_DATE: "BEFORE_DATE",    // Registered before specific date
+  AFTER_DATE: "AFTER_DATE"       // Registered after specific date
+};
+
+export const DateFilterAction = {
+  ENGELLE: "ENGELLE"   // Block users matching criteria
+};
+
+// Date-based bulk action enums
+export const DateBulkAction = {
+  ENGELLE: "ENGELLE",           // Block users
+  SESSIZE_AL: "SESSIZE_AL",     // Mute users
+  ENGEL_KALDIR: "ENGEL_KALDIR", // Unblock users
+  SESSIZDEN_CIKAR: "SESSIZDEN_CIKAR", // Unmute users
+  TAKIP_ET: "TAKIP_ET",         // Follow users
+  ENGEL_KALDIR_VE_TAKIP_ET: "ENGEL_KALDIR_VE_TAKIP_ET", // Unblock and follow
+  SESSIZDEN_CIKAR_VE_TAKIP_ET: "SESSIZDEN_CIKAR_VE_TAKIP_ET" // Unmute and follow
+};
+
+export const DateBulkSource = {
+  BLOCKED_USERS: "BLOCKED_USERS",
+  MUTED_USERS: "MUTED_USERS",
+  AUTHOR_LIST: "AUTHOR_LIST"
 };

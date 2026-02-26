@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="../css/buttons.css">
   <link rel="stylesheet" href="../css/switchButtons.css">
   <link rel="stylesheet" href="../css/tooltip.css">
+  <link rel="stylesheet" href="../css/customNotification.css">
   <script type="module" src="../js/faq.js"></script>
 <style>
 .content {
@@ -66,6 +67,125 @@ margin-bottom: 8px;
   font-family: 'Montserrat', sans-serif;
   font-size: 15px;
 }
+
+/* Theme toggle buttons */
+.theme-btn {
+  transition: all 0.2s ease;
+}
+.theme-btn.active {
+  background-color: #4CAF50 !important;
+  border-color: #4CAF50 !important;
+  color: white !important;
+}
+.theme-btn:hover:not(.active) {
+  background-color: #f0f0f0;
+}
+
+/* Dark mode button styles */
+[data-theme="dark"] .btn-dark {
+  border-color: #e2e8f0;
+  color: #e2e8f0;
+}
+[data-theme="dark"] .btn-dark:hover,
+[data-theme="dark"] .btn-dark.active {
+  border-color: #4CAF50;
+  background-color: #4CAF50;
+  color: white;
+}
+[data-theme="dark"] .theme-btn:hover:not(.active) {
+  background-color: #334155;
+}
+
+
+/* Dark mode styles for faq page */
+[data-theme="dark"] body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .content {
+  background-color: #1e293b;
+}
+
+[data-theme="dark"] a {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .footer > hr {
+  background-color: #475569;
+  border-color: #475569;
+}
+
+[data-theme="dark"] .footerText {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] small {
+  color: #94a3b8 !important;
+}
+
+/* FAQ Page specific card styles */
+.faq-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.faq-card-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.faq-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.faq-card-body {
+  padding: 12px;
+}
+
+/* FAQ page specific styles */
+.faq-link {
+  color: #1f1f1f;
+}
+
+
+[data-theme="dark"] .faq-link {
+  color: #60a5fa;
+}
+
+.faq-bold {
+  font-weight: bold;
+}
+
+/* Additional dark mode text styles */
+[data-theme="dark"] h3 {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] li,
+[data-theme="dark"] ol {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .faq-bold {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] #questionMark {
+  filter: invert(1);
+}
+
+[data-theme="dark"] .faq-card-header {
+  background: linear-gradient(135deg, #334155 0%, #475569 100%);
+}
 </style>
 </head>
 <body>
@@ -76,18 +196,18 @@ margin-bottom: 8px;
     <b style="color:green">EksiEngelPlus</b> <img src="../img/eksiengel16.png"> 
   </h3>
 
-  <p>Versiyon notları için <a style="color:black" target="_blank" href="welcome.html">tıklayın</a></p>
+  <p>Versiyon notları için <a class="faq-link" target="_blank" href="welcome.html">tıklayın</a></p>
 
-  <h3 style="text-align: center;">
-    Ayarlar
-  </h3>
-  
-  
-  <div class="grid-container two-column">
+  <div class="card" style="margin-bottom: 20px;">
+    <div class="card-header">
+      <h2>⚙️ Ayarlar</h2>
+    </div>
+    <div class="card-body">
+      <div class="grid-container two-column">
   
     <div class="grid-item">
       <div id="muteSwitch" class="switch-toggle switch-3 switch-candy" style="display:inline-flex;width:132px;">
-        <input id="muteDisabled" value="muteDisabled" name="state-d-mute" type="radio" checked="">
+        <input id="muteDisabled" value="muteDisabled" name="state-d-mute" type="radio">
         <label for="muteDisabled">Engel</label>
 
         <input id="muteEnabled" value="muteEnabled" name="state-d-mute" type="radio" checked="">
@@ -109,7 +229,7 @@ margin-bottom: 8px;
         <input id="titleBanDisabled" value="titleBanDisabled" name="state-d-title" type="radio" checked="">
         <label for="titleBanDisabled">Kapalı</label>
 
-        <input id="titleBanEnabled" value="titleBanEnabled" name="state-d-title" type="radio" checked="">
+        <input id="titleBanEnabled" value="titleBanEnabled" name="state-d-title" type="radio">
         <label for="titleBanEnabled">Açık</label>
 
         <a></a>
@@ -120,7 +240,7 @@ margin-bottom: 8px;
 
     <div class="grid-item">
       <div id="noobBanSwitch" class="switch-toggle switch-3 switch-candy" style="display:inline-flex;width:132px;">
-        <input id="noobBanDisabled" value="noobBanDisabled" name="state-d-noob" type="radio" checked="">
+        <input id="noobBanDisabled" value="noobBanDisabled" name="state-d-noob" type="radio">
         <label for="noobBanDisabled">Kapalı</label>
 
         <input id="noobBanEnabled" value="noobBanEnabled" name="state-d-noob" type="radio" checked="">
@@ -135,7 +255,7 @@ margin-bottom: 8px;
 
     <div class="grid-item">
       <div id="protectFollowedUsersSwitch" class="switch-toggle switch-3 switch-candy" style="display:inline-flex;width:132px;">
-        <input id="protectFollowedUsersDisabled" value="protectFollowedUsersDisabled" name="state-d-protectFollowedUsers" type="radio" checked="checked">
+        <input id="protectFollowedUsersDisabled" value="protectFollowedUsersDisabled" name="state-d-protectFollowedUsers" type="radio">
         <label for="protectFollowedUsersDisabled">Kapalı</label>
 
         <input id="protectFollowedUsersEnabled" value="protectFollowedUsersEnabled" name="state-d-protectFollowedUsers" type="radio" checked="">
@@ -153,7 +273,7 @@ margin-bottom: 8px;
         <input id="onlyRequiredActionsDisabled" value="onlyRequiredActionsDisabled" name="state-d-onlyRequiredActions" type="radio" checked="">
         <label for="onlyRequiredActionsDisabled">Kapalı</label>
 
-        <input id="onlyRequiredActionsEnabled" value="onlyRequiredActionsEnabled" name="state-d-onlyRequiredActions" type="radio" checked="">
+        <input id="onlyRequiredActionsEnabled" value="onlyRequiredActionsEnabled" name="state-d-onlyRequiredActions" type="radio">
         <label for="onlyRequiredActionsEnabled">Açık</label>
 
         <a></a>
@@ -168,7 +288,7 @@ margin-bottom: 8px;
         <input id="banPremiumIconsDisabled" value="banPremiumIconsDisabled" name="state-d-banPremiumIcons" type="radio" checked="">
         <label for="banPremiumIconsDisabled">Kapalı</label>
 
-        <input id="banPremiumIconsEnabled" value="banPremiumIconsEnabled" name="state-d-banPremiumIcons" type="radio" checked="">
+        <input id="banPremiumIconsEnabled" value="banPremiumIconsEnabled" name="state-d-banPremiumIcons" type="radio">
         <label for="banPremiumIconsEnabled">Açık</label>
 
         <a></a>
@@ -179,7 +299,7 @@ margin-bottom: 8px;
     
     <div class="grid-item">
       <div id="sendDataSwitch" class="switch-toggle switch-3 switch-candy" style="display:inline-flex;width:132px;">
-        <input id="sendDataDisabled" value="sendDataDisabled" name="state-d-sendData" type="radio" checked="">
+        <input id="sendDataDisabled" value="sendDataDisabled" name="state-d-sendData" type="radio">
         <label for="sendDataDisabled">Kapalı</label>
 
         <input id="sendDataEnabled" value="sendDataEnabled" name="state-d-sendData" type="radio" checked="">
@@ -192,17 +312,125 @@ margin-bottom: 8px;
     Böylece en çok engellenen yazarları belirleyip yayınlayabiliriz." 
     style="text-align: left;" id="sendData">Toplanan verileri EksiEngelPlus sunucularına gönder.</a>
     
+      </div>
+    </div>
   </div>
-  
-  <img src="../img/semsiye.png" id="semsiye">
+
+  <!-- Date Filter Section -->
+  <div class="card" style="margin-bottom: 20px;">
+    <div class="card-header">
+      <h2>📅 Tarih Filtresi</h2>
+    </div>
+    <div class="card-body" style="padding: 0;">
+      <div class="sub-section" id="dateFilterRulesSection">
+      <div class="sub-section-header">
+        <h3>🎯 Filtre Kuralları</h3>
+        <span class="rules-count" id="rulesCount">0</span>
+      </div>
+      <p class="sub-section-description">Engelleme işlemleri sadece belirli tarih kriterlerine uyan hesaplara uygulanır.</p>
+      <div class="rules-list" id="rulesList"></div>
+      <div class="rules-actions">
+        <button id="addNewRuleBtn" class="btn btn-primary btn-tiny">+ Kural Ekle</button>
+      </div>
+    </div>
+    
+    <div class="sub-section rule-form-section" id="ruleFormSection" style="display: none;">
+      <div class="sub-section-header">
+        <h3 id="ruleFormTitle">📝 Yeni Kural</h3>
+      </div>
+      <div class="form-content">
+        <div class="form-row-compact">
+          <label>Kriter:
+            <select id="ruleCriteria" class="form-select">
+              <option value="NEWER_THAN">Seçilen zamandan yeni kullanıcılar</option>
+              <option value="OLDER_THAN">Seçilen zamandan eski kullanıcılar</option>
+              <option value="BEFORE_DATE">Tarihten önce</option>
+              <option value="AFTER_DATE">Tarihten sonra</option>
+            </select>
+          </label>
+          <label id="daysValueGroup">Değer:
+            <span class="input-group">
+              <input type="number" id="ruleValueDays" class="form-input" min="1" value="3650">
+              <select id="ruleUnit" class="form-select unit-select">
+                <option value="days">gün</option>
+                <option value="months">ay</option>
+                <option value="years">yıl</option>
+              </select>
+            </span>
+          </label>
+        </div>
+
+        <div class="form-group" id="dateValueGroup" style="display: none;">
+          <label>Tarih: <input type="date" id="ruleValueDate" class="form-input"></label>
+        </div>
+
+        <input type="hidden" id="ruleAction" value="ENGELLE">
+        <input type="hidden" id="ruleId">
+        <input type="hidden" id="ruleIsDefault" value="false">
+
+        <div class="form-group">
+          <label>Açıklama: <input type="text" id="ruleDescription" class="form-input" placeholder="Opsiyonel"></label>
+        </div>
+
+        <div class="form-actions">
+          <button id="saveRuleBtn" class="btn btn-success btn-tiny">Kaydet</button>
+          <button id="cancelRuleBtn" class="btn btn-secondary btn-tiny">İptal</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section" id="dateFilterCacheSection">
+      <div class="sub-section-header">
+        <h3>💾 Önbellek</h3>
+        <button id="clearCacheBtn" class="btn btn-danger btn-tiny">🗑️ Temizle</button>
+      </div>
+      <p class="sub-section-description">Kayıt tarihleri 30 gün boyunca önbellekte saklanır.</p>
+      <div class="cache-stats-inline">
+        <span class="cache-mini">Toplam: <b id="cacheTotalCount">0</b></span>
+        <span class="cache-mini">Geçerli: <b id="cacheValidCount">0</b></span>
+        <span class="cache-mini">Süresi Dolmuş: <b id="cacheExpiredCount">0</b></span>
+      </div>
+    </div>
+
+    <div class="sub-section" id="storageSection">
+      <div class="sub-section-header">
+        <h3>💾 Depolama Kullanımı</h3>
+        <button id="clearStoredData" class="btn btn-danger btn-tiny">🗑️ Temizle</button>
+      </div>
+      <p class="sub-section-description">Sadece kuyruk ve tamamlanan işlem verilerini temizler.</p>
+      <div class="cache-stats-inline">
+        <span class="cache-mini">Kullanım: <b id="storageUsage">Yükleniyor...</b> / 5MB</span>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Dark Mode Toggle Section -->
+  <div class="card" style="margin-bottom: 20px;">
+    <div class="card-header">
+      <h2>🎨 Görünüm</h2>
+    </div>
+    <div class="card-body" style="text-align: center;">
+      <div style="display: inline-flex; gap: 10px;">
+        <button id="themeLight" class="btn btn-dark theme-btn active" style="min-width: 100px;">
+          ☀️ Açık
+        </button>
+        <button id="themeDark" class="btn btn-dark theme-btn" style="min-width: 100px;">
+          🌙 Koyu
+        </button>
+      </div>
+      <br>
+      <small style="color: #666;">Arayüz temasını değiştir</small>
+    </div>
+  </div>
 
   <div id="howToUse">
   <h3 style="text-align: center;">
-    Kullanım Klavuzu
+    Kullanım Kılavuzu
     <img src="../img/questionicon.svg" style="width:20px; position: relative; top: 3px;" id="questionMark">
   </h3>
 	<ul>
-		<li>Ekşi Sözlük Arayüzü Üzerinden Kullanımı</li>
+		<li><b class="faq-bold">Ekşi Sözlük Arayüzü Üzerinden Kullanımı</b></li>
 		
 			<ol>
           Entrylerin ayar menüsü güncellendi.
@@ -213,22 +441,125 @@ margin-bottom: 8px;
 			</ol>
 		
 		<br>
-		<li>Eklenti Menüsünden Kullanımı</li>
+		<li><b class="faq-bold">Eklenti Popup Menüsü</b></li>
 		
 			<ol>
-          <li>
-            Eklenti simgesine <img src="../img/eksiengel16.png"> tıklayarak eklenti menüsünü açın.
-            <br>
-            <b style="text-decoration: none; color:black;">Gireceğim Listedeki Yazarları Engelle / Engelini Kaldır</b> butonuna tıklayın. 
-            <br>
-            Elinizdeki yazar listesini metin kutusuna yapıştırıp, <b style="text-decoration: none; color:black;">Engelle</b> veya <b style="text-decoration: none; color:black;">Engeli Kaldır</b> butonuna tıklayın.
-          </li>
-          <li>
-            Eklenti simgesine <img src="../img/eksiengel16.png"> tıklayarak eklenti menüsünü açın.
-            <br>
-            <b style="text-decoration: none; color:black;">Tüm Engellerimi Kaldır</b> butonuna tıklayın.  
-          </li>
+        <li>
+          Eklenti simgesine <img src="../img/eksiengel16.png"> tıklayarak popup menüsünü açın.
+        </li>
+        <li>
+          <b class="faq-bold">Ana İşlemler</b>: Toplu işlemler, listeler ve tarih bazlı işlemler sayfasına erişin.
+        </li>
+        <li>
+          <b class="faq-bold">Ayarlar ve Yardım</b>: Eklenti ayarları ve bu kılavuz sayfasına erişin.
+        </li>
       </ol>
+		
+		<br>
+		<li><b class="faq-bold">Ana İşlemler Sayfası</b></li>
+		
+			<ol>
+        <li><b class="faq-bold">İşlem Durumu</b>
+          <ul>
+            <li>Aktif işlemlerin ilerleme durumu gösterilir</li>
+            <li>⚡ İşlenen, ✅ Başarılı, ⏱️ Kalan sayıları</li>
+            <li>⏸️ Duraklat: İşlemi checkpoint'te duraklatır</li>
+            <li>▶️ Devam Et: Duraklatılan işlemi kaldığı yerden devam ettirir</li>
+            <li>🛑 Durdur: İşlemi hemen sonlandırır</li>
+          </ul>
+        </li>
+        <li><b class="faq-bold">İşlemler</b> (Toplu İşlemler)
+          <ul>
+            <li><b class="faq-bold">Engelli kullanıcıları sessize al</b>: Tüm engellenenleri sessize taşır</li>
+            <li><b class="faq-bold">Sessiz kullanıcıları engelle</b>: Tüm sessizleri engelli listesine taşır</li>
+            <li><b class="faq-bold">Engellilerin başlıklarını da engelle</b>: Engellenenlerin açtığı başlıkları gizler</li>
+            <li><b class="faq-bold">Engellenen başlıkları kaldır</b>: Başlık engellerini temizler</li>
+            <li><b class="faq-bold">Tüm Engelleri Kaldır</b>: Mevcut tüm engelleri temizler</li>
+            <li><b class="faq-bold">Tüm Sessizleri Kaldır</b>: Mevcut tüm sessizleri temizler</li>
+          </ul>
+        </li>
+        <li><b class="faq-bold">Tarih Bazlı İşlemler</b>
+          <ul>
+            <li>Kayıt tarihine göre iki farklı işlem yapılabilir:</li>
+            <li><b class="faq-bold">Filtre Kuralları</b>: Ayarlar sayfasından tanımlanan kurallara göre engelleme</li>
+            <li><b class="faq-bold">Toplu İşlem</b>: Mevcut listedeki kullanıcıları tarih kriterine göre işleme
+              <ul>
+                <li>Kaynak: Engellenenler, Sessizler veya Yazar Listesi</li>
+                <li>Kriter: Seçilen zamandan yeni/eski kullanıcılar, Tarihten önce/sonra</li>
+                <li>Eylem: Engelle, Sessize Al, Engel Kaldır, Sessizden Çıkar, Takip Et</li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li><b class="faq-bold">Liste Yönetimi</b>
+          <ul>
+            <li><b class="faq-bold">Sessiz Kullanıcılar</b>: Sayı, yenileme ve CSV dışa aktarma (kayıt tarihi dahil)</li>
+            <li><b class="faq-bold">Engellenmiş Kullanıcılar</b>: Sayı, yenileme ve CSV dışa aktarma (kayıt tarihi dahil)</li>
+            <li><b class="faq-bold">⭐ Takip Edilenler</b>: Takip ettiğiniz yazarların listesi
+              <ul>
+                <li>Yenile: Ekşi Sözlük'ten güncel takip listesini çeker</li>
+                <li>Listeyi CSV olarak kaydet: Takip edilenleri kayıt tarihleriyle birlikte CSV dosyasına aktarır</li>
+              </ul>
+            </li>
+            <li><b class="faq-bold">Yazar Listesi İşlemleri</b>: Özel listeden toplu engelleme/kaldırma</li>
+          </ul>
+        </li>
+        <li><b class="faq-bold">İşlem Geçmişi</b>
+          <ul>
+            <li><b class="faq-bold">Sıradaki İşlemler</b>: Bekleyen görevler</li>
+            <li><b class="faq-bold">Tamamlanan İşlemler</b>: Biten işlemlerin sonuçları</li>
+          </ul>
+        </li>
+      </ol>
+		
+		<br>
+		<li><b class="faq-bold">Ayarlar Sayfası</b></li>
+		
+			<ol>
+        <li><b class="faq-bold">İşlem Ayarları</b>
+          <ul>
+            <li><b class="faq-bold">Engelle veya sessize al</b>: İşlemlerin engelleme mi sessize alma mı yapacağı</li>
+            <li><b class="faq-bold">Başlıklarını da engelle</b>: Engellenenlerin başlıklarını da gizle</li>
+            <li><b class="faq-bold">Çaylak yazarları da engelle</b>: Favori/takipçi engelinde çaylakları dahil et</li>
+            <li><b class="faq-bold">Takip ettiğim yazarları engelleme</b>: Takip edilenleri koru</li>
+            <li><b class="faq-bold">Sadece gerekli işlemleri yap</b>: Tekrar engellemeyi önle</li>
+            <li><b class="faq-bold">Yeşil ve sarı tikleri gizle</b>: Premium hesap ikonlarını gizle</li>
+            <li><b class="faq-bold">Toplanan verileri gönder</b>: Anonim istatistik paylaşımı</li>
+          </ul>
+        </li>
+        <li><b class="faq-bold">Tarih Filtresi</b>
+          <ul>
+            <li><b class="faq-bold">Filtre Kuralları</b>: Kayıt tarihine göre engelleme kriterleri tanımlayın</li>
+            <li><b class="faq-bold">Önbellek</b>: Kayıt tarihleri için 30 günlük önbellek yönetimi</li>
+            <li><b class="faq-bold">Depolama Kullanımı</b>: Kuyruk ve işlem verilerinin boyutu</li>
+          </ul>
+        </li>
+        <li><b class="faq-bold">Görünüm</b>
+          <ul>
+            <li>Açık/Koyu tema seçimi</li>
+          </ul>
+        </li>
+      </ol>
+		
+		<br>
+		<li><b class="faq-bold">Yazar Listesi Sayfası</b>
+		  <ol>
+        <li>Metin kutusuna yazar nicklerini yazın (satır başına bir tane)</li>
+        <li><b class="faq-bold">📄 CSV Yükle</b>: CSV dosyasından yazar listesi yükler.
+          <ul style="margin-top: 4px; margin-bottom: 4px;">
+            <li>CSV formatı: <code>Username,RegistrationDate</code> (eski format <code>Username</code> de desteklenir)</li>
+            <li>Kayıt tarihi YYYY-MM-DD formatında olmalıdır (örn: 2018-12-01)</li>
+            <li>Liste otomatik olarak kaydedilir, tarihler önbelleğe alınır</li>
+            <li>Kayıt tarihi olmayan kullanıcılar "Tarih Bazlı İşlemler"de atlanır (muhtemelen engellenmiş hesaplar)</li>
+          </ul>
+        </li>
+        <li><b class="faq-bold">🚫 Engelle</b>: Listedeki tüm yazarları engeller</li>
+        <li><b class="faq-bold">🔓 Engel Kaldır</b>: Listedeki yazarların engellerini kaldırır</li>
+        <li><b class="faq-bold">⭐ Takip Et</b>: Listedeki tüm yazarları takip eder</li>
+        <li><b class="faq-bold">🔓➕ Engel Kaldır ve Takip Et</b>: Listedeki yazarların engelini kaldırır ve takip eder</li>
+        <li><b class="faq-bold">🔊➕ Sessizden Çıkar ve Takip Et</b>: Listedeki yazarları sessizden çıkarır ve takip eder</li>
+      </ol>
+		</li>
 	</ul>
   
   </div>

@@ -18,7 +18,7 @@ SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = (env("DEBUG") == "True")
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[".eksiengelplus.duzgun.org", "ekisengelplus.duzgun.org", "localhost", "127.0.0.1", "*"])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[".eksiengelplus.duzgun.org", "eksiengelplus.duzgun.org", "localhost", "127.0.0.1"])
 
 # Application definition
 
@@ -50,6 +50,17 @@ MIDDLEWARE = [
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-api-key',
+    'x-requested-with',
+]
 
 ROOT_URLCONF = 'django_EksiEngel.urls'
 
@@ -136,6 +147,13 @@ SHARED_API_KEY = env("SHARED_API_KEY")
 # Rate limiting settings
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_DEFAULT_RATE = '100/m'
+
+# Security settings
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # CSRF settings
 CSRF_TRUSTED_ORIGINS = ["https://eksiengelplus.duzgun.org", "http://localhost:8000"]

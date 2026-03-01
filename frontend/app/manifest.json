@@ -27,7 +27,9 @@
   ],
 	"content_scripts": [
 	  {
-	    "matches": ["*://*/*"],
+	    "matches": [
+	      "*://eksisozluk.com/*"
+	    ],
 	    "js": ["assets/js/script.js"],
 	    "type": "module"
 	  }
@@ -76,9 +78,8 @@
         "assets/js/authorListPage.js",
 				"assets/js/queue.js",
 				"assets/js/programController.js",
-				"assets/js/script.js",
-        ".env"
-      ],
+				"assets/js/script.js"
+       ],
       "matches": [
         "http://*/*",
         "https://*/*"

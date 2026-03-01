@@ -7,6 +7,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .models import ClientData, BanSource, BanMode, LogLevel
 from .models import ClientAnalytic, ClickType
@@ -63,7 +66,8 @@ def upload(request):
             )
             return Response('OK', status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
+            logger.error(f"ClientData upload error: {str(e)}")
+            return Response('Veri işlenirken bir hata oluştu', status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response('Method Not Allowed', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -71,9 +75,16 @@ def upload(request):
 @csrf_exempt
 @api_view(['GET', 'POST'])
 @authentication_classes([SharedAPIKeyAuthentication, CsrfExemptSessionAuthentication, BasicAuthentication])
-@permission_classes([AllowAny])
 def analytics(request):
+    # POST is allowed with API key authentication (for extension to send analytics)
+    # GET requires admin access (for viewing analytics)
+    
     if request.method == 'GET':
+        # Require admin for GET
+        from rest_framework.permissions import IsAdminUser
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response('Bu sayfaya erişim yetkiniz yok', status=status.HTTP_403_FORBIDDEN)
+        
         # Return simple analytics overview
         total_clients = ClientData.objects.count()
         total_analytics = ClientAnalytic.objects.count()
@@ -106,6 +117,7 @@ def analytics(request):
             )
             return Response('OK', status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
+            logger.error(f"Analytics upload error: {str(e)}")
+            return Response('Veri işlenirken bir hata oluştu', status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response('Method Not Allowed', status=status.HTTP_405_METHOD_NOT_ALLOWED)

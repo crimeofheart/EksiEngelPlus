@@ -220,6 +220,7 @@ async function setupUniversalControlButtons() {
 }
 
 async function handlePauseOperation() {
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.OPERATION_PAUSE });
   const pauseBtn = document.getElementById('btnPauseOperation');
   
   // Clean up any existing pause state first
@@ -350,6 +351,7 @@ async function handlePauseOperation() {
 }
 
 async function handleResumeOperation() {
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.OPERATION_RESUME });
   const resumeBtn = document.getElementById('btnResumeOperation');
   resumeBtn.disabled = true;
   resumeBtn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Devam Ediliyor...</span>';
@@ -469,6 +471,9 @@ function showPausedOperationBanner(operation) {
         <button id="bannerResumeBtn" class="banner-btn banner-btn-resume">
           ▶️ Devam Et
         </button>
+        <button id="bannerCancelBtn" class="banner-btn banner-btn-cancel">
+          🛑 İptal
+        </button>
         <button id="bannerDismissBtn" class="banner-btn banner-btn-dismiss">
           ✕ Kapat
         </button>
@@ -483,6 +488,7 @@ function showPausedOperationBanner(operation) {
   // Add event listeners
   const resumeBtn = banner.querySelector('#bannerResumeBtn');
   const dismissBtn = banner.querySelector('#bannerDismissBtn');
+  const cancelBtn = banner.querySelector('#bannerCancelBtn');
   
   if (resumeBtn) {
     resumeBtn.addEventListener('click', async () => {
@@ -490,6 +496,23 @@ function showPausedOperationBanner(operation) {
       resumeBtn.innerHTML = '⏳ Devam ediliyor...';
       await handleResumeOperation();
       hidePausedOperationBanner();
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', async () => {
+      cancelBtn.disabled = true;
+      cancelBtn.innerHTML = '⏳ İptal ediliyor...';
+      try {
+        await sendEarlyStopWithRetry();
+        hidePausedOperationBanner();
+        notificationHandler.showStatusMessage('İşlem iptal edildi.', 'success');
+      } catch (err) {
+        console.error('Failed to cancel operation:', err);
+        notificationHandler.showStatusMessage('İşlem iptal edilemedi.', 'error');
+        cancelBtn.disabled = false;
+        cancelBtn.innerHTML = '🛑 İptal';
+      }
     });
   }
   
@@ -620,7 +643,8 @@ function getOperationTypeDisplay(type) {
     'BLOCK_MUTED_USERS': 'Sessizleri Engelleme',
     'BLOCK_TITLES': 'Başlık Engelleme',
     'REFRESH_MUTED_LIST': 'Sessiz Liste Yenileme',
-    'REFRESH_BLOCKED_LIST': 'Engelli Liste Yenileme'
+    'REFRESH_BLOCKED_LIST': 'Engelli Liste Yenileme',
+    'REFRESH_FOLLOWED_LIST': 'Takip Edilenler Listesi Yenileniyor',
   };
   return typeMap[type] || type || 'Bilinmeyen İşlem';
 }
@@ -638,6 +662,7 @@ function sendMessageWithPromise(message) {
 }
 
 async function handleEarlyStop() {
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.OPERATION_STOP });
   const earlyStopButton = document.getElementById("earlyStop");
   
   if (!confirm("İşlemi durdurmak istediğinizden emin misiniz?")) {
@@ -920,6 +945,7 @@ function handleMigrateBlockedTitlesToUnblocked() {
 }
 
 function handleBlockMutedUsers() {
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.OPERATION_BLOCK_MUTED_USERS });
   notificationHandler.updateButtonStatus("Starting 'Block Muted Users' process...", false, 0);
   chrome.runtime.sendMessage({ action: "blockMutedUsers" }, (response) => {
     if (chrome.runtime.lastError) {
@@ -932,6 +958,7 @@ function handleBlockMutedUsers() {
 }
 
 function handleBlockTitlesOfBlockedMuted() {
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.OPERATION_BLOCK_TITLES });
   notificationHandler.updateButtonStatus("Starting 'Block Titles of Blocked/Muted' process...", false, 0);
   chrome.runtime.sendMessage({ action: "blockTitlesOfBlockedMuted" }, (response) => {
     if (chrome.runtime.lastError) {
@@ -1782,6 +1809,7 @@ async function saveDateBulkPreferences() {
 }
 
 async function handleStartBulkAction() {
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.OPERATION_DATE_BULK });
   const source = document.getElementById('bulkSource').value;
   const criteria = document.getElementById('bulkCriteria').value;
   const action = document.getElementById('bulkAction').value;

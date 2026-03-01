@@ -42,8 +42,21 @@ Chrome Extension  ──►  api app (Action Data)
 **URL:** https://eksiengelplus.duzgun.org/admin/api/
 
 Browse all API endpoints through a simple web interface. This provides easy access to:
+- Statistics API endpoints (most_banned, most_banned_unique, user_stat, etc.)
 - Client Data Collector endpoints (analytics, upload)
 - All data tables
+
+> **Tip:** Visit https://eksiengelplus.duzgun.org/admin/api/ to see all available endpoints with links.
+
+#### Django Admin Access
+For the full Django admin interface (browse/edit database records):
+- **URL:** https://eksiengelplus.duzgun.org/admin/client_data_collector/
+- **Short URL:** https://eksiengelplus.duzgun.org/admin/api/client_data_collector/ (redirects)
+
+This gives you full CRUD access to:
+- ClientData - Raw client data submissions
+- ClientAnalytic - Click/feature usage tracking
+- All lookup tables (BanSource, BanMode, ClickType, etc.)
 
 #### Authentication
 Access requires one of:
@@ -53,10 +66,11 @@ Access requires one of:
 Example with curl:
 ```bash
 # View analytics in browser
-curl -u username:password https://eksiengelplus.duzgun.org/admin/api/client_data/analytics
+curl -u coh:YOUR_PASSWORD https://eksiengelplus.duzgun.org/admin/api/client_data/analytics
 
-# Or with API key
-curl -H "X-API-Key: your-api-key" https://eksiengelplus.duzgun.org/admin/api/client_data/analytics
+# Or with API key (key format from .env: SHARED_API_KEY)
+curl -H "X-API-Key: cbjhsabj=iuhfnkenkfjnbekvbkjhdsbkjucbviujsdvnk./.d876fwuj*/8*f" \
+  https://eksiengelplus.duzgun.org/admin/api/client_data/analytics
 ```
 
 ---
@@ -128,6 +142,7 @@ This is the core table that records every operation performed by EksiEngelPlus u
 | **time_specifier** | TODAY, WEEK, MONTH, YEAR | TITLE_BAN mode |
 | **date_criteria** | Date filter rule used | Date-based bulk operations |
 | **bulk_action** | Type of bulk action | Date-based bulk operations |
+| **source_list** | BLOCKED_USERS, MUTED_USERS, AUTHOR_LIST | Date-based bulk operations (source of users) |
 
 #### Action Statistics Explained
 
@@ -181,30 +196,32 @@ These are reference tables that store the allowed values for various fields:
 
 | Table | URL | Values |
 |-------|-----|--------|
-| **BanSource** | /admin/api/bansource/ | How the target list was obtained |
-| **BanMode** | /admin/api/banmode/ | Type of action (BAN, MUTE, etc.) |
+| **BanSource** | /admin/api/bansource/ | How the target list was obtained (SINGLE, FAV, FOLLOW, LIST, UNDOBANALL, TITLE, etc.) |
+| **BanMode** | /admin/api/banmode/ | Type of action (BAN, UNDOBAN) |
 | **TargetType** | /admin/api/targettype/ | SINGLE, TITLE, FAV, FOLLOW |
 | **ClickSource** | /admin/api/clicksource/ | Where user clicked to trigger |
 | **LogLevel** | /admin/api/loglevel/ | DEBUG, INFO, WARNING, ERROR |
-| **TimeSpecifier** | /admin/api/timespecifier/ | TODAY, WEEK, MONTH, YEAR |
+| **TimeSpecifier** | /admin/api/timespecifier/ | LAST_24_H, LAST_1_W, LAST_1_M, LAST_3_M, ALL |
 
 #### Common Values
 
 **BanMode:**
 - `BAN` - Block the user
-- `MUTE` - Mute the user
-- `FAV_BAN` - Block users who favorited a specific entry
-- `FOLLOW_BAN` - Block followers/following
+- `UNDOBAN` - Unblock the user (remove from blocked list)
 
 **TargetType:**
-- `SINGLE` - Block a single user
+- `USER` - Target individual users
 - `TITLE` - Block users from a title (entry page)
-- `FAV` - Block based on favorited entries
+- `MUTE` - Mute users
 - `FOLLOW` - Block based on follow relationships
 
 **ClickSource:**
-- `ENTRY_MENU` - Clicked from entry menu
-- `AUTHOR_MENU` - Clicked from author menu
+- `ENTRY` - Clicked from entry
+- `PROFILE` - Clicked from profile
+- `QUESTION` - Clicked from question
+- `FOLLOWING` - Clicked from following list
+- `FOLLOWER` - Clicked from follower list
+- `TITLE` - Clicked from title
 
 ---
 
@@ -289,6 +306,8 @@ Your server provides several API endpoints for generating statistics:
 | `/api/failed_actions/` | List last 10 failed operations |
 | `/api/total_action/` | Daily action counts |
 | `/api/total_action_html/` | Visual chart of daily actions |
+
+> **Note:** All statistics endpoints are also available under `/admin/api/` for easier browsing. Visit https://eksiengelplus.duzgun.org/admin/api/ to see all available endpoints.
 
 ### Example: Getting Most Blocked Users
 
@@ -469,9 +488,9 @@ The `/api/user_stat/` endpoint provides comprehensive per-user statistics:
 | Why is performed_action less than planned_action? | User stopped the operation early (is_early_stopped=True) |
 | Why is successful_action less than performed_action? | Some users were already blocked/muted, or rate limiting occurred |
 | What does is_early_stopped=True mean? | User clicked pause/stop before completing all operations |
-| How to see who blocks the most? | Use `/api/most_banned_unique/` endpoint |
-| How to see who is blocked the most? | Use `/api/most_banned/` endpoint |
-| How to see daily activity? | Visit `/api/total_action_html/` |
+| How to see who blocks the most? | Use `/api/most_banned_unique/` or `/admin/api/most_banned_unique/` endpoint |
+| How to see who is blocked the most? | Use `/api/most_banned/` or `/admin/api/most_banned/` endpoint |
+| How to see daily activity? | Visit `/api/total_action_html/` or `/admin/api/total_action_html/` |
 
 ### Data Retention
 

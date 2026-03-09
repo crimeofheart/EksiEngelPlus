@@ -1,0 +1,13 @@
+{
+  "name": "eksiengelplus",
+  "version": "0.1.0",
+  "description": "EksiEngelPlus Chrome Extension",
+  "scripts": {
+    "load-chrome": "node -e \"const fs=require('fs'); if(fs.existsSync('manifest.chrome.json')){fs.copyFileSync('manifest.chrome.json','manifest.json'); console.log('Chrome manifest loaded')} else {console.log('manifest.chrome.json not found - run npm install first')}\"",
+    "load-firefox": "node -e \"const fs=require('fs'); if(!fs.existsSync('manifest.chrome.json')){fs.copyFileSync('manifest.json','manifest.chrome.json'); console.log('Chrome manifest backed up')}; fs.copyFileSync('manifest.firefox.json','manifest.json'); console.log('Firefox manifest loaded')\"",
+    "restore-chrome": "node -e \"const fs=require('fs'); if(fs.existsSync('manifest.chrome.json')){fs.copyFileSync('manifest.chrome.json','manifest.json'); console.log('Chrome manifest restored')} else {console.log('manifest.chrome.json not found')}\""
+  },
+  "keywords": ["chrome-extension", "firefox-addon", "eksisozluk"],
+  "author": "crimeofheart",
+  "license": "MIT"
+}

@@ -6,8 +6,9 @@
   "description": "Ekşi Sözlük'te toplu olarak engelleme/başlıklarını engelleme işlemi yapın.",
   "homepage_url": "https://eksiengelplus.duzgun.org/",
   "browser_specific_settings": {
-    "chrome": {
-      "default_locale": "en"
+    "gecko": {
+      "id": "eksiengelplus@duzgun.org",
+      "strict_min_version": "109.0"
     }
   },
   "icons": {
@@ -41,8 +42,7 @@
 	  }
 	],
   "background": {
-    "service_worker": "assets/js/background.js",
-    "type": "module"
+    "scripts": ["assets/js/background.js"]
   },
   "web_accessible_resources": [
     {

@@ -1,5 +1,5 @@
 <div style="float: left;">
-<h2><img src="frontend/app/assets/img/eksiengel48.png" width="48" height="48"> Ekşi Engel Plus - <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh">Chrome Webstore</a> | <!-- TODO: Replace with actual Firefox Add-ons URL --> <a href="https://addons.mozilla.org/addon/eksiengelplus/" target="_blank">Firefox (WIP)</a></h2>
+<h2><img src="frontend/app/assets/img/eksiengel48.png" width="48" height="48"> Ekşi Engel Plus - <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh">Chrome Webstore</a> | <a href="https://addons.mozilla.org/en-US/firefox/addon/eksiengelplus/" target="_blank">Firefox</a></h2>
 </div>
 Google Chrome extension that allows mass blocking of authors for the social media platform Ekşi Sözlük.
 
@@ -86,7 +86,7 @@ As long as it is allowed in the settings menu, log data and list of blocked user
 Ekşi Engel Plus is available for both Chrome and Firefox:
 
 - **Google Chrome:** <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh">Chrome Webstore</a>
-- **Mozilla Firefox:** <!-- TODO: Replace with actual Firefox Add-ons URL --> <a href="https://addons.mozilla.org/addon/eksiengelplus/" target="_blank">Firefox Add-ons</a> (WIP - Coming Soon)
+- **Mozilla Firefox:** <a href="https://addons.mozilla.org/en-US/firefox/addon/eksiengelplus/" target="_blank">Firefox Add-ons</a>
 
 Both browsers share the same codebase with browser-specific manifests for optimal compatibility.
 

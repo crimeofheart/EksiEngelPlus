@@ -79,7 +79,6 @@
         "assets/js/log.js",
         "assets/js/utils.js",
         "assets/js/welcome.js",
-        "assets/js/jsdom.js",
 		"assets/js/faq.js",
         "assets/js/popup.js",
         "assets/js/authorListPage.js",

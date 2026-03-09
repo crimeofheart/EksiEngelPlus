@@ -1,5 +1,5 @@
-<div float="left">
-<h2><img src="frontend/app/assets/img/eksiengel48.png" width="48" height="48"> Ekşi Engel Plus</h2>
+<div style="float: left;">
+<h2><img src="frontend/app/assets/img/eksiengel48.png" width="48" height="48"> Ekşi Engel Plus - <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh">Chrome Webstore</a></h2>
 </div>
 Google Chrome extension that allows mass blocking of authors for the social media platform Ekşi Sözlük.
 
@@ -87,7 +87,7 @@ Ekşi Engel Plus in Chrome Webstore: [link](https://chromewebstore.google.com/de
 
 Version notes: Extension içindeki versiyon notlarına bakın  
 
-<div float="left">
+<div style="float: left;">
 <img src="frontend/publish/ss/entryMenu.png" width="480" height="300">
 <br>
 <img src="frontend/publish/ss/authorMenu.png" width="480" height="300">

@@ -5,10 +5,35 @@ import * as utils from './utils.js';
 import { programController } from './programController.js';
 import { resumableOperationRegistry } from './resumableOperation.js';
 
-// Native DOMParser replacement for JSDOM
+// Import JSDOM for Chrome (service worker doesn't have DOMParser)
+import {JSDOM} from './jsdom.js';
+
+/**
+ * Parses HTML string to a DOM-like object
+ * Uses native DOMParser in Firefox (background script has DOM API)
+ * Uses JSDOM in Chrome (service worker doesn't have DOM API)
+ * @param {string} htmlString - The HTML string to parse
+ * @returns {Object} - DOM-like object with querySelector, querySelectorAll, etc.
+ */
 function parseHTML(htmlString) {
-  const parser = new DOMParser();
-  return parser.parseFromString(htmlString, 'text/html');
+  // Try native DOMParser first (works in Firefox background script)
+  if (typeof DOMParser !== 'undefined') {
+    try {
+      const parser = new DOMParser();
+      return parser.parseFromString(htmlString, 'text/html');
+    } catch (e) {
+      // Fall through to JSDOM
+    }
+  }
+  
+  // Chrome service worker - use JSDOM
+  try {
+    const dom = new JSDOM(htmlString);
+    return dom.window.document;
+  } catch (e) {
+    log.err("scraping", "parseHTML: JSDOM error: " + e);
+    throw e;
+  }
 }
 
 function Relation(authorName, authorId, isBannedUser, isBannedTitle, isBannedMute, doIFollow, doTheyFollowMe) {

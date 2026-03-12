@@ -1,10 +1,40 @@
 import {log} from './log.js';
 import * as enums from './enums.js';
-import {JSDOM} from './jsdom.js';
 import {config} from './config.js';
 import * as utils from './utils.js';
 import { programController } from './programController.js';
 import { resumableOperationRegistry } from './resumableOperation.js';
+
+// Import JSDOM for Chrome (service worker doesn't have DOMParser)
+import {JSDOM} from './jsdom.js';
+
+/**
+ * Parses HTML string to a DOM-like object
+ * Uses native DOMParser in Firefox (background script has DOM API)
+ * Uses JSDOM in Chrome (service worker doesn't have DOM API)
+ * @param {string} htmlString - The HTML string to parse
+ * @returns {Object} - DOM-like object with querySelector, querySelectorAll, etc.
+ */
+function parseHTML(htmlString) {
+  // Try native DOMParser first (works in Firefox background script)
+  if (typeof DOMParser !== 'undefined') {
+    try {
+      const parser = new DOMParser();
+      return parser.parseFromString(htmlString, 'text/html');
+    } catch (e) {
+      // Fall through to JSDOM
+    }
+  }
+  
+  // Chrome service worker - use JSDOM
+  try {
+    const dom = new JSDOM(htmlString);
+    return dom.window.document;
+  } catch (e) {
+    log.err("scraping", "parseHTML: JSDOM error: " + e);
+    throw e;
+  }
+}
 
 function Relation(authorName, authorId, isBannedUser, isBannedTitle, isBannedMute, doIFollow, doTheyFollowMe) {
   this.authorId = authorId;
@@ -50,8 +80,8 @@ class ScrapingHandler
     
     let clientName = "";
     try {
-      let dom = new JSDOM(responseText);
-      let cName = dom.window.document.querySelector(".mobile-notification-icons").querySelector(".mobile-only a").title;
+    let dom = parseHTML(responseText);
+    let cName = dom.querySelector(".mobile-notification-icons").querySelector(".mobile-only a").title;
       if(cName && cName !== null && cName !== undefined) {
         cName = cName.replace(/ /gi, "-");
         clientName = cName;
@@ -87,15 +117,15 @@ class ScrapingHandler
     }
     
     try {
-      let dom = new JSDOM(responseText);
-      let entryElement = dom.window.document.getElementById("entry-item-list").querySelector("li");
-      
-      let authorId = entryElement.getAttribute("data-author-id");
-      let authorName = entryElement.getAttribute("data-author");
-      authorName = authorName.replace(/ /gi, "-");
-      let entryId = entryUrl.match(/(\d+)(?!.*\d)/g).join("");
-      let titleId =  dom.window.document.getElementById("title").getAttribute("data-id");
-      let titleName =  dom.window.document.getElementById("title").getAttribute("data-title");
+    let dom = parseHTML(responseText);
+    let entryElement = dom.getElementById("entry-item-list").querySelector("li");
+    
+    let authorId = entryElement.getAttribute("data-author-id");
+    let authorName = entryElement.getAttribute("data-author");
+    authorName = authorName.replace(/ /gi, "-");
+    let entryId = entryUrl.match(/(\d+)(?!.*\d)/g).join("");
+    let titleId =  dom.getElementById("title").getAttribute("data-id");
+    let titleName =  dom.getElementById("title").getAttribute("data-title");
       titleName = titleName.replace(/ /gi, "-");
       
       return {entryId:entryId, authorId:authorId, authorName:authorName, titleId:titleId, titleName:titleName};
@@ -127,8 +157,8 @@ class ScrapingHandler
     }
     
     try {
-      let dom = new JSDOM(responseText);
-      let authListNodeList = dom.window.document.querySelectorAll("a");
+    let dom = parseHTML(responseText);
+    let authListNodeList = dom.querySelectorAll("a");
 
       for(let i = 0; i < authListNodeList.length; i++) {
         let val = authListNodeList[i].innerHTML;
@@ -168,8 +198,8 @@ class ScrapingHandler
       }
       
       try {
-        let dom = new JSDOM(responseTextNoob);
-        let authListNodeList = dom.window.document.querySelectorAll("a");
+      let dom = parseHTML(responseTextNoob);
+      let authListNodeList = dom.querySelectorAll("a");
 
         for(let i = 0; i < authListNodeList.length; i++) {
           let val = authListNodeList[i].innerHTML;
@@ -1010,8 +1040,8 @@ class ScrapingHandler
         throw "fetch ok: " + response.ok + ", status: " + response.status;
       let responseText = await response.text();
       
-      let dom = new JSDOM(responseText);
-      let authorId = dom.window.document.getElementById("who").getAttribute("value"); 
+      let dom = parseHTML(responseText);
+      let authorId = dom.getElementById("who").getAttribute("value"); 
       return authorId;
     } catch(err) {
       log.err("scraping", "scrapeAuthorIdFromAuthorProfilePage: authorName: " + authorName + ", err: " + err);
@@ -1039,7 +1069,7 @@ class ScrapingHandler
       }
       let responseText = await response.text();
       
-      let dom = new JSDOM(responseText);
+      let dom = parseHTML(responseText);
       
       // Try multiple selectors to find the registration date
       // Common patterns on Ekşi Sözlük profile pages
@@ -1058,7 +1088,7 @@ class ScrapingHandler
       
       for (const selector of possibleSelectors) {
         try {
-          regDateElement = dom.window.document.querySelector(selector);
+          regDateElement = dom.querySelector(selector);
           if (regDateElement) break;
         } catch (e) {
           // Continue to next selector
@@ -1067,7 +1097,7 @@ class ScrapingHandler
       
       // If not found by attribute, try to find by text content patterns
       if (!regDateElement) {
-        const allElements = dom.window.document.querySelectorAll('*');
+        const allElements = dom.querySelectorAll('*');
         for (const el of allElements) {
           const text = el.textContent?.toLowerCase() || '';
           if (text.includes('kayıt tarihi') || text.includes('katılım tarihi')) {
@@ -1176,8 +1206,8 @@ class ScrapingHandler
         throw "fetch ok: " + response.ok + ", status: " + response.status;
       let responseText = await response.text();
       
-      let dom = new JSDOM(responseText);
-      let contentHTMLCollection = dom.window.document.getElementsByClassName("content");
+      let dom = parseHTML(responseText);
+      let contentHTMLCollection = dom.getElementsByClassName("content");
       for(let i = 0; i < contentHTMLCollection.length; i++) {
         let name = contentHTMLCollection[i].parentNode.getAttribute("data-author"); 
         name = name.replace(/ /gi, "-");

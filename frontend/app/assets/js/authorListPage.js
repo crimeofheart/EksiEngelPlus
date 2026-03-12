@@ -1,3 +1,13 @@
+// Firefox event page keep-alive - connect to background to prevent it from terminating
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.connect) {
+  try {
+    const port = chrome.runtime.connect(null, { name: 'faq-page' });
+    port.disconnect();
+  } catch (e) {
+    // Ignore connection errors - this is just to wake up the background
+  }
+}
+
 import * as enums from './enums.js';
 import { storageHandler } from './storageHandler.js';
 import { commHandler } from './commHandler.js';

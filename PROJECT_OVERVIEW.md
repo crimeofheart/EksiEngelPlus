@@ -9,8 +9,8 @@ The project "EksiEngelPlus" is a Chrome browser extension designed to facilitate
 ```
 EksiEngel/
 ├── frontend/
-│   ├── app/                          # Chrome Extension (Manifest V3)
-│   │   ├── manifest.json             # Extension configuration
+│   ├── app/                          # Browser Extension (Chrome & Firefox, Manifest V3)
+│   │   ├── manifest.json             # Chrome manifest configuration
 │   │   └── assets/
 │   │       ├── js/                   # JavaScript Modules (10,059 lines total)
 │   │       │   ├── programController.js    # 2129 lines - Complex operation controller
@@ -140,6 +140,19 @@ EksiEngel/
 | **urlHandler.js** | Site accessibility validation |
 | **enums.js** | Centralized constants (ActionTypes, Modes, Sources) |
 | **log.js** | Logging system with levels |
+
+## Firefox Support
+
+The extension supports both Chrome and Firefox browsers. Manifest files handle browser-specific differences, while the JavaScript codebase is shared between both browsers.
+
+| File | Purpose |
+|------|---------|
+| `manifest.json` | Chrome manifest configuration |
+| `manifest.firefox.json` | Firefox-specific manifest |
+| `manifest.chrome.json` | Chrome manifest backup |
+| `package.json` | npm scripts for manifest switching (`npm run load-firefox`, `npm run restore-chrome`) |
+
+To test in Firefox: `cd frontend/app && npm install && npm run load-firefox && web-ext run`
 
 ## Backend Architecture (Django)
 

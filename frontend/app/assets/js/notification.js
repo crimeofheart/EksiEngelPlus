@@ -1,3 +1,15 @@
+'use strict';
+
+// Firefox event page keep-alive - connect to background to prevent it from terminating
+if (chrome.runtime && chrome.runtime.connect) {
+  try {
+    const port = chrome.runtime.connect(null, { name: 'notification-page' });
+    port.disconnect();
+  } catch (e) {
+    // Ignore connection errors - this is just to wake up the background
+  }
+}
+
 import * as enums from './enums.js';
 import * as utils from './utils.js';
 import { commHandler } from './commHandler.js';

@@ -63,6 +63,26 @@ initializeOperationState();
 let g_notificationTabId = 0;
 let g_notificationTabCreationInProgress = null;
 
+// Firefox event page keep-alive mechanism
+// In Firefox MV3, event pages terminate when idle. This keeps the background alive
+// while extension pages are open.
+let g_backgroundPort = null;
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'notification-page' || port.name === 'popup-page' || port.name === 'faq-page') {
+    g_backgroundPort = port;
+    port.onDisconnect.addListener(() => {
+      g_backgroundPort = null;
+    });
+  }
+});
+
+// Also listen for the runtime startup to re-initialize
+chrome.runtime.onStartup.addListener(() => {
+  log.info("bg", "Extension started/restarted");
+  initializeOperationState();
+});
+
 async function ensureNotificationTabExistsAndIsReady() {
   if (g_notificationTabCreationInProgress) {
     return g_notificationTabCreationInProgress;

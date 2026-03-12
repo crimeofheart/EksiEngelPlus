@@ -1,5 +1,5 @@
 <div style="float: left;">
-<h2><img src="frontend/app/assets/img/eksiengel48.png" width="48" height="48"> Ekşi Engel Plus - <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh">Chrome Webstore</a></h2>
+<h2><img src="frontend/app/assets/img/eksiengel48.png" width="48" height="48"> Ekşi Engel Plus - <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh">Chrome Webstore</a> | <a href="https://addons.mozilla.org/firefox/addon/eksiengelplus" target="_blank">Firefox</a></h2>
 </div>
 Google Chrome extension that allows mass blocking of authors for the social media platform Ekşi Sözlük.
 
@@ -80,6 +80,15 @@ Ekşi Sözlük limits blocking speed (usually 6 operations per minute). Ekşi En
 <h3>Server Part</h3>
 
 As long as it is allowed in the settings menu, log data and list of blocked users are sent to Ekşi Engel Plus servers. This data is used to obtain statistics on the most blocked authors.
+
+<h3>Browser Support</h3>
+
+Ekşi Engel Plus is available for both Chrome and Firefox:
+
+- **Google Chrome:** <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh">Chrome Webstore</a>
+- **Mozilla Firefox:** <a href="https://addons.mozilla.org/firefox/addon/eksiengelplus" target="_blank">Firefox Add-ons</a>
+
+Both browsers share the same codebase with browser-specific manifests for optimal compatibility.
 
 <h3>Links</h3>
 

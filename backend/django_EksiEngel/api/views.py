@@ -6,7 +6,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.response import Response
 from django.http import HttpResponse
 from .serializers import CollectActionDataSerializer, EksiSozlukUserStatViewSerializer, MostBannedUsersSerializer, MostBannedUsersUniqueSerializer, WriteActionViewSerializer, TotalActionViewSerializer
-from .models import Action, ActionConfig, EksiSozlukUser
+from .models import FAILED_ACTION, Action, ActionConfig, EksiSozlukUser
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication 
 from django.db.models.functions import TruncDay
 from django.shortcuts import render
@@ -70,13 +70,7 @@ class FailedActionsView(generics.ListAPIView):
     serializer_class = WriteActionViewSerializer
         
     def get_queryset(self):
-        # failed condition: is_early_stopped=False AND [ (planned_action != performed_action) OR (performed_action != successful_action) ]
-        return Action.objects.filter(
-                    is_early_stopped=False
-               ).exclude(
-                    Q(planned_action=F('performed_action')) &
-                    Q(performed_action=F('successful_action'))
-               ).order_by('-pk')[:10]
+        return Action.objects.filter(FAILED_ACTION).order_by('-pk')[:10]
                
 # List Total Action Number day by day
 class TotalActionView(generics.ListAPIView):
@@ -91,7 +85,3 @@ class TotalActionView(generics.ListAPIView):
             .annotate(total=Count('id'))                 # Count actions per day
             .order_by('day')                             # Sort by day
         )
-
-# Visualize Total Action Number day by day 
-def TotalActionHTMLView(request):
-    return render(request, 'api/total_action.html')

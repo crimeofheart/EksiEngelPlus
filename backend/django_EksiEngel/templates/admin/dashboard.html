@@ -1,0 +1,116 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+
+{% block content %}
+<div class="ee-tiles">
+  {% for tile in tiles %}
+    <a class="ee-tile {{ tile.tone }}" href="{{ tile.url }}">
+      <div class="ee-label">{{ tile.label }}</div>
+      <div class="ee-value">{{ tile.value }}</div>
+      <div class="ee-sub">{{ tile.sub }}</div>
+    </a>
+  {% endfor %}
+</div>
+
+<div class="ee-panel">
+  <h2>Actions per day &mdash; last {{ timeseries_days }} days</h2>
+  <div class="ee-panel-body">
+    {% if has_actions %}
+      <div class="ee-chart-scroll"><canvas id="ee-chart" class="ee-chart"></canvas></div>
+    {% else %}
+      <p class="ee-empty">No actions recorded yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="ee-cols">
+  {% for panel in breakdowns %}
+    <div class="ee-panel">
+      <h2>{{ panel.title }}</h2>
+      <div class="ee-panel-body">
+        {% for row in panel.rows %}
+          <div class="ee-bar-row">
+            <span class="ee-bar-name" title="{{ row.label }}">{{ row.label }}</span>
+            <span class="ee-bar-track"><span class="ee-bar-fill" style="width: {{ row.width }}%"></span></span>
+            <span class="ee-bar-count">{{ row.count }}</span>
+          </div>
+        {% empty %}
+          <p class="ee-empty">No data.</p>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div id="content-main" class="ee-cols">
+  {% for app in app_list %}
+    <div class="ee-panel">
+      <h2>{{ app.name }}</h2>
+      <div class="ee-panel-body">
+        {% for model in app.models %}
+          <div class="ee-model-row">
+            {% if model.admin_url %}
+              <a class="ee-model-name" href="{{ model.admin_url }}">{{ model.name }}</a>
+            {% else %}
+              <span class="ee-model-name">{{ model.name }}</span>
+            {% endif %}
+            <span class="ee-model-actions">
+              {% if model.view_only %}
+                <span class="ee-chip">read-only</span>
+              {% elif model.add_url %}
+                <a class="ee-chip ee-chip-link" href="{{ model.add_url }}">Add</a>
+              {% endif %}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{# The admin log only records add/change/delete. Everything here is read-only telemetry,
+   so this panel would say "None available" forever. Drop it and reclaim the column. #}
+{% block sidebar %}{% endblock %}
+{% block coltype %}colM{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+{% if has_actions %}
+  {{ chart_data|json_script:"ee-chart-data" }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    (function () {
+      var el = document.getElementById('ee-chart');
+      var raw = document.getElementById('ee-chart-data');
+      if (!el || !raw || typeof Chart === 'undefined') return;
+      var data = JSON.parse(raw.textContent);
+      var css = getComputedStyle(document.body);
+      var ink = css.getPropertyValue('--body-quiet-color').trim() || '#666';
+      new Chart(el.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: data.map(function (d) { return d.day; }),
+          datasets: [{
+            label: 'Actions',
+            data: data.map(function (d) { return d.total; }),
+            backgroundColor: 'rgba(65, 118, 144, 0.55)',
+            borderColor: 'rgba(65, 118, 144, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: ink, maxRotation: 0, autoSkipPadding: 24 }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: ink, precision: 0 } }
+          }
+        }
+      });
+    })();
+  </script>
+{% endif %}
+{% endblock %}

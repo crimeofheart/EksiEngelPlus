@@ -27,7 +27,7 @@ INSTALLED_APPS = [
     'client_data_collector.apps.ClientDataCollectorConfig',
     'where_is_eksisozluk.apps.WhereIsEksisozlukConfig',
     'api.apps.ApiConfig',
-    'django.contrib.admin',
+    'django_EksiEngel.apps.EksiEngelAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -40,6 +40,9 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Nothing upstream serves /static/ -- requests for it reach gunicorn, which 404'd them,
+    # so the admin rendered unstyled. WhiteNoise serves STATIC_ROOT from the app itself.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -67,7 +70,7 @@ ROOT_URLCONF = 'django_EksiEngel.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -135,6 +138,11 @@ USE_TZ = True
 import os
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
+# Source assets live outside STATIC_ROOT, which is collectstatic's output directory.
+STATICFILES_DIRS = [BASE_DIR / 'assets']
+# Compressed, but not hashed/manifested: gzip+brotli without collectstatic failing hard
+# if any third-party stylesheet references a file that is not there.
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field

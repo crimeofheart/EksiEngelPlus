@@ -37,41 +37,40 @@ Chrome Extension  ──►  api app (Action Data)
 
 ---
 
-### API Browser
+### Dashboard
 
-**URL:** https://eksiengelplus.duzgun.org/admin/api/
+**URL:** https://eksiengelplus.duzgun.org/admin/
 
-Browse all API endpoints through a simple web interface. This provides easy access to:
-- Statistics API endpoints (most_banned, most_banned_unique, user_stat, etc.)
-- Client Data Collector endpoints (analytics, upload)
-- All data tables
+The admin landing page is a dashboard, computed live from the `api` app:
 
-> **Tip:** Visit https://eksiengelplus.duzgun.org/admin/api/ to see all available endpoints with links.
+- **Stat tiles** — actions, success rate, completion rate, failed actions, early stops,
+  extension users, targets touched, UI events. Each links to the changelist it summarises,
+  and the rates are colour-coded on the thresholds in "Key Metrics to Track" below.
+- **Actions per day** for the last 90 days.
+- **Breakdowns** — action source, extension version, UI events by type.
+- **Browse** — the data tables, ordered by how often you need them.
 
-#### Django Admin Access
-For the full Django admin interface (browse/edit database records):
-- **URL:** https://eksiengelplus.duzgun.org/admin/client_data_collector/
-- **Short URL:** https://eksiengelplus.duzgun.org/admin/api/client_data_collector/ (redirects)
+The old `/admin/api/` endpoint index and the standalone chart page are gone. `/admin/api/`
+now redirects here. The JSON endpoints still exist (see "API Endpoints for Statistics"),
+but the numbers are on the dashboard and the searchable versions are on the changelists.
 
-This gives you full CRUD access to:
-- ClientData - Raw client data submissions
-- ClientAnalytic - Click/feature usage tracking
-- All lookup tables (BanSource, BanMode, ClickType, etc.)
+Lookup tables (BanSource, BanMode, ClickType, ...) are hidden from the index: they are
+reference data seeded by migrations, and both `api` and `client_data_collector` define
+their own copy, so listing them showed two of everything. They are still reachable by
+direct URL, e.g. `/admin/api/bansource/`.
 
 #### Authentication
-Access requires one of:
-- **X-API-Key header**: For programmatic access
-- **Browser login**: Enter Django admin credentials when prompted
+Browser login with Django admin credentials. The dashboard and every changelist are
+staff-only. For the JSON stats endpoints, the same session works, or HTTP Basic:
 
-Example with curl:
 ```bash
-# View analytics in browser
-curl -u coh:YOUR_PASSWORD https://eksiengelplus.duzgun.org/admin/api/client_data/analytics
-
-# Or with API key (key format from .env: SHARED_API_KEY)
-curl -H "X-API-Key: cbjhsabj=iuhfnkenkfjnbekvbkjhdsbkjucbviujsdvnk./.d876fwuj*/8*f" \
-  https://eksiengelplus.duzgun.org/admin/api/client_data/analytics
+curl -u coh:YOUR_PASSWORD https://eksiengelplus.duzgun.org/api/total_action/
 ```
+
+> `X-API-Key` authenticates the extension's *write* endpoints (`/api/action/`,
+> `/admin/api/client_data/analytics`), not the stats. Note that `SHARED_API_KEY` ships
+> inside the extension (`frontend/app/assets/js/config.js`), so it is public by
+> construction -- treat it as a bot speed bump, not a secret.
 
 ---
 
@@ -305,9 +304,15 @@ Your server provides several API endpoints for generating statistics:
 | `/api/most_banned_unique/` | List users blocked by most unique users |
 | `/api/failed_actions/` | List last 10 failed operations |
 | `/api/total_action/` | Daily action counts |
-| `/api/total_action_html/` | Visual chart of daily actions |
 
-> **Note:** All statistics endpoints are also available under `/admin/api/` for easier browsing. Visit https://eksiengelplus.duzgun.org/admin/api/ to see all available endpoints.
+> **Note:** these return raw JSON and are kept for scripting. For reading, prefer the
+> dashboard at `/admin/` and the changelists -- the Action changelist has an **Outcome**
+> filter (failed / stopped early / completed cleanly) that supersedes `failed_actions`
+> without its 10-row cap, and the Ekşi Sözlük users changelist has sortable
+> "times blocked" / "actions run" columns that supersede `most_banned*` and `user_stat`.
+>
+> The duplicate `/admin/api/...` copies of these endpoints and `/api/total_action_html/`
+> (an unauthenticated chart page) were removed; the dashboard replaces them.
 
 ### Example: Getting Most Blocked Users
 
@@ -339,10 +344,13 @@ This renders a visual chart showing actions per day.
 1. Go to https://eksiengelplus.duzgun.org/admin/
 2. Navigate to the relevant model (e.g., Action)
 3. Use filters to create custom views:
-   - Filter by date range
-   - Filter by ban_mode
-   - Filter by eksi_engel_user
-4. Use "Export" to download CSV
+   - Filter by date (the date drill-down above the list)
+   - Filter by outcome (failed / stopped early / completed cleanly)
+   - Filter by ban_mode, ban_source, log_level or version
+   - Search by username or id
+
+> There is no CSV export. This guide previously described one, but it was never
+> implemented -- it would need django-import-export or an admin action.
 
 ### Using the API with Custom Queries
 

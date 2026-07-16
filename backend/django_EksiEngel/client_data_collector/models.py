@@ -1,7 +1,8 @@
 from django.db import models
 
 class BanSource(models.Model):
-    ban_source = models.CharField(max_length=10, blank=False)
+    # 30, not 10: the longest source is MIGRATE_BLOCKED_TO_MUTED (24). Mirrors api.BanSource.
+    ban_source = models.CharField(max_length=30, blank=False)
     def __str__(self):
         return self.ban_source
     
@@ -73,6 +74,10 @@ class ClientData(models.Model):
         return f"{self.date.strftime('%Y-%m-%d %H:%M:%S')} {self.client_name} {self.ban_source} {self.successful_action}/{self.total_action}/{self.author_list_size} {self.is_early_stopped}"
         
 class ClientAnalytic(models.Model):
+    class Meta:
+        verbose_name = "UI event"
+        verbose_name_plural = "UI events"
+
     date = models.DateTimeField(blank=False)
     user_agent = models.CharField(max_length=1024, blank=False)
     client_name = models.CharField(max_length=96)

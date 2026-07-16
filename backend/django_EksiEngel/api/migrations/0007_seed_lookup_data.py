@@ -9,6 +9,9 @@ def create_lookup_data(apps, schema_editor):
     LogLevel = apps.get_model("api", "LogLevel")
     TimeSpecifier = apps.get_model("api", "TimeSpecifier")
 
+    # Only the sources that fit ban_source's original max_length of 10. Longer ones were
+    # added to this list later and could never be inserted -- the migration errored out,
+    # so no database ever got them. 0008 widens the column and seeds the full set.
     ban_sources = [
         "SINGLE",
         "FAV",
@@ -16,14 +19,6 @@ def create_lookup_data(apps, schema_editor):
         "LIST",
         "UNDOBANALL",
         "TITLE",
-        "BLOCKED_MUTED_TITLES",
-        "MIGRATE_BLOCKED_TO_MUTED",
-        "BLOCK_MUTED_USERS",
-        "REFRESH_MUTED_LIST",
-        "REFRESH_BLOCKED_LIST",
-        "DATE_BASED_BULK",
-        "UNMUTEALL",
-        "REFRESH_FOLLOWED_LIST",
     ]
     for i, val in enumerate(ban_sources, 1):
         BanSource.objects.get_or_create(pk=i, defaults={"ban_source": val})

@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from rest_framework import status
@@ -80,26 +81,11 @@ def analytics(request):
     # GET requires admin access (for viewing analytics)
     
     if request.method == 'GET':
-        # Require admin for GET
-        from rest_framework.permissions import IsAdminUser
+        # Analytics live on the admin dashboard now. The POST branch below is untouched:
+        # it is the endpoint the extension writes to.
         if not request.user.is_authenticated or not request.user.is_staff:
             return Response('Bu sayfaya erişim yetkiniz yok', status=status.HTTP_403_FORBIDDEN)
-        
-        # Return simple analytics overview
-        total_clients = ClientData.objects.count()
-        total_analytics = ClientAnalytic.objects.count()
-        html = f"""
-        <html>
-        <head><title>Client Data Analytics</title></head>
-        <body>
-            <h1>Client Data Collector Analytics</h1>
-            <p>Total ClientData records: {total_clients}</p>
-            <p>Total ClientAnalytic records: {total_analytics}</p>
-            <p>Authenticated as: {request.user.username if request.user.is_authenticated else 'N/A'}</p>
-        </body>
-        </html>
-        """
-        return HttpResponse(html)
+        return redirect('admin:index')
 
     if request.method == 'POST':
         data = request.data

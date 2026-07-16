@@ -1,0 +1,310 @@
+/*
+ * Shared admin skin. Loaded on every admin page via templates/admin/base_site.html.
+ *
+ * Everything here is expressed in the admin's own CSS variables (--body-fg, --link-fg,
+ * --hairline-color, ...) so light and dark themes both keep working: this adjusts shape
+ * and typography, it does not introduce a second palette.
+ */
+
+/* ---------- palette ----------
+ *
+ * Matches the public site (api/templates/landing/index.html): Material green #4CAF50
+ * over #2E7D32, with the same 135deg gradient on the header.
+ *
+ * These are the admin's own variables, so retheming here reaches every admin page --
+ * changelists, forms, filters -- without overriding component rules one by one. Loaded
+ * after base.css and dark_mode.css, hence the matching dark block further down: without
+ * it, an unconditional :root would clobber dark mode.
+ */
+:root {
+  --ee-radius: 6px;
+  --ee-gap: 12px;
+
+  --ee-green: #4CAF50;
+  --ee-green-deep: #2E7D32;
+  --ee-green-darkest: #1B5E20;
+
+  --primary: #4CAF50;
+  --secondary: #2E7D32;
+  /* #branding h1 a uses --accent, and it sits on the green header: a pale green here is
+     ~1.9:1 and effectively invisible. Django gets away with a pale accent because its
+     header is blue. White on the deep end of the ramp is 5.2:1. */
+  --accent: #fff;
+
+  /* The site's hero runs #4CAF50 -> #2E7D32, but white on #4CAF50 is only 2.84:1 -- it
+     fails even the 3:1 bar for large text. Same green ramp, shifted one stop deeper, so
+     the header still reads as the site while the branding and nav stay legible. */
+  --header-bg: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+  --header-color: #E8F5E9;
+  --header-branding-color: #fff;
+  --header-link-color: #fff;
+
+  /* Deep green behind breadcrumbs: white on #4CAF50 is only ~2.8:1. */
+  --breadcrumbs-bg: #2E7D32;
+  --breadcrumbs-fg: #E8F5E9;
+  --breadcrumbs-link-fg: #fff;
+
+  /* Link text needs 4.5:1 on white, which the brand green misses; #2E7D32 clears it. */
+  --link-fg: #2E7D32;
+  --link-hover-color: #1B5E20;
+  --link-selected-fg: #388E3C;
+
+  --darkened-bg: #f8f9fa;
+  --selected-bg: #E8F5E9;
+  --selected-row: #E8F5E9;
+
+  /* Buttons carry white text, so they need >=4.5:1: #388E3C only reaches 4.12. */
+  --button-bg: #2E7D32;
+  --button-hover-bg: #1B5E20;
+  --default-button-bg: #1B5E20;
+  --default-button-hover-bg: #14471a;
+  --object-tools-bg: #2E7D32;
+  --object-tools-hover-bg: #1B5E20;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #2E7D32;
+    --secondary: #1B5E20;
+    --accent: #fff;
+
+    --header-bg: linear-gradient(135deg, #1B5E20 0%, #14471a 100%);
+    --header-color: #C8E6C9;
+    --header-branding-color: #fff;
+
+    --breadcrumbs-bg: #1B5E20;
+    --breadcrumbs-fg: #A5D6A7;
+    --breadcrumbs-link-fg: #fff;
+
+    /* Light greens on the near-black body, mirroring dark_mode.css's approach. */
+    --link-fg: #81C784;
+    --link-hover-color: #A5D6A7;
+    --link-selected-fg: #66BB6A;
+
+    /* Must be restated: our :root sets the light #f8f9fa and loads after dark_mode.css,
+       so without this the panel headers, bar tracks and filter sidebar stay near-white
+       under dark mode and their text drops to ~1.2:1. */
+    --darkened-bg: #212121;
+
+    --selected-bg: #1b2a1c;
+    --selected-row: #1b3a1e;
+
+    --button-bg: #2E7D32;
+    --button-hover-bg: #388E3C;
+    --default-button-bg: #1B5E20;
+    --default-button-hover-bg: #2E7D32;
+    --object-tools-bg: #2E7D32;
+    --object-tools-hover-bg: #388E3C;
+  }
+}
+
+/* ---------- shared primitives (dashboard + everywhere else) ---------- */
+
+.ee-panel,
+.module,
+.inline-group,
+#changelist-filter,
+.dashboard #content-main .module {
+  border: 1px solid var(--hairline-color, #e0e0e0);
+  border-radius: var(--ee-radius);
+  overflow: hidden;
+}
+
+/* Section headers: quiet uppercase labels rather than heavy bars. */
+.ee-panel h2,
+.module h2,
+.module caption,
+.inline-group h2,
+#changelist-filter h2 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--body-quiet-color, #666);
+  background: var(--darkened-bg, #f8f8f8);
+  border-bottom: 1px solid var(--hairline-color, #e8e8e8);
+  padding: 9px 12px;
+  margin: 0;
+}
+
+/* Numbers line up in columns. */
+.results td,
+.results th,
+.ee-bar-count,
+.ee-tile .ee-value,
+.paginator {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons and inputs pick up the same corner radius as the cards. */
+.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input,
+.object-tools a,
+#changelist-search input[type="submit"],
+select,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+textarea {
+  border-radius: var(--ee-radius);
+}
+
+.object-tools a {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+
+/* Changelist rows: hairlines instead of heavy rules. */
+#changelist .results {
+  border-radius: var(--ee-radius);
+}
+
+#changelist table thead th {
+  background: var(--darkened-bg, #f8f8f8);
+  border-bottom: 1px solid var(--hairline-color, #e8e8e8);
+}
+
+#changelist-filter li.selected a {
+  font-weight: 600;
+}
+
+/* ---------- dashboard layout ---------- */
+
+/*
+ * The stock dashboard is a narrow app list beside a "Recent actions" rail, so base.css
+ * pins it to 600px (.dashboard #content) and floats #content-main into a column. Ours is
+ * a full-width grid with no rail, so both of those have to go or everything bunches up
+ * on the left.
+ */
+.dashboard #content {
+  width: auto;
+  max-width: none;
+}
+
+.dashboard #content-main {
+  float: none;
+  width: auto;
+}
+
+.ee-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--ee-gap);
+  margin-bottom: 24px;
+}
+
+.ee-tile {
+  display: block;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline-color, #e0e0e0);
+  border-left: 4px solid var(--border-color, #ccc);
+  border-radius: var(--ee-radius);
+  background: var(--body-bg, #fff);
+  color: inherit;
+  text-decoration: none;
+}
+
+.ee-tile:hover { border-color: var(--link-fg, #417690); }
+
+.ee-tile .ee-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--body-quiet-color, #666);
+}
+
+.ee-tile .ee-value {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--body-fg, #333);
+}
+
+.ee-tile .ee-sub { font-size: 12px; color: var(--body-quiet-color, #666); }
+/* The public site accents its cards with a 4px green left border; same idea here, with
+   amber/red reserved for tiles that are actually telling you something is wrong. */
+.ee-tile.good { border-left-color: var(--ee-green, #4CAF50); }
+.ee-tile.fair { border-left-color: #c78a2e; }
+.ee-tile.bad  { border-left-color: #b93c3c; }
+.ee-tile.muted { border-left-color: var(--border-color, #b8b8b8); }
+
+.ee-panel {
+  margin-bottom: 24px;
+  background: var(--body-bg, #fff);
+}
+
+.ee-panel-body { padding: 14px 16px; }
+
+.ee-chart-scroll { overflow-x: auto; }
+.ee-chart { min-width: 520px; height: 220px; }
+
+.ee-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.ee-bar-row {
+  display: grid;
+  grid-template-columns: 1fr 3fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.ee-bar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--body-quiet-color, #666);
+}
+
+.ee-bar-track {
+  background: var(--darkened-bg, #f0f0f0);
+  border-radius: 3px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.ee-bar-fill { background: var(--link-fg, #417690); height: 100%; }
+.ee-bar-count { color: var(--body-fg, #333); }
+.ee-empty { color: var(--body-quiet-color, #666); font-size: 12px; }
+
+.ee-model-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--hairline-color, #eee);
+}
+
+.ee-model-row:last-child { border-bottom: 0; }
+.ee-model-name { font-size: 13px; text-decoration: none; }
+a.ee-model-name:hover { text-decoration: underline; }
+
+.ee-chip {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline-color, #ddd);
+  color: var(--body-quiet-color, #666);
+  white-space: nowrap;
+}
+
+a.ee-chip-link {
+  text-decoration: none;
+  border-color: var(--link-fg, #417690);
+  color: var(--link-fg, #417690);
+}
+
+a.ee-chip-link:hover { background: var(--link-fg, #417690); color: var(--button-fg, #fff); }

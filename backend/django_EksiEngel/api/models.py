@@ -1,7 +1,15 @@
 from django.db import models
+from django.db.models import F, Q
+
+# An action failed if it ran to completion but some step did not land. Defined once here
+# so the API endpoint, the admin filter and the dashboard cannot drift apart.
+FAILED_ACTION = Q(is_early_stopped=False) & ~(
+    Q(planned_action=F("performed_action")) & Q(performed_action=F("successful_action"))
+)
 
 class BanSource(models.Model):
-    ban_source = models.CharField(max_length=10, blank=False, null=False)
+    # 30, not 10: the longest source the extension sends is MIGRATE_BLOCKED_TO_MUTED (24).
+    ban_source = models.CharField(max_length=30, blank=False, null=False)
     def __str__(self):
         return self.ban_source
     
@@ -38,15 +46,21 @@ class TimeSpecifier(models.Model):
 class EksiSozlukTitle(models.Model):
     eksisozluk_name = models.CharField(max_length=96, blank=False, null=False)
     eksisozluk_id = models.IntegerField(blank=False, null=False)
+    class Meta:
+        verbose_name = "Ekşi Sözlük title"
+        verbose_name_plural = "Ekşi Sözlük titles"
     def __str__(self):
         return f"{self.eksisozluk_id} {self.eksisozluk_name}"
-        
+
 class EksiSozlukEntry(models.Model):
     eksisozluk_title = models.ForeignKey(EksiSozlukTitle, on_delete=models.PROTECT, blank=False, null=False)
     eksisozluk_id = models.IntegerField(blank=False, null=False)
+    class Meta:
+        verbose_name = "Ekşi Sözlük entry"
+        verbose_name_plural = "Ekşi Sözlük entries"
     def __str__(self):
         return f"{self.eksisozluk_id} {self.eksisozluk_title}"
-        
+
 class EksiSozlukUser(models.Model):
     eksisozluk_name = models.CharField(max_length=96, blank=False, null=False)
     eksisozluk_id = models.IntegerField(blank=False, null=False)
@@ -55,6 +69,9 @@ class EksiSozlukUser(models.Model):
     last_activity_date = models.DateTimeField(blank=True, null=True)
     last_activity_user_agent = models.CharField(max_length=1024, blank=True, null=True)
     last_activity_version = models.CharField(max_length=16, blank=True, null=True)
+    class Meta:
+        verbose_name = "Ekşi Sözlük user"
+        verbose_name_plural = "Ekşi Sözlük users"
     def __str__(self):
         return f"{self.eksisozluk_id} {self.eksisozluk_name} {self.is_eksiengel_user}"
     
@@ -99,6 +116,10 @@ class Action(models.Model):
         return f"{self.id} {self.date.strftime('%Y-%m-%d %H:%M:%S')} {self.eksi_engel_user.eksisozluk_name} {self.ban_source} {self.successful_action}/{self.performed_action}/{self.planned_action} {self.is_early_stopped}"
         
 class ActionConfig(models.Model):
+    class Meta:
+        verbose_name = "action settings snapshot"
+        verbose_name_plural = "action settings snapshots"
+
     action = models.OneToOneField(Action, related_name='action_config', on_delete=models.CASCADE, blank=False, null=False)
     eksi_sozluk_url = models.CharField(max_length=100, blank=True, null=True)
     send_data = models.BooleanField(blank=True, null=True)

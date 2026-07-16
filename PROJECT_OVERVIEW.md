@@ -166,12 +166,26 @@ To test in Firefox: `cd frontend/app && npm install && npm run load-firefox && w
 
 ### API Endpoints
 
+The extension calls exactly three of these; their URLs are baked into shipped builds
+(`frontend/app/assets/js/config.js`) and must not move:
+
 | Endpoint | Purpose |
 |----------|---------|
-| `/api/action/` | Log blocking/unblocking actions |
-| `/api/where_is_eksisozluk/` | Get current Ekşi Sözlük URL |
-| `/admin/api/client_data/analytics` | UI interaction analytics (GET/POST) |
-| `/admin/api/client_data/upload` | Configuration and usage data (POST) |
+| `/api/action/` | Log blocking/unblocking actions (POST, extension) |
+| `/api/where_is_eksisozluk/` | Get current Ekşi Sözlük URL (GET, extension) |
+| `/admin/api/client_data/analytics` | UI interaction analytics (POST, extension) |
+| `/admin/api/client_data/upload` | Configuration and usage data (POST, legacy) |
+
+Because `/admin/api/client_data/` is one of them, it must stay routed **before**
+`admin.site.urls` in `django_EksiEngel/urls.py`.
+
+### Admin
+
+`/admin/` is a dashboard (stat tiles, actions-per-day chart, breakdowns) backed by a
+custom `AdminSite` in `django_EksiEngel/admin.py`, wired via
+`django_EksiEngel.apps.EksiEngelAdminConfig`. Telemetry models are read-only in the admin;
+the skin lives in `assets/eksiengel/admin.css` and is loaded site-wide by
+`templates/admin/base_site.html`. See `docs/TELEMETRY_GUIDE.md`.
 
 ## Key Features
 
@@ -220,3 +234,20 @@ To test in Firefox: `cd frontend/app && npm install && npm run load-firefox && w
 
 - **Backend:** `cd backend/django_EksiEngel && python manage.py runserver`
 - **Load extension:** Load `frontend/app/` as unpacked in `chrome://extensions` (Developer mode)
+
+### Deploying the backend
+
+Static files are served by WhiteNoise from `STATIC_ROOT`, and `STATIC_ROOT` (`static/`) is
+gitignored as build output. So after changing anything under `assets/` — or after
+upgrading Django — run collectstatic before restarting, or the admin will serve stale CSS:
+
+```bash
+cd backend/django_EksiEngel
+python manage.py migrate            # if models changed
+python manage.py collectstatic --noinput
+systemctl restart gunicorn-eksiengel
+```
+
+Nothing upstream serves `/static/` — requests for it reach gunicorn — which is why
+WhiteNoise is in `MIDDLEWARE`. Note gunicorn runs `/usr/local/bin/gunicorn` on **system**
+Python, not the project venv, so runtime deps must be installed for both.

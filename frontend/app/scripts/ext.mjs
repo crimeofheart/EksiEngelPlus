@@ -38,6 +38,24 @@ const EXCLUDED = new Set([
   ".DS_Store",
 ]);
 
+/**
+ * Payload files swapped out for a specific browser at package time.
+ *
+ * scrapingHandler.js imports JSDOM statically, so the module must resolve in
+ * both builds, but Firefox never reaches it — parseHTML() prefers the native
+ * DOMParser. Shipping the real 5.9 MB bundle to addons.mozilla.org fails
+ * validation outright: it refuses to parse non-binary files over 5 MB.
+ */
+const OVERRIDES = {
+  firefox: {
+    "assets/js/jsdom.js": path.join(APP_DIR, "scripts/jsdom-stub.firefox.js"),
+  },
+};
+
+/** addons.mozilla.org will not parse a non-binary file larger than this. */
+const AMO_PARSE_LIMIT = 5 * 1024 * 1024;
+const TEXT_FILE = /\.(js|json|css|html|txt|svg)$/i;
+
 // ---------------------------------------------------------------- utilities
 
 function fail(message) {
@@ -271,14 +289,34 @@ function cmdPackage() {
   }));
 
   for (const browser of BROWSERS) {
+    const overrides = OVERRIDES[browser] ?? {};
     const entries = [
       { name: "manifest.json", data: fs.readFileSync(manifestFor(browser)) },
-      ...shared,
+      ...shared.map(({ name, data }) =>
+        overrides[name] ? { name, data: fs.readFileSync(overrides[name]) } : { name, data }
+      ),
     ].sort((a, b) => a.name.localeCompare(b.name));
+
+    if (browser === "firefox") {
+      const tooBig = entries.filter(
+        (e) => TEXT_FILE.test(e.name) && e.data.length > AMO_PARSE_LIMIT
+      );
+      for (const e of tooBig) {
+        console.error(`  ${e.name}: ${Math.round(e.data.length / 1024 / 1024)} MB`);
+      }
+      if (tooBig.length) {
+        fail("files above 5 MB will fail addons.mozilla.org validation; add an entry to OVERRIDES");
+      }
+    }
+
     const out = path.join(DIST_DIR, `eksiengelplus-${version}-${browser}.zip`);
     writeZip(out, entries);
     const kb = Math.round(fs.statSync(out).size / 1024);
-    console.log(`${path.relative(process.cwd(), out)}  (${entries.length} files, ${kb} KB)`);
+    const swapped = Object.keys(overrides).length;
+    const note = swapped ? `, ${swapped} substituted` : "";
+    console.log(
+      `${path.relative(process.cwd(), out)}  (${entries.length} files${note}, ${kb} KB)`
+    );
   }
 }
 

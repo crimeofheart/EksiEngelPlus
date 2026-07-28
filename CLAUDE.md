@@ -19,10 +19,16 @@ Chrome and Firefox ship **identical files**; only `manifest.json` differs.
 Edit the variants, never `manifest.json`. A fresh clone has no `manifest.json`
 until you run one of the switch scripts below.
 
-`assets/js/jsdom.js` ships in **both** builds — it is a static import in
-`assets/js/scrapingHandler.js`, which falls back to native `DOMParser` at runtime
-when one exists (Firefox background scripts have DOM APIs; Chrome service
-workers do not).
+`assets/js/scrapingHandler.js` imports `JSDOM` statically, so the module must
+resolve in both builds — but only Chrome ever uses it. `parseHTML()` prefers the
+native `DOMParser`, which Firefox background scripts have and Chrome MV3 service
+workers do not.
+
+The real bundle is 5.9 MB and addons.mozilla.org **rejects** any non-binary file
+over 5 MB ("File is too large to parse"), so `npm run package` substitutes
+`scripts/jsdom-stub.firefox.js` into the Firefox zip. The stub throws if ever
+called, which would mean `DOMParser` was missing. `package` fails outright if any
+text file in the Firefox build exceeds 5 MB, so this cannot regress unnoticed.
 
 ## Loading the unpacked extension
 

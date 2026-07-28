@@ -76,14 +76,11 @@ Output is gitignored.
 
 ## Release flow
 
-Work lands on `beta`, goes to `master` by manually reviewed PR, and the version
-tag is cut from `master` afterwards.
+Work happens directly on `master`; there is no long-lived branch.
 
 ```bash
-# after the PR is merged
-git checkout master && git pull
 cd frontend/app
-npm run release -- patch          # bump + commit "chore: release v0.1.2" + tag
+npm run release -- patch          # bump + commit "chore: release v0.1.3" + tag
 git push origin master --follow-tags
 ```
 
@@ -93,6 +90,5 @@ and upload them to the Chrome Web Store and addons.mozilla.org.
 
 `npm run release` refuses to run on a dirty tree or an existing tag.
 
-CI on PRs (`.github/workflows/extension-check.yml`) runs `check` + `package` and
-uploads both zips as build artifacts, so a reviewer can load the candidate build
-without checking the branch out.
+`.github/workflows/extension-check.yml` runs `check` + `package` on every push
+to `master` and on any PR into it, uploading the two zips as separate artifacts.

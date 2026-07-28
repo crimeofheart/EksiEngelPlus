@@ -1,20 +1,19 @@
 name: Extension check
 
-# Validates the extension on every PR and on pushes to beta, and uploads the
-# Chrome and Firefox zips as two separate downloads so a reviewer can grab
-# just the one they want without checking the branch out.
+# Validates the extension on every push to master and on any PR into it, and
+# uploads the Chrome and Firefox zips as two separate downloads.
 #
 # A version bump touches frontend/app/package.json and both manifest variants,
-# so any PR that bumps the version matches the paths filter and runs this.
+# so any change that bumps the version matches the paths filter and runs this.
 
 on:
-  pull_request:
-    branches: [master, beta]
+  push:
+    branches: [master]
     paths:
       - "frontend/app/**"
       - ".github/workflows/extension-check.yml"
-  push:
-    branches: [beta]
+  pull_request:
+    branches: [master]
     paths:
       - "frontend/app/**"
       - ".github/workflows/extension-check.yml"

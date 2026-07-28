@@ -1,0 +1,50 @@
+name: Extension check
+
+# Validates the extension on every PR and on pushes to beta, and uploads the
+# candidate zips so a reviewer can load the exact build without checking out.
+
+on:
+  pull_request:
+    branches: [master, beta]
+    paths:
+      - "frontend/app/**"
+      - ".github/workflows/extension-check.yml"
+  push:
+    branches: [beta]
+    paths:
+      - "frontend/app/**"
+      - ".github/workflows/extension-check.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # No install step: the extension is plain ES modules with no dependencies,
+      # and scripts/ext.mjs only uses the Node standard library.
+      - name: Check version consistency and manifest validity
+        run: npm run check
+
+      - name: Build Chrome and Firefox zips
+        run: npm run package
+
+      - name: Read version
+        id: meta
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eksiengelplus-${{ steps.meta.outputs.version }}-zips
+          path: frontend/publish/dist/*.zip
+          if-no-files-found: error
+          retention-days: 14

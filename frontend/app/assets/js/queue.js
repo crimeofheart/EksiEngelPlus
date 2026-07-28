@@ -73,9 +73,14 @@ function getTaskPriority(banSource) {
 }
 
 export function generateUnifiedDescription(banSource, metadata = {}) {
-  const { targetTypes = [], sourceEntry, sourceAuthor, sourceTitle, sourceList, timeFilter, banMode } = metadata;
+  const { targetTypes = [], sourceEntry, sourceAuthor, sourceTitle, sourceList, timeFilter, banMode, listAction } = metadata;
   let baseDescription = "";
   const operationType = banMode === enums.BanMode.UNDOBAN ? "Engel Kaldır" : "Engelle";
+  const listActionLabels = {
+    [enums.DateBulkAction.TAKIP_ET]: "Takip Et",
+    [enums.DateBulkAction.ENGEL_KALDIR_VE_TAKIP_ET]: "Engel Kaldır ve Takip Et",
+    [enums.DateBulkAction.SESSIZDEN_CIKAR_VE_TAKIP_ET]: "Sessizden Çıkar ve Takip Et"
+  };
   
   switch (banSource) {
     case enums.BanSource.SINGLE:
@@ -94,7 +99,9 @@ export function generateUnifiedDescription(banSource, metadata = {}) {
       if (sourceAuthor) baseDescription += ` (${sourceAuthor})`;
       break;
     case enums.BanSource.LIST:
-      baseDescription = `Listeden ${operationType}`;
+      baseDescription = listActionLabels[listAction]
+        ? `Listeden ${listActionLabels[listAction]}`
+        : `Listeden ${operationType}`;
       if (sourceList && sourceList.length > 0) baseDescription += ` (${sourceList.length} kullanıcı)`;
       break;
     case enums.BanSource.TITLE:

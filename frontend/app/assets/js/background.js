@@ -443,13 +443,22 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
         return;
       }
 
+      // LIST operations triggered by the author list page carry an explicit action
+      // (follow / unblock+follow / unmute+follow) instead of a banMode. Derive the
+      // banMode so the message passes validation and notifications stay accurate.
+      if(message && message.banSource === enums.BanSource.LIST && message.action && message.banMode === undefined) {
+        message.banMode = message.action === enums.DateBulkAction.TAKIP_ET
+          ? enums.BanMode.BAN
+          : enums.BanMode.UNDOBAN;
+      }
+
       const obj = utils.filterMessage(message, "banSource", "banMode");
       if(obj.resultType === enums.ResultType.FAIL) {
         sendResponse({status: 'ok', message: 'Unknown action or already handled.'});
         return;
       }
-      
-      let wrapperProcessHandler = processHandler.bind(null, obj.banSource, obj.banMode, obj.entryUrl, obj.authorName, obj.authorId, obj.targetType, obj.clickSource, obj.titleName, obj.titleId, obj.timeSpecifier);
+
+      let wrapperProcessHandler = processHandler.bind(null, obj.banSource, obj.banMode, obj.entryUrl, obj.authorName, obj.authorId, obj.targetType, obj.clickSource, obj.titleName, obj.titleId, obj.timeSpecifier, obj.action);
       wrapperProcessHandler.banSource = obj.banSource;
       wrapperProcessHandler.banMode = obj.banMode;
       wrapperProcessHandler.creationDateInStr = String(new Date().getHours()).padStart(2, '0') + ":" + String(new Date().getMinutes()).padStart(2, '0');
@@ -464,7 +473,8 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
         timeFilter: obj.timeSpecifier || null,
         clickSource: obj.clickSource || null,
         banSource: obj.banSource,
-        banMode: obj.banMode
+        banMode: obj.banMode,
+        listAction: obj.action || null
       };
       
       processQueue.enqueue(wrapperProcessHandler);
@@ -592,7 +602,7 @@ function logDateFilterResults(filterResults) {
   }
 }
 
-async function processHandler(banSource, banMode, entryUrl, singleAuthorName, singleAuthorId, targetType, clickSource, titleName, titleId, timeSpecifier) {
+async function processHandler(banSource, banMode, entryUrl, singleAuthorName, singleAuthorId, targetType, clickSource, titleName, titleId, timeSpecifier, listAction) {
   log.info("bg", `Process started: banSource=${banSource}, banMode=${banMode}, entryUrl=${entryUrl}, singleAuthorName=${singleAuthorName}, singleAuthorId=${singleAuthorId}, targetType=${targetType}, clickSource=${clickSource}, titleName=${titleName}, titleId=${titleId}`);
   
   const notificationTabReady = await ensureNotificationTabExistsAndIsReady();
@@ -671,8 +681,8 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       authorIdList.push(authorId);
       
       let res;
-      const action = message.action;
-      
+      const action = listAction;
+
       if (action === "TAKIP_ET") {
         res = await performWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
       } else if (action === "ENGEL_KALDIR_VE_TAKIP_ET") {

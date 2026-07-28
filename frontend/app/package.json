@@ -1,6 +1,6 @@
 {
   "name": "eksiengelplus",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "EksiEngelPlus Chrome Extension",
   "scripts": {
     "load-chrome": "node -e \"const fs=require('fs'); const manifest=JSON.parse(fs.readFileSync('manifest.json')); if(!manifest.web_accessible_resources[0].resources.includes('assets/js/jsdom.js')){manifest.web_accessible_resources[0].resources.push('assets/js/jsdom.js'); fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2)); console.log('Added jsdom.js to manifest for Chrome')} else {console.log('jsdom.js already in manifest')}\"",

@@ -31,7 +31,11 @@
       <div class="ee-panel-body">
         {% for row in panel.rows %}
           <div class="ee-bar-row">
-            <span class="ee-bar-name" title="{{ row.label }}">{{ row.label }}</span>
+            {% if row.href %}
+              <a class="ee-bar-name ee-ext" href="{{ row.href }}" target="_blank" rel="noopener noreferrer" title="{{ row.label }}">{{ row.label }}</a>
+            {% else %}
+              <span class="ee-bar-name" title="{{ row.label }}">{{ row.label }}</span>
+            {% endif %}
             <span class="ee-bar-track"><span class="ee-bar-fill" style="width: {{ row.width }}%"></span></span>
             <span class="ee-bar-count">{{ row.count }}</span>
           </div>

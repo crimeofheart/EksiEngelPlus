@@ -6,6 +6,7 @@ from django.db.models.functions import TruncDay
 from django.urls import reverse
 from django.utils import timezone
 
+from api.eksisozluk import user_url
 from api.models import FAILED_ACTION, Action, EksiSozlukUser
 from client_data_collector.models import ClientAnalytic
 
@@ -65,8 +66,12 @@ def _changelist(model, **params):
     return url
 
 
-def _bars(rows, label_key, count_key="n"):
-    """Turn a values()/annotate() breakdown into rows carrying a 0-100 bar width."""
+def _bars(rows, label_key, count_key="n", href=None):
+    """Turn a values()/annotate() breakdown into rows carrying a 0-100 bar width.
+
+    `href` is an optional callable taking the raw row; when given, the template renders
+    the label as a link out to Ekşi Sözlük instead of plain text.
+    """
     rows = [r for r in rows if r[label_key] is not None]
     top = max((r[count_key] for r in rows), default=0)
     return [
@@ -74,6 +79,7 @@ def _bars(rows, label_key, count_key="n"):
             "label": r[label_key],
             "count": r[count_key],
             "width": round(100.0 * r[count_key] / top, 1) if top else 0,
+            "href": href(r) if href else None,
         }
         for r in rows
     ]
@@ -101,6 +107,13 @@ def build_dashboard_context():
         active=Count("id", filter=Q(last_activity_date__gte=active_cutoff)),
     )
     targets_known = EksiSozlukUser.objects.filter(is_eksiengel_user=False).count()
+
+    # Builds before v0.1.5 posted click_type and nothing else, so a large anonymous share
+    # is expected until the fleet turns over. Surfacing it beats hiding the column.
+    ui_events = ClientAnalytic.objects.aggregate(
+        total=Count("id"),
+        identified=Count("id", filter=~Q(client_name=None)),
+    )
 
     success_rate = _pct(totals["successful"] or 0, totals["performed"] or 0)
     completion_rate = _pct(totals["performed"] or 0, totals["planned"] or 0)
@@ -158,8 +171,11 @@ def build_dashboard_context():
         },
         {
             "label": "UI events",
-            "value": ClientAnalytic.objects.count(),
-            "sub": "anonymous — click type only",
+            "value": ui_events["total"],
+            "sub": (
+                "none recorded" if not ui_events["total"]
+                else f"{ui_events['identified']} attributed to a username"
+            ),
             "url": _changelist("client_data_collector_clientanalytic"),
             "tone": "muted",
         },
@@ -196,6 +212,13 @@ def build_dashboard_context():
         .order_by("-n")[:12],
         "click_type__click_type",
     )
+    top_users = _bars(
+        Action.objects.values("eksi_engel_user__eksisozluk_name")
+        .annotate(n=Count("id"))
+        .order_by("-n")[:12],
+        "eksi_engel_user__eksisozluk_name",
+        href=lambda r: user_url(r["eksi_engel_user__eksisozluk_name"]),
+    )
 
     return {
         "tiles": tiles,
@@ -204,6 +227,7 @@ def build_dashboard_context():
             {"title": "Action source", "rows": ban_source},
             {"title": "Extension version", "rows": versions},
             {"title": "UI events by type", "rows": clicks},
+            {"title": "Most active users", "rows": top_users},
         ],
         "timeseries_days": TIMESERIES_DAYS,
         "has_actions": bool(totals["total"]),

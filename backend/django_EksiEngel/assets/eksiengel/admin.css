@@ -308,3 +308,47 @@ a.ee-chip-link {
 }
 
 a.ee-chip-link:hover { background: var(--link-fg, #417690); color: var(--button-fg, #fff); }
+
+/* ---------- outbound links to Ekşi Sözlük ----------
+ *
+ * Every name and id in here was scraped from the site, so the useful next click is
+ * always "show me that on ekşi". These sit inside changelist cells and dashboard bar
+ * rows alike, hence the pill shape rather than a plain underline: it reads as a button
+ * without needing a second element around it.
+ */
+a.ee-ext {
+  display: inline-block;
+  text-decoration: none;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--ee-green, #4CAF50);
+  color: var(--link-fg, #2E7D32);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+a.ee-ext:hover {
+  background: var(--ee-green-deep, #2E7D32);
+  border-color: var(--ee-green-deep, #2E7D32);
+  color: #fff;
+}
+
+/* In the bar rows the label is the link, so it keeps the row's layout instead of the
+   pill's: a bordered pill per row would fight the bars for attention. */
+a.ee-bar-name.ee-ext {
+  display: block;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+a.ee-bar-name.ee-ext:hover {
+  background: none;
+  color: var(--link-hover-color, #1B5E20);
+  text-decoration: underline;
+}

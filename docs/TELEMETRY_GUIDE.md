@@ -17,6 +17,7 @@ Welcome to the comprehensive EksiEngelPlus Telemetry Guide. This document explai
 4. [Understanding Action Statistics](#understanding-action-statistics)
 5. [API Endpoints for Statistics](#api-endpoints-for-statistics)
 6. [How to Create Custom Stats](#how-to-create-custom-stats)
+7. [Empty Columns](#empty-columns)
 
 ---
 
@@ -230,7 +231,8 @@ This is a separate app that tracks client usage patterns (different from action 
 
 #### ClientData
 
-**URL:** https://eksiengelplus.duzgun.org/admin/api/client_data/clientdata/
+Not registered in the admin: the table is empty and nothing has written to it since
+`api.Action` replaced it.
 
 Similar to Action but stores raw client data submissions. Tracks:
 - Total actions, successful actions
@@ -240,20 +242,28 @@ Similar to Action but stores raw client data submissions. Tracks:
 
 #### ClientAnalytic
 
-**URL:** https://eksiengelplus.duzgun.org/admin/api/client_data/clientanalytic/
+**URL:** https://eksiengelplus.duzgun.org/admin/client_data_collector/clientanalytic/
 
 Tracks button clicks and feature usage:
 
 | Field | Description |
 |-------|-------------|
 | **date** | When the click occurred |
-| **user_agent** | Browser identifier |
-| **client_name** | User's Ekşi Sözlük username |
-| **client_uid** | User's Ekşi Sözlük ID |
+| **user_agent** | Browser identifier — `NULL` on events sent by builds before v0.1.5 |
+| **client_name** | User's Ekşi Sözlük username — `NULL` before v0.1.5, and on any event fired before the extension has scraped the site once |
+| **client_uid** | User's Ekşi Sözlük ID — same availability as `client_name` |
+| **version** | Extension version that fired the event — added in v0.1.5 |
 | **click_type** | What was clicked (e.g., "BLOCK", "MUTE", "SETTINGS") |
+
+Up to v0.1.4 the extension posted `click_type` and nothing else, and the server filled
+the rest with the literal strings `"unknown"`/`0`. Those placeholders are now stored as
+`NULL` (migration `client_data_collector.0009`), and the extension attaches the user
+agent, the version and the cached username to every event. Use the **identified** filter
+on the changelist to separate attributed events from the anonymous backlog.
 
 This helps you understand:
 - Which features are most used
+- Which users use which features, and from which browser
 - User engagement patterns
 - Peak usage times
 
@@ -508,6 +518,62 @@ The `/api/user_stat/` endpoint provides comprehensive per-user statistics:
 
 ---
 
+## Empty Columns
+
+Several columns are null on every row, and they are not all the same kind of null. Run
+the audit before drawing conclusions from a blank column:
+
+```bash
+python manage.py audit_nulls                 # always-empty and constant columns
+python manage.py audit_nulls --threshold 90  # also columns empty on >=90% of rows
+python manage.py audit_nulls --json          # machine-readable
+```
+
+It reports three verdicts: **always empty** (nothing has ever been written),
+**constant** (one distinct value across the whole table, so the column carries no
+information), and **empty on N% of rows**.
+
+### Conditional by design — leave alone
+
+These are populated only for the ban source they belong to, so they read as mostly null
+in any aggregate:
+
+| Column | Populated when |
+|--------|----------------|
+| `Action.target_type` | ban source is SINGLE |
+| `Action.click_source` | ban source is SINGLE, FAV or FOLLOW |
+| `Action.fav_title`, `fav_entry`, `fav_author` | ban source is FAV |
+| `Action.time_specifier` | ban source is TITLE |
+| `Action.date_criteria`, `bulk_action`, `source_list` | ban source is DATE_BASED_BULK |
+| `Action.log`, `log_level` | the user has both "send data" and logging enabled |
+| `EksiSozlukUser.first_activity_date`, `last_activity_*` | the row is an extension user, not a scraped block target (`is_eksiengel_user=True`) |
+
+### Fixed in v0.1.5
+
+| Column | Was | Now |
+|--------|-----|-----|
+| `ClientAnalytic.client_name` | `"unknown"` on every row | the scraped username, cached by the extension after its first operation |
+| `ClientAnalytic.client_uid` | `0` on every row | the Ekşi Sözlük user id |
+| `ClientAnalytic.user_agent` | `"unknown"` on every row | the real user agent (the admin derives a **browser** column from it) |
+| `ClientAnalytic.version` | did not exist | the extension version that fired the event |
+
+Events fired before the extension has identified the user still store `NULL` — that is a
+real "we do not know", not a placeholder. So do all events from users who turned the
+"Toplanan verileri EksiEngelPlus sunucularına gönder" switch off: that consent gates the
+identity, so those events remain click-type-only exactly as before.
+
+### Dead tables — nothing writes them
+
+| Table | Status |
+|-------|--------|
+| `client_data_collector.ClientData` | legacy denormalized predecessor of `api.Action`; unregistered in the admin |
+| `client_data_collector.Config` | nothing has ever written to it; superseded by `api.ActionConfig` |
+| `api.ClickType` | duplicate of `client_data_collector.ClickType`, which is the one the analytics endpoint uses |
+
+The tables are left in place rather than dropped; they are simply kept off the admin index.
+
+---
+
 ## Troubleshooting
 
 ### No Data Appearing
@@ -524,5 +590,5 @@ The `/api/user_stat/` endpoint provides comprehensive per-user statistics:
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: 2026-03-01*
+*Document Version: 1.1*  
+*Last Updated: 2026-07-31*

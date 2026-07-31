@@ -4,6 +4,7 @@ import {config} from './config.js';
 import * as utils from './utils.js';
 import { programController } from './programController.js';
 import { resumableOperationRegistry } from './resumableOperation.js';
+import { commHandler } from './commHandler.js';
 
 // Import JSDOM for Chrome (service worker doesn't have DOMParser)
 import {JSDOM} from './jsdom.js';
@@ -96,8 +97,11 @@ class ScrapingHandler
     let clientId = await this.scrapeAuthorIdFromAuthorProfilePage(clientName);
     if(clientId == 0)
       return {clientName:"", clientId:""};
-    else 
-      return {clientName, clientId};
+
+    // This is the only place the extension learns who the user is. Cache it so UI events
+    // fired from the options and author-list pages can be attributed too.
+    await commHandler.rememberClient(clientName, clientId);
+    return {clientName, clientId};
   }
 
   scrapeMetaDataFromEntryPage = async (entryUrl) => {

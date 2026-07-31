@@ -79,9 +79,14 @@ class ClientAnalytic(models.Model):
         verbose_name_plural = "UI events"
 
     date = models.DateTimeField(blank=False)
-    user_agent = models.CharField(max_length=1024, blank=False)
-    client_name = models.CharField(max_length=96)
-    client_uid = models.BigIntegerField() 
+    # Everything except date and click_type stays null when the extension cannot identify
+    # the user -- it only knows who you are after it has scraped eksisozluk at least once.
+    # These used to be written as the literal strings "unknown"/0, which made a missing
+    # value indistinguishable from a real one; migration 0009 converts the old sentinels.
+    user_agent = models.CharField(max_length=1024, blank=True, null=True)
+    client_name = models.CharField(max_length=96, blank=True, null=True)
+    client_uid = models.BigIntegerField(blank=True, null=True)
+    version = models.CharField(max_length=16, blank=True, null=True)
     click_type = models.ForeignKey(ClickType, on_delete=models.PROTECT)
     def __str__(self):
         return str(self.date) + " " + str(self.client_name) + " " + str(self.click_type)

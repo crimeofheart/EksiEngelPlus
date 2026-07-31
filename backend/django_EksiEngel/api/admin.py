@@ -1,10 +1,50 @@
 from django.contrib import admin
+from django.contrib.admin.views.main import SEARCH_VAR
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Count, Q
+from django.db.models.constants import LOOKUP_SEP
 from django.urls import reverse
 from django.utils.html import format_html
 
+from .eksisozluk import eksi_link
 from .models import BanSource, BanMode, TargetType, ClickSource, LogLevel, TimeSpecifier
 from .models import FAILED_ACTION, EksiSozlukUser, Action, ActionConfig, EksiSozlukTitle, EksiSozlukEntry
+
+NUMERIC_FIELD_TYPES = {
+    "AutoField", "BigAutoField", "SmallAutoField", "IntegerField", "BigIntegerField",
+    "SmallIntegerField", "PositiveIntegerField", "PositiveBigIntegerField",
+    "PositiveSmallIntegerField", "FloatField", "DecimalField",
+}
+
+
+def _is_numeric_search_field(model, path):
+    """True if a search_fields entry ultimately points at a number column."""
+    opts, field = model._meta, None
+    for part in path.lstrip("^=@").split(LOOKUP_SEP):
+        try:
+            field = opts.get_field(part)
+        except FieldDoesNotExist:
+            return False
+        if field.is_relation and field.related_model:
+            opts = field.related_model._meta
+    return field is not None and field.get_internal_type() in NUMERIC_FIELD_TYPES
+
+
+class SafeSearchMixin:
+    """Keep a text search term away from numeric search_fields.
+
+    Django 4.1 builds the search filter *outside* the try/except that turns bad lookups
+    into the "invalid setup" page, so `id__iexact="someuser"` reaches IntegerField
+    .get_prep_value, raises ValueError, and 500s the changelist. Every admin here mixes
+    "=id" with a name lookup, so typing a username was enough to trip it.
+    """
+
+    def get_search_fields(self, request):
+        fields = tuple(super().get_search_fields(request))
+        term = request.GET.get(SEARCH_VAR, "").strip()
+        if not term or all(bit.isdigit() for bit in term.split()):
+            return fields
+        return tuple(f for f in fields if not _is_numeric_search_field(self.model, f))
 
 
 class LookupAdmin(admin.ModelAdmin):
@@ -55,7 +95,7 @@ class ActionConfigInline(admin.StackedInline):
 
 
 @admin.register(Action)
-class ActionAdmin(admin.ModelAdmin):
+class ActionAdmin(SafeSearchMixin, admin.ModelAdmin):
     # Actions are append-only telemetry posted by the extension, so the admin is a
     # read-only lens over them. Deletion stays available for pruning.
     inlines = (ActionConfigInline,)
@@ -63,8 +103,8 @@ class ActionAdmin(admin.ModelAdmin):
     ordering = ("-id",)
     list_select_related = ("eksi_engel_user", "ban_source", "ban_mode", "log_level")
     list_display = (
-        "id", "date", "eksi_engel_user", "ban_source", "ban_mode",
-        "funnel", "success_rate", "is_early_stopped", "log_level", "version",
+        "id", "date", "eksi_engel_user", "actor_on_eksi", "ban_source", "ban_mode",
+        "funnel", "success_rate", "target_link", "is_early_stopped", "log_level", "version",
     )
     list_filter = (
         OutcomeFilter, "ban_mode", "ban_source", "log_level",
@@ -72,6 +112,22 @@ class ActionAdmin(admin.ModelAdmin):
     )
     search_fields = ("=id", "eksi_engel_user__eksisozluk_name", "=eksi_engel_user__eksisozluk_id")
     raw_id_fields = ("eksi_engel_user", "fav_title", "fav_entry", "fav_author")
+
+    # The FAV columns are null on every non-FAV action; they earn their place on the
+    # detail page, where the whole point is inspecting one run.
+    actor_on_eksi = eksi_link(
+        "user", name="eksi_engel_user.eksisozluk_name", description="who",
+        ordering="eksi_engel_user__eksisozluk_name",
+    )
+    fav_author_on_eksi = eksi_link(
+        "user", name="fav_author.eksisozluk_name", description="fav author on ekşi")
+    fav_title_on_eksi = eksi_link(
+        "title", name="fav_title.eksisozluk_name", pk="fav_title.eksisozluk_id",
+        description="fav title on ekşi")
+    fav_entry_on_eksi = eksi_link(
+        "entry", pk="fav_entry.eksisozluk_id", description="fav entry on ekşi")
+
+    EKSI_LINKS = ("actor_on_eksi", "fav_author_on_eksi", "fav_title_on_eksi", "fav_entry_on_eksi")
 
     @admin.display(description="success/performed/planned", ordering="successful_action")
     def funnel(self, obj):
@@ -94,7 +150,7 @@ class ActionAdmin(admin.ModelAdmin):
         )
 
     def get_fields(self, request, obj=None):
-        return [f.name for f in self.model._meta.fields] + ["target_link"]
+        return [f.name for f in self.model._meta.fields] + ["target_link", *self.EKSI_LINKS]
 
     def get_readonly_fields(self, request, obj=None):
         return self.get_fields(request, obj)
@@ -107,14 +163,16 @@ class ActionAdmin(admin.ModelAdmin):
 
 
 @admin.register(ActionConfig)
-class ActionConfigAdmin(admin.ModelAdmin):
+class ActionConfigAdmin(SafeSearchMixin, admin.ModelAdmin):
     # Telemetry, like Action: the settings the extension had when it ran. Read-only for
     # the same reason, and useful mainly for "how many runs had feature X enabled".
     raw_id_fields = ("action",)
     list_select_related = ("action",)
     list_display = ("pk", "action", "eksi_sozluk_url", "send_data", "enable_mute", "enable_title_ban")
     list_filter = ("send_data", "enable_mute", "enable_title_ban", "enable_noob_ban")
-    search_fields = ("=action__id",)
+    # A username as well as an action id: SafeSearchMixin drops the numeric lookup for a
+    # text term, and a page whose only search field is numeric would then match everything.
+    search_fields = ("=action__id", "action__eksi_engel_user__eksisozluk_name")
 
     def has_add_permission(self, request):
         return False
@@ -124,14 +182,19 @@ class ActionConfigAdmin(admin.ModelAdmin):
 
 
 @admin.register(EksiSozlukUser)
-class EksiSozlukUserAdmin(admin.ModelAdmin):
+class EksiSozlukUserAdmin(SafeSearchMixin, admin.ModelAdmin):
     # is_eksiengel_user separates actual extension users from the much larger set of
     # scraped block targets. It is the first filter you want on this page.
     list_display = (
-        "eksisozluk_name", "eksisozluk_id", "is_eksiengel_user",
+        "eksisozluk_name", "profile_on_eksi", "eksisozluk_id", "is_eksiengel_user",
         "action_count", "banned_by_count", "last_activity_date", "last_activity_version",
     )
     list_filter = ("is_eksiengel_user", "last_activity_version")
+    readonly_fields = ("profile_on_eksi",)
+
+    profile_on_eksi = eksi_link(
+        "user", name="eksisozluk_name", description="on ekşi", label="ekşi ↗")
+
     search_fields = ("eksisozluk_name", "=eksisozluk_id")
     date_hierarchy = "last_activity_date"
     ordering = ("-id",)
@@ -158,16 +221,27 @@ class EksiSozlukUserAdmin(admin.ModelAdmin):
 
 
 @admin.register(EksiSozlukTitle)
-class EksiSozlukTitleAdmin(admin.ModelAdmin):
-    list_display = ("eksisozluk_id", "eksisozluk_name")
+class EksiSozlukTitleAdmin(SafeSearchMixin, admin.ModelAdmin):
+    list_display = ("eksisozluk_id", "eksisozluk_name", "title_on_eksi")
     search_fields = ("eksisozluk_name", "=eksisozluk_id")
     ordering = ("-id",)
+    readonly_fields = ("title_on_eksi",)
+
+    title_on_eksi = eksi_link(
+        "title", name="eksisozluk_name", pk="eksisozluk_id",
+        description="on ekşi", label="ekşi ↗")
 
 
 @admin.register(EksiSozlukEntry)
-class EksiSozlukEntryAdmin(admin.ModelAdmin):
+class EksiSozlukEntryAdmin(SafeSearchMixin, admin.ModelAdmin):
     raw_id_fields = ("eksisozluk_title",)
     list_select_related = ("eksisozluk_title",)
-    list_display = ("eksisozluk_id", "eksisozluk_title")
+    list_display = ("eksisozluk_id", "entry_on_eksi", "eksisozluk_title", "title_on_eksi")
     search_fields = ("=eksisozluk_id", "eksisozluk_title__eksisozluk_name")
     ordering = ("-id",)
+    readonly_fields = ("entry_on_eksi", "title_on_eksi")
+
+    entry_on_eksi = eksi_link("entry", pk="eksisozluk_id", description="entry", label="ekşi ↗")
+    title_on_eksi = eksi_link(
+        "title", name="eksisozluk_title.eksisozluk_name", pk="eksisozluk_title.eksisozluk_id",
+        description="title", label="ekşi ↗")

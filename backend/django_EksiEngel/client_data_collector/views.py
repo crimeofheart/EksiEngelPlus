@@ -27,6 +27,24 @@ def index(request):
     return HttpResponse("Hello, world. I'm client data collector.")
 
 
+def _optional(value, max_length):
+    """Normalise absent/blank/placeholder client fields to None, clipped to the column."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() == "unknown":
+        return None
+    return text[:max_length]
+
+
+def _optional_int(value):
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number or None
+
+
 @csrf_exempt
 @api_view(['POST'])
 @authentication_classes([SharedAPIKeyAuthentication, CsrfExemptSessionAuthentication, BasicAuthentication])
@@ -96,9 +114,12 @@ def analytics(request):
             )
             ClientAnalytic.objects.create(
                 date=timezone.now(),
-                user_agent=data.get("user_agent", "unknown"),
-                client_name=data.get("client_name", "unknown"),
-                client_uid=data.get("client_uid", 0),
+                # Store NULL, never a placeholder: older builds send none of these, and a
+                # row that says "unknown" cannot be told apart from a user named that.
+                user_agent=_optional(data.get("user_agent"), 1024),
+                client_name=_optional(data.get("client_name"), 96),
+                client_uid=_optional_int(data.get("client_uid")),
+                version=_optional(data.get("version"), 16),
                 click_type=click_type_obj,
             )
             return Response('OK', status=status.HTTP_201_CREATED)

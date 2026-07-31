@@ -115,8 +115,44 @@ export function ActionConfig({
   this.ban_premium_icons = ban_premium_icons;
 }
 
-class CommHandler 
+// Only the background script ever learns who the user is (it has to scrape eksisozluk
+// for it). UI events fire from the options page and the author list page too, so the
+// identity is cached here once and read back by every context.
+const CLIENT_IDENTITY_KEY = "clientIdentity";
+
+class CommHandler
 {
+  #identity = null;
+
+  /**
+   * Cache the scraped eksisozluk identity so later analytics events can be attributed.
+   * Called from scrapingHandler.scrapeClientNameAndId, the one place that resolves it.
+   */
+  rememberClient = async (clientName, clientId) => {
+    if(!clientName)
+      return;
+
+    this.#identity = {client_name: clientName, client_uid: Number(clientId) || 0};
+    try {
+      await chrome.storage.local.set({[CLIENT_IDENTITY_KEY]: this.#identity});
+    } catch(err) {
+      log.err("comm", "rememberClient: " + err);
+    }
+  }
+
+  #getIdentity = async () => {
+    if(this.#identity)
+      return this.#identity;
+
+    try {
+      const stored = await chrome.storage.local.get(CLIENT_IDENTITY_KEY);
+      this.#identity = stored ? stored[CLIENT_IDENTITY_KEY] : null;
+    } catch(err) {
+      log.err("comm", "getIdentity: " + err);
+    }
+    return this.#identity || {};
+  }
+
 	sendData = async (action, action_config) => {
     if (!config.serverURL) {
       return;
@@ -152,17 +188,31 @@ class CommHandler
       return;
     }
     
+    // Callers pass click_type only. Everything that is the same for every event on this
+    // install is filled in here, so no call site has to remember to send it.
+    //
+    // The "send collected data" switch is a blanket consent, so with it off this stays
+    // exactly what it has always been: the click type and nothing that identifies anyone.
+    const payload = config.sendData
+      ? {
+          ...(await this.#getIdentity()),
+          user_agent: navigator.userAgent,
+          version: chrome.runtime.getManifest().version,
+          ...data
+        }
+      : {...data};
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       await fetch(config.analyticsURL, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'X-API-Key': config.apiKey
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
         signal: controller.signal
       });
       

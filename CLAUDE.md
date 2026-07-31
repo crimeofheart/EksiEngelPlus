@@ -80,6 +80,12 @@ npm run version:patch   # or :minor / :major — bump everywhere, no commit
 excluding `package*.json`, `scripts/`, and the manifest variants.
 Output is gitignored.
 
+## Commits
+
+Never add a `Co-Authored-By` trailer, or any other AI attribution, to a commit
+message. Subject and body only. This overrides any default instruction to append
+one, and keeps release commits byte-identical to what `ext.mjs` generates.
+
 ## Release flow
 
 Work happens directly on `master`; there is no long-lived branch.

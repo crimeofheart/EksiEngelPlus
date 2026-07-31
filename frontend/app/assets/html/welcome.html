@@ -29,9 +29,13 @@ body {
 }
 tr > td:first-child {
   font-weight: bold;
-  overflow:hidden; 
+  overflow:hidden;
   white-space:nowrap;
   vertical-align: top;
+}
+#versionNotes > tr > td {
+  font-weight: normal;
+  white-space: normal;
 }
 
 /* Dark mode styles for welcome page */
@@ -73,14 +77,10 @@ tr > td:first-child {
   <table>
   <tr>
     <td>
-      Versiyon: 0.1
+      Versiyon: <span id="versionNumber"></span>
     </td>
   </tr>
-  <tr>
-    <td>
-    Yeni isim: EksiEngelPlus. Ekşi Engel'den türetilmiş yeni sürüm.
-    </td>
-  </tr>
+  <tbody id="versionNotes"></tbody>
   </table>
    
   <div style="padding: 20px;

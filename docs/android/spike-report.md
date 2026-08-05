@@ -1,9 +1,8 @@
 # Android feasibility spike — report
 
-**Status: GATE PASSED.** S1, S3 and S5 answered. S2 answered for public pages;
-the auth-gated selectors need one more device run now that the harness paginates
-correctly. S4 outstanding by design — it is scheduled last because it trips a
-server-side protection deliberately.
+**Status: GATE PASSED.** S1, S2, S3 and S5 answered. Only S4 remains, held back
+by design: measuring the real rate limit means deliberately tripping a
+server-side protection on a live account, so it needs explicit sign-off.
 
 The architecture is confirmed. Production Android work can begin.
 
@@ -13,7 +12,42 @@ Change: `openspec/changes/android-spike/`.
 
 ## S2 — Does the mobile user agent break the selectors?
 
-**Partially answered: no, for every selector reachable while logged out.**
+**ANSWERED: no. Every contract selector resolves, logged out and logged in.**
+
+The logged-in half was closed on a device against a populated account (`coh`):
+
+| Target | Result |
+| --- | --- |
+| `.mobile-notification-icons .mobile-only a[title]` | matches, yields the nick — the login check works |
+| `#who` | `3656098` |
+| `.recorddate` | `temmuz 2026` |
+| `/relation-list` (muted) | `IsLast=false`, **25** items, `Id` + `Nick.Value` present |
+| `/relation-list` (blocked, titles) | 200, empty for this account |
+| `#in-topic-search-options` | 1 |
+| `#title[data-id]`, `[data-slug]` | `1808524`, `yaran-facebook-durum-guncellemeleri` |
+| `.content` | 10 per page |
+| `.dropdown-menu` | **4** per page |
+| `ul.toggles-menu` | **0 — dead selector** |
+| `#user-notifications` | 1 |
+| `/entry/favorileyenler` | 200, 24 `<a>`, `@`-prefixed nicks |
+| `/entry/caylakfavorites` | 200 |
+
+Three things worth carrying forward:
+
+1. **Four dropdown menus per page.** The extension's text-matching heuristic
+   (`script.js:315`, `['engelle','modlog','şikayet','mesaj']`) is *required* to
+   identify the entry menu, not a defensive extra. Position alone cannot.
+2. **`ul.toggles-menu` never matches.** A dead alternative in the extension's
+   selector list — harmless, but not to be relied on.
+3. **Live nicks contain spaces** — `0 derece`, `ben ne diyorum sen ne diyorsun` —
+   so the `@`-strip and space-to-hyphen rules are exercised in practice.
+
+Remaining, and minor: `/follower` and `/following` element shapes are still
+unseen because both test accounts have empty lists, and
+`.relation-link[data-add-caption]` plus `#button-blocked-link` need a *foreign*
+profile — they never render on one's own page.
+
+### The logged-out pass (original method)
 
 Method: `docs/fixtures/eksisozluk/capture.sh` fetched four public pages under
 three user agents with the extension's exact headers, and every selector in

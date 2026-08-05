@@ -26,8 +26,8 @@
 - [x] 3.9 Determine whether `Referer` and `Origin` are required, by sending an authenticated read with and without each
 - [x] 3.10 Perform one real `POST /userrelation/addrelation/{id}?r=m` against the controlled target; log the full request and response
 - [x] 3.11 Reverse it with `removerelation` and log the response; confirm the two documented shapes — bare number for BAN, object with `result` for UNDOBAN
-- [ ] 3.12 Repeat 3.10–3.11 for `r=u` (mute) and `r=b` (follow) to confirm the relation codes behave as documented
-- [ ] 3.13 Verify the negative case: issue the same mutation with `x-requested-with` omitted and record how the response shape changes
+- [x] 3.12 Repeat 3.10–3.11 for `r=u` (mute) and `r=b` (follow) to confirm the relation codes behave as documented
+- [x] 3.13 Verify the negative case: issue the same mutation with `x-requested-with` omitted and record how the response shape changes
 
 ## 4. S4 — Measure the real rate limit
 
@@ -43,7 +43,7 @@
 - [x] 5.2 Check `WebViewFeature.isFeatureSupported(WEB_MESSAGE_LISTENER)` on both
 - [x] 5.3 Prototype `addDocumentStartJavaScript` injecting a trivial marker and confirm it runs before page script
 - [x] 5.4 Prototype `addWebMessageListener` round-tripping one message from injected JS to Kotlin and back
-- [ ] 5.5 Confirm a menu item can be injected into a real Ekşi entry dropdown and that a tap reaches Kotlin
+- [x] 5.5 Confirm a menu item can be injected into a real Ekşi entry dropdown and that a tap reaches Kotlin
 - [x] 5.6 Determine the minimum WebView provider version supporting both features, and derive the `minSdk` implication
 
 ## 6. Fixture corpus

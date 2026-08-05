@@ -1,0 +1,11 @@
+org.duzgun.eksiengelplus.network-core-1.1.0-0 /home/coh/.gradle/caches/8.14.3/transforms/15a8e97705e6b334aaba8e8bc7dec94b/transformed/core-1.1.0/res
+org.duzgun.eksiengelplus.network-webkit-1.14.0-1 /home/coh/.gradle/caches/8.14.3/transforms/76868ac0a6fe9b0fd30566e14373c7bf/transformed/webkit-1.14.0/res
+org.duzgun.eksiengelplus.network-annotation-experimental-1.4.1-2 /home/coh/.gradle/caches/8.14.3/transforms/8ca3e3303719b4cf16fa546b625744a9/transformed/annotation-experimental-1.4.1/res
+org.duzgun.eksiengelplus.network-pngs-3 /home/coh/Projects/EksiEngelPlus/android/core/network/build/generated/res/pngs/release
+org.duzgun.eksiengelplus.network-resValues-4 /home/coh/Projects/EksiEngelPlus/android/core/network/build/generated/res/resValues/release
+org.duzgun.eksiengelplus.network-updated_navigation_xml-5 /home/coh/Projects/EksiEngelPlus/android/core/network/build/generated/updated_navigation_xml/release
+org.duzgun.eksiengelplus.network-mergeReleaseResources-6 /home/coh/Projects/EksiEngelPlus/android/core/network/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
+org.duzgun.eksiengelplus.network-mergeReleaseResources-7 /home/coh/Projects/EksiEngelPlus/android/core/network/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
+org.duzgun.eksiengelplus.network-release-8 /home/coh/Projects/EksiEngelPlus/android/core/network/build/intermediates/merged_res/release/mergeReleaseResources
+org.duzgun.eksiengelplus.network-main-9 /home/coh/Projects/EksiEngelPlus/android/core/network/src/main/res
+org.duzgun.eksiengelplus.network-release-10 /home/coh/Projects/EksiEngelPlus/android/core/network/src/release/res

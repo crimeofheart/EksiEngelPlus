@@ -159,8 +159,16 @@ jobs:
             *) echo "::error::Gradle reports '$out' but the recorded version is $VERSION"; exit 1 ;;
           esac
 
-      - name: Build, lint and test
-        run: ./gradlew :app:assembleDebug lintDebug testDebugUnitTest
+      # `build` covers every module's unit tests, including the pure-JVM ones that
+      # assert the parser against docs/fixtures/eksisozluk/ -- selector drift is
+      # caught here rather than by a user.
+      - name: Build, lint and test all modules
+        run: ./gradlew build lint --stacktrace
+
+      # Instrumented Room tests need a device; not run here. connectedDebugAndroidTest
+      # is executed locally against an emulator before release.
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug
 
       # Room writes exported schemas into the tree. A schema change that is not
       # committed means a migration was not authored, which only surfaces as a

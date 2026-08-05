@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "org.duzgun.eksiengelplus.network-release-6:/layout-v21/notification_action.xml",
+        "source": "org.duzgun.eksiengelplus.network-core-1.1.0-0:/layout-v21/notification_action.xml"
+    },
+    {
+        "merged": "org.duzgun.eksiengelplus.network-release-6:/layout-v21/notification_template_icon_group.xml",
+        "source": "org.duzgun.eksiengelplus.network-core-1.1.0-0:/layout-v21/notification_template_icon_group.xml"
+    },
+    {
+        "merged": "org.duzgun.eksiengelplus.network-release-6:/layout-v21/notification_template_custom_big.xml",
+        "source": "org.duzgun.eksiengelplus.network-core-1.1.0-0:/layout-v21/notification_template_custom_big.xml"
+    },
+    {
+        "merged": "org.duzgun.eksiengelplus.network-release-6:/layout-v21/notification_action_tombstone.xml",
+        "source": "org.duzgun.eksiengelplus.network-core-1.1.0-0:/layout-v21/notification_action_tombstone.xml"
+    }
+]

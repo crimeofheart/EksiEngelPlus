@@ -5,7 +5,7 @@
 - [x] 1.3 Write build files: `core:model` and `eksi:parser` as pure JVM/Kotlin where possible so their tests need no emulator; the rest as Android libraries
 - [ ] 1.4 Add Hilt to `:app` and an `@HiltAndroidApp` Application class
 - [ ] 1.5 Wire `:app` to depend on the new modules, leaving the version derivation in `app/build.gradle.kts` untouched
-- [ ] 1.6 Verify `./gradlew :app:assembleDebug` still succeeds and `printVersion` still reports the derived pair
+- [x] 1.6 Verify `./gradlew :app:assembleDebug` still succeeds and `printVersion` still reports the derived pair
 
 ## 2. core:model
 
@@ -14,7 +14,7 @@
 - [x] 2.3 Add `String.toEksiSlug()` — trim, spaces to hyphens — as the single normalisation point
 - [x] 2.4 Write the ~60-case `TurkishDateParser` table **before** the implementation: month names ocak–aralık, `ağustos 2026`, `temmuz 2026`, ISO, `DD.MM.YYYY`, and unparseable inputs
 - [x] 2.5 Implement `TurkishDateParser` against that table using `java.time` in `Europe/Istanbul`
-- [ ] 2.6 Port `getDaysDifference`, `evaluateDateFilter`, `applyDateFilters` as pure functions with tests
+- [x] 2.6 Port `getDaysDifference`, `evaluateDateFilter`, `applyDateFilters` as pure functions with tests
 - [x] 2.7 Verify `./gradlew :core:model:test` green
 
 ## 3. eksi:parser
@@ -54,29 +54,29 @@
 
 ## 6. core:database
 
-- [ ] 6.1 Define `RelationUserEntity` keyed `(listType, userId)` with `nick`, `addedAt`, `lastSeenAt`, `registrationDate`, `isFollowCurrentUser`, `isBuddy`
-- [ ] 6.2 Define `ListSyncStateEntity` carrying a page cursor, replacing the `partial*Users` chunking
-- [ ] 6.3 Define `RegistrationDateCacheEntity` with a 30-day TTL and a trim query
-- [ ] 6.4 Define `OperationCheckpointEntity` and `CompletedOperationEntity` ready for the engine, unused for now
-- [ ] 6.5 Define `AuthorListEntity` and `TelemetryOutboxEntity`
-- [ ] 6.6 Write `Flow`-returning DAOs; expose counts only as `COUNT(*)`, never a stored column
-- [ ] 6.7 Enable `exportSchema` and commit `android/core/database/schemas/`
-- [ ] 6.8 Instrumented tests: upsert idempotence on the composite key, count-follows-content, TTL expiry
+- [x] 6.1 Define `RelationUserEntity` keyed `(listType, userId)` with `nick`, `addedAt`, `lastSeenAt`, `registrationDate`, `isFollowCurrentUser`, `isBuddy`
+- [x] 6.2 Define `ListSyncStateEntity` carrying a page cursor, replacing the `partial*Users` chunking
+- [x] 6.3 Define `RegistrationDateCacheEntity` with a 30-day TTL and a trim query
+- [x] 6.4 Define `OperationCheckpointEntity` and `CompletedOperationEntity` ready for the engine, unused for now
+- [x] 6.5 Define `AuthorListEntity` and `TelemetryOutboxEntity`
+- [x] 6.6 Write `Flow`-returning DAOs; expose counts only as `COUNT(*)`, never a stored column
+- [x] 6.7 Enable `exportSchema` and commit `android/core/database/schemas/`
+- [x] 6.8 Instrumented tests: upsert idempotence on the composite key, count-follows-content, TTL expiry
 - [ ] 6.9 Confirm the CI schema-drift guard fails on an uncommitted schema change
 
 ## 7. core:datastore
 
-- [ ] 7.1 Define the config proto: eight booleans from `config.js`, `eksiSozlukUrl`, repeated `DateFilterRule`
-- [ ] 7.2 Define the identity proto: `clientUid`, `firstRunAt`, `consentVersion`
-- [ ] 7.3 Implement `ConfigRepository` and `IdentityRepository` over Proto DataStore with documented defaults
-- [ ] 7.4 Keep the shared API key in `BuildConfig`, never DataStore
-- [ ] 7.5 Tests for first-run defaults and round-tripping a rule list
+- [x] 7.1 Define the config proto: eight booleans from `config.js`, `eksiSozlukUrl`, repeated `DateFilterRule`
+- [x] 7.2 Define the identity proto: `clientUid`, `firstRunAt`, `consentVersion`
+- [x] 7.3 Implement `ConfigRepository` and `IdentityRepository` over Proto DataStore with documented defaults
+- [x] 7.4 Keep the shared API key in `BuildConfig`, never DataStore
+- [x] 7.5 Tests for first-run defaults and round-tripping a rule list
 
 ## 8. Close out
 
-- [ ] 8.1 `./gradlew build` green across all modules
-- [ ] 8.2 Extend `check.yml` to run every module's unit tests
-- [ ] 8.3 Re-verify the extension is unbroken: `cd frontend/app && npm run check && npm run package`
-- [ ] 8.4 Confirm `git diff --stat -- frontend/app/assets/` is empty
-- [ ] 8.5 Confirm `android/version.json` and the `versionCode` derivation are unchanged
-- [ ] 8.6 `openspec validate android-foundations` clean
+- [x] 8.1 `./gradlew build` green across all modules
+- [x] 8.2 Extend `check.yml` to run every module's unit tests
+- [x] 8.3 Re-verify the extension is unbroken: `cd frontend/app && npm run check && npm run package`
+- [x] 8.4 Confirm `git diff --stat -- frontend/app/assets/` is empty
+- [x] 8.5 Confirm `android/version.json` and the `versionCode` derivation are unchanged
+- [x] 8.6 `openspec validate android-foundations` clean

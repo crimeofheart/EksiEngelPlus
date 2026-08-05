@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-08-05T18:12:31.430Z" hostname="cachyos-gmktec" time="0.229">
+<testsuite name="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-08-05T21:10:01.460Z" hostname="cachyos-gmktec" time="0.219">
   <properties/>
-  <testcase name="403 is session expiry" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.181"/>
+  <testcase name="403 is session expiry" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.176"/>
   <testcase name="429 with an HTTP-date Retry-After falls back rather than parsing it" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.004"/>
-  <testcase name="request shape matches the contract" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.004"/>
-  <testcase name="redirect to giris is session expiry, not a failure" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
-  <testcase name="ban code 4 is self-target, distinct from a generic failure" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.004"/>
-  <testcase name="an unknown numeric code fails and records itself" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.007"/>
-  <testcase name="429 without Retry-After falls back to 65 seconds" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
+  <testcase name="request shape matches the contract" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
+  <testcase name="redirect to giris is session expiry, not a failure" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.004"/>
+  <testcase name="ban code 4 is self-target, distinct from a generic failure" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
+  <testcase name="an unknown numeric code fails and records itself" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.005"/>
+  <testcase name="429 without Retry-After falls back to 65 seconds" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.002"/>
   <testcase name="undoban with result false fails" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
   <testcase name="html where a code was expected is session expiry" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
   <testcase name="ban code 0 is success" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
   <testcase name="the client never sleeps on a 429" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
-  <testcase name="undoban parses the object and ignores unknown fields" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
+  <testcase name="undoban parses the object and ignores unknown fields" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.002"/>
   <testcase name="ban code 2 means already in that state" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.003"/>
   <testcase name="429 with Retry-After returns that delay plus one second" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.002"/>
   <testcase name="undoban uses the removerelation segment" classname="org.duzgun.eksiengelplus.eksi.client.RelationClientTest" time="0.002"/>

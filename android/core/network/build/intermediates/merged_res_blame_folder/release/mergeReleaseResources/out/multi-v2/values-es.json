@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "org.duzgun.eksiengelplus.network-release-6:/values-es/values-es.xml",
+            "map": [
+                {
+                    "source": "/home/coh/.gradle/caches/8.14.3/transforms/15a8e97705e6b334aaba8e8bc7dec94b/transformed/core-1.1.0/res/values-es/values-es.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "org.duzgun.eksiengelplus.network-mergeReleaseResources-4:/values-es/values-es.xml",
+            "map": [
+                {
+                    "source": "/home/coh/.gradle/caches/8.14.3/transforms/15a8e97705e6b334aaba8e8bc7dec94b/transformed/core-1.1.0/res/values-es/values-es.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "100",
+                        "endOffsets": "151"
+                    }
+                }
+            ]
+        }
+    ]
+}

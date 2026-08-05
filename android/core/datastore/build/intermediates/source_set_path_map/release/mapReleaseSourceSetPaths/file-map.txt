@@ -1,0 +1,10 @@
+org.duzgun.eksiengelplus.datastore-datastore-core-release-0 /home/coh/.gradle/caches/8.14.3/transforms/310c8f33c91d7409204350cb1a522d75/transformed/datastore-core-release/res
+org.duzgun.eksiengelplus.datastore-datastore-release-1 /home/coh/.gradle/caches/8.14.3/transforms/ecb5851ca90ec6d6c0a425c5b9c332b7/transformed/datastore-release/res
+org.duzgun.eksiengelplus.datastore-pngs-2 /home/coh/Projects/EksiEngelPlus/android/core/datastore/build/generated/res/pngs/release
+org.duzgun.eksiengelplus.datastore-resValues-3 /home/coh/Projects/EksiEngelPlus/android/core/datastore/build/generated/res/resValues/release
+org.duzgun.eksiengelplus.datastore-updated_navigation_xml-4 /home/coh/Projects/EksiEngelPlus/android/core/datastore/build/generated/updated_navigation_xml/release
+org.duzgun.eksiengelplus.datastore-mergeReleaseResources-5 /home/coh/Projects/EksiEngelPlus/android/core/datastore/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
+org.duzgun.eksiengelplus.datastore-mergeReleaseResources-6 /home/coh/Projects/EksiEngelPlus/android/core/datastore/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
+org.duzgun.eksiengelplus.datastore-release-7 /home/coh/Projects/EksiEngelPlus/android/core/datastore/build/intermediates/merged_res/release/mergeReleaseResources
+org.duzgun.eksiengelplus.datastore-main-8 /home/coh/Projects/EksiEngelPlus/android/core/datastore/src/main/res
+org.duzgun.eksiengelplus.datastore-release-9 /home/coh/Projects/EksiEngelPlus/android/core/datastore/src/release/res

@@ -26,8 +26,13 @@ class ScrapeClient(
          */
         const val FIRST_PAGE = 1
 
-        /** Observed page size. For progress estimation only; never a terminator. */
-        const val OBSERVED_PAGE_SIZE = 25
+        /**
+         * Observed page sizes, for progress estimation only -- never terminators.
+         * They differ by endpoint family, so neither may be assumed of the other:
+         * /relation-list ends on IsLast, the follow endpoints on an empty array.
+         */
+        const val RELATION_PAGE_SIZE = 25
+        const val FOLLOW_PAGE_SIZE = 100
     }
 
     private suspend fun get(url: String): String = withContext(Dispatchers.IO) {

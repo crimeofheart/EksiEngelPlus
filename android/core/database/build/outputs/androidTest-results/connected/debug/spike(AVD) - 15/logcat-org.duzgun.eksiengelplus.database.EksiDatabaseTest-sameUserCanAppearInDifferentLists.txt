@@ -1,0 +1,2 @@
+08-05 23:06:53.180  3140  3158 I TestRunner: started: sameUserCanAppearInDifferentLists(org.duzgun.eksiengelplus.database.EksiDatabaseTest)
+08-05 23:06:53.188  3140  3158 I TestRunner: finished: sameUserCanAppearInDifferentLists(org.duzgun.eksiengelplus.database.EksiDatabaseTest)

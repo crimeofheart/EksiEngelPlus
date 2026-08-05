@@ -119,4 +119,22 @@ class ScrapeClientTest {
         )
         assertThat(client.ownNick()).isEqualTo("coh-81")
     }
+
+    @Test fun `a full follow page is not treated as the end`() = runTest {
+        // The follow endpoints cap at 100, not 25, and carry no IsLast -- so only
+        // an empty array ends iteration. A client that stopped at a short page,
+        // or assumed 25, would silently truncate the list.
+        val full = (1..100).joinToString(",") { """{"Id":$it,"Nick":{"Value":"u$it"}}""" }
+        json("[$full]")
+        json("""[{"Id":101,"Nick":{"Value":"tail"}}]""")
+        json("[]")
+        val all = client.allFollow(FollowEndpoint.FOLLOWER, "coh")
+        assertThat(all).hasSize(101)
+        assertThat(server.requestCount).isEqualTo(3)
+    }
+
+    @Test fun `observed page sizes differ by endpoint family`() {
+        assertThat(ScrapeClient.RELATION_PAGE_SIZE).isEqualTo(25)
+        assertThat(ScrapeClient.FOLLOW_PAGE_SIZE).isEqualTo(100)
+    }
 }

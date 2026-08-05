@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-08-05T18:12:31.661Z" hostname="cachyos-gmktec" time="0.259">
+<testsuite name="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-08-05T21:10:01.681Z" hostname="cachyos-gmktec" time="0.353">
   <properties/>
-  <testcase name="html from a json endpoint is session expiry, not a parse error" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.008"/>
-  <testcase name="the first request uses pageIndex 1, never 0" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.016"/>
-  <testcase name="own nick is read from the homepage avatar" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.031"/>
+  <testcase name="a full follow page is not treated as the end" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.111"/>
+  <testcase name="html from a json endpoint is session expiry, not a parse error" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.006"/>
+  <testcase name="the first request uses pageIndex 1, never 0" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.006"/>
+  <testcase name="own nick is read from the homepage avatar" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.034"/>
   <testcase name="relation list carries the mute relation code" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.003"/>
   <testcase name="requesting page zero is rejected before a request is made" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.003"/>
-  <testcase name="a redirect to giris surfaces as session expiry" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.004"/>
-  <testcase name="relation pagination terminates on IsLast" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.096"/>
-  <testcase name="an empty first follow page yields nothing and stops" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.009"/>
-  <testcase name="follow pagination terminates on an empty array, not IsLast" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.089"/>
+  <testcase name="observed page sizes differ by endpoint family" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.0"/>
+  <testcase name="a redirect to giris surfaces as session expiry" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.003"/>
+  <testcase name="relation pagination terminates on IsLast" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.09"/>
+  <testcase name="an empty first follow page yields nothing and stops" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.004"/>
+  <testcase name="follow pagination terminates on an empty array, not IsLast" classname="org.duzgun.eksiengelplus.eksi.client.ScrapeClientTest" time="0.091"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

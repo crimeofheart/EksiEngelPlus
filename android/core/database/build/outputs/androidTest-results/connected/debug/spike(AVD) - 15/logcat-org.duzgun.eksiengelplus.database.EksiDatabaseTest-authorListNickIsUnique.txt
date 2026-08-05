@@ -1,0 +1,2 @@
+08-05 23:06:53.115  3140  3158 I TestRunner: started: authorListNickIsUnique(org.duzgun.eksiengelplus.database.EksiDatabaseTest)
+08-05 23:06:53.126  3140  3158 I TestRunner: finished: authorListNickIsUnique(org.duzgun.eksiengelplus.database.EksiDatabaseTest)

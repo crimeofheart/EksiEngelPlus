@@ -1,0 +1,2 @@
+08-05 23:06:53.205  3140  3158 I TestRunner: started: countFollowsContentWithNoStoredCounter(org.duzgun.eksiengelplus.database.EksiDatabaseTest)
+08-05 23:06:53.212  3140  3158 I TestRunner: finished: countFollowsContentWithNoStoredCounter(org.duzgun.eksiengelplus.database.EksiDatabaseTest)

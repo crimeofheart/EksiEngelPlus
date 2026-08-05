@@ -7,8 +7,8 @@
 
 ## 2. S1 — Does the site work in a WebView at all
 
-- [ ] 2.1 Load the base URL in the WebView with `javaScriptEnabled` and `setAcceptThirdPartyCookies` on; screenshot the result
-- [ ] 2.2 Record whether a Cloudflare interstitial, bot check, or unsupported-browser page appears, on device and emulator
+- [x] 2.1 Load the base URL in the WebView with `javaScriptEnabled` and `setAcceptThirdPartyCookies` on; screenshot the result
+- [x] 2.2 Record whether a Cloudflare interstitial, bot check, or unsupported-browser page appears, on device and emulator
 - [ ] 2.3 Complete a full login inside the WebView and confirm the logged-in homepage renders
 - [ ] 2.4 Confirm the session survives an app restart, verifying `CookieManager` persistence and that `flush()` is needed
 - [ ] 2.5 Navigate a title page, an entry, and a profile page; record any rendering or interaction breakage

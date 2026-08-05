@@ -89,13 +89,64 @@ important selector in the contract and is currently unverified.
 
 ## S1 — Does the site work in a WebView at all?
 
-**Not answered.** Needs a device.
+**Partially answered, and it produced the most consequential finding so far.**
 
-What is established: `eksisozluk.com` returns HTTP 200 with no redirect to a
-plain `curl` under all three user agents, with no Cloudflare interstitial and no
-unsupported-browser page. That is a necessary but not sufficient signal — it does
-not exercise JS challenges, and it says nothing about completing a login inside a
-WebView or about session persistence across an app restart.
+### Browsing is unchallenged
+
+`eksisozluk.com` returns HTTP 200 with no redirect to a plain `curl` under all
+three user agents. No Cloudflare interstitial, no unsupported-browser page, no JS
+challenge on read paths. Public content is freely fetchable by a non-browser
+client.
+
+### Login is gated by Cloudflare Turnstile
+
+`GET /giris` renders the login form with a Turnstile widget embedded directly in
+it:
+
+```html
+<div class="cf-turnstile" data-sitekey="0x4AAAAAAA53GWVB-tieg9RN">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js">
+```
+
+It is present on first load, not as a reaction to a failed attempt.
+`https://www.google.com/recaptcha/api.js?hl=tr` is also loaded on the page.
+
+A scripted `POST /giris` carrying a freshly scraped `__RequestVerificationToken`,
+correct credentials, and the matching session cookies is rejected with the field
+error **`doğrulama başarısız`** ("verification failed"), returns HTTP 200
+re-rendering the login page, and issues no authentication cookie — the session
+cookies present before the POST are dropped from the jar.
+
+### Why this is good news, not bad
+
+1. **It validates the chosen architecture.** The design already logs in *inside
+   the WebView*, which is a real browser and renders Turnstile normally for the
+   user to solve. Turnstile is fully compatible with that.
+2. **It would have killed the alternatives.** A fully-native client with its own
+   login form — the option considered and rejected at planning time — cannot
+   satisfy Turnstile and would have been dead on arrival. This is direct evidence
+   for the WebView shell over a native client.
+3. **It costs nothing at runtime.** Login is a one-time interactive event; every
+   subsequent request rides the resulting cookie jar.
+
+### What it changes
+
+Session establishment is **interactive-only and cannot be automated or
+refreshed headlessly**. This makes the `PAUSED_AUTH` state from the plan
+mandatory rather than a nicety: when a session expires mid-operation the engine
+cannot silently re-authenticate, so it must checkpoint and bounce the user into
+the WebView. Written into `eksisozluk-client-contract` as a requirement, together
+with an explicit prohibition on prompting for Ekşi credentials or attempting to
+solve the challenge.
+
+### What it blocks
+
+Every remaining spike question. There is no way to obtain a session from this
+environment, so the auth-gated captures, S3, and S4 all now require a device (or
+a session cookie exported from a browser where a human solved Turnstile).
+
+Attempting to defeat Turnstile is out of scope and will not be attempted — it is
+the site's deliberate anti-automation control.
 
 ---
 
@@ -125,18 +176,31 @@ resulting `minSdk`.
 
 ## Gate
 
-**Closed.** S1 and S3 are the go/no-go pair and both are outstanding.
+**Closed**, and everything still open now requires a device or a
+human-established session. Nothing further can be answered from a headless
+environment.
 
-The S2 evidence so far is favourable — the scrape surface survives the mobile UA
-unchanged, and WebView matching Android Chrome removes a whole class of expected
-trouble. Nothing found so far argues against the architecture. But the
-load-bearing questions are exactly the ones that need a real session.
+Evidence so far is favourable on every count:
 
-### Next
+- The scrape surface survives the mobile user agent unchanged.
+- WebView and Android Chrome are byte-identical, removing an expected class of
+  trouble.
+- Read paths are unchallenged for non-browser clients, which is the precondition
+  for the native engine.
+- Turnstile on login is compatible with the WebView shell and would have killed
+  a native-client design.
 
-1. Provision a throwaway actor account and a controlled target account.
-2. Re-run `capture.sh` with a session cookie to close the coverage gap in
+Nothing found argues against the architecture. The one genuinely load-bearing
+question — whether an established session can be *used* by a non-browser client
+for `POST /userrelation/*` — remains open, and it is the go/no-go.
+
+### Next, in order
+
+1. Export a session cookie from a browser where a human has solved Turnstile,
+   **or** move to the device phase. Either unblocks the auth-gated captures.
+2. Re-run `capture.sh` with that session to close the coverage gap in
    `docs/fixtures/eksisozluk/MANIFEST.md` and resolve the five ambiguous
-   selectors.
-3. Build the throwaway Android project and answer S1, S3, S5 on device.
-4. Answer S4 last, since it deliberately trips a server-side protection.
+   selectors, `.mobile-notification-icons .mobile-only a[title]` above all.
+3. Answer S3 with a controlled target account — never a third party's.
+4. Build the throwaway Android project and answer S1's WebView half and S5.
+5. Answer S4 last, since it deliberately trips a server-side protection.

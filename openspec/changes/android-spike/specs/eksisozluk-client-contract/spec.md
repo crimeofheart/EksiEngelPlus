@@ -57,6 +57,45 @@ sliding-expiration renewals are not lost.
 - **WHEN** no session cookie is present
 - **THEN** the homepage response contains no nick element and the client treats the session as absent
 
+### Requirement: Session establishment is interactive and cannot be automated
+
+The login form at `POST /giris` is protected by **Cloudflare Turnstile**, embedded
+directly in the form as `<div class="cf-turnstile" data-sitekey="0x4AAAAAAA53GWVB-tieg9RN">`
+alongside `https://challenges.cloudflare.com/turnstile/v0/api.js`. A submission
+carrying a valid `__RequestVerificationToken`, correct credentials, and the
+matching session cookies but no Turnstile token is rejected with the field error
+`doğrulama başarısız` and no session is issued.
+
+Clients SHALL therefore obtain a session only by having the user log in inside a
+real browser context that executes JavaScript — the extension's host browser, or
+the Android app's WebView. Clients SHALL NOT attempt to script, bypass, or solve
+the challenge, and SHALL NOT prompt the user for their Ekşi credentials.
+
+This is why the Android architecture logs in inside the WebView rather than
+offering a native login form: a native form cannot satisfy Turnstile.
+
+**Consequence for expiry handling.** Because a session cannot be renewed
+headlessly, a client that loses its session mid-operation SHALL NOT retry or
+attempt silent re-authentication. It SHALL checkpoint, pause in a distinct
+authentication-required state, and surface an action that returns the user to the
+in-browser login. Resumption SHALL be driven by observing that a session exists
+again, never by re-submitting credentials.
+
+#### Scenario: Scripted login is rejected
+
+- **WHEN** a non-browser HTTP client posts valid credentials and a valid `__RequestVerificationToken` to `/giris` without a Turnstile token
+- **THEN** the response is HTTP 200 rendering the login page again with `doğrulama başarısız`, and no authentication cookie is issued
+
+#### Scenario: Interactive login succeeds
+
+- **WHEN** the user completes the login form inside the WebView, solving Turnstile
+- **THEN** the session cookies land in the WebView's `CookieManager` jar and the client detects the session via the homepage avatar
+
+#### Scenario: Session lost mid-operation
+
+- **WHEN** an operation's request indicates the session is gone
+- **THEN** the operation checkpoints and pauses awaiting authentication, and the user is offered a route into the WebView login rather than any credential prompt
+
 ### Requirement: Login state is determined by the homepage avatar
 
 Both clients SHALL determine login state by fetching `GET /` and reading the `title`

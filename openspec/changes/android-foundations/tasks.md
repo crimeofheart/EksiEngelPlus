@@ -42,15 +42,15 @@
 
 ## 5. eksi:client
 
-- [ ] 5.1 Define `RelationResult`: `Success`, `AlreadyInState`, `SelfTarget`, `RateLimited(seconds)`, `SessionExpired`, `Failed(code, body)`
-- [ ] 5.2 Implement `RelationClient.perform(mode, targetType, id)` building `POST /userrelation/{addrelation|removerelation}/{id}?r={m|i|u|b}` with body `id={id}`
-- [ ] 5.3 Parse BAN as a bare number — 0/2 success, 4 self-target, anything else `Failed` recording the code — and UNDOBAN as an object with `result`, ignoring `count`
-- [ ] 5.4 Parse `Retry-After` as integer seconds plus one, defaulting to 65, never the HTTP-date form; return the delay rather than sleeping
-- [ ] 5.5 Implement `ScrapeClient` with **1-indexed** pagination, `IsLast` termination for `/relation-list` and empty-array termination for `/follower`/`/following`
+- [x] 5.1 Define `RelationResult`: `Success`, `AlreadyInState`, `SelfTarget`, `RateLimited(seconds)`, `SessionExpired`, `Failed(code, body)`
+- [x] 5.2 Implement `RelationClient.perform(mode, targetType, id)` building `POST /userrelation/{addrelation|removerelation}/{id}?r={m|i|u|b}` with body `id={id}`
+- [x] 5.3 Parse BAN as a bare number — 0/2 success, 4 self-target, anything else `Failed` recording the code — and UNDOBAN as an object with `result`, ignoring `count`
+- [x] 5.4 Parse `Retry-After` as integer seconds plus one, defaulting to 65, never the HTTP-date form; return the delay rather than sleeping
+- [x] 5.5 Implement `ScrapeClient` with **1-indexed** pagination, `IsLast` termination for `/relation-list` and empty-array termination for `/follower`/`/following`
 - [ ] 5.6 Implement `BaseUrlResolver`: treat only a cross-registrable-domain redirect as unreachable, accept plain text or `{"url":…}`, validate HTTPS and bare origin, support a manual override
-- [ ] 5.7 MockWebServer tests for every `RelationResult` branch including `4` and both 429 variants
-- [ ] 5.8 MockWebServer tests for pagination termination on both endpoint families, and a test asserting the first request uses `pageIndex=1`
-- [ ] 5.9 Verify `./gradlew :eksi:client:testDebugUnitTest` green
+- [x] 5.7 MockWebServer tests for every `RelationResult` branch including `4` and both 429 variants
+- [x] 5.8 MockWebServer tests for pagination termination on both endpoint families, and a test asserting the first request uses `pageIndex=1`
+- [x] 5.9 Verify `./gradlew :eksi:client:testDebugUnitTest` green
 
 ## 6. core:database
 

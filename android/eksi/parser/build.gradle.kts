@@ -9,8 +9,10 @@ kotlin { jvmToolchain(17) }
 
 dependencies {
     api(project(":core:model"))
-    implementation(libs.jsoup)
-    implementation(libs.kotlin.serialization.json)
+    // api, not implementation: parse() returns a Jsoup Document and EksiJson is a
+    // public Json instance, so both are part of this module's surface.
+    api(libs.jsoup)
+    api(libs.kotlin.serialization.json)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

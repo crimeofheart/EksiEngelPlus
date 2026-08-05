@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-05
+goal: Gradle modules, Room, DataStore, cookie-bridged OkHttp, and the Ekşi
+  parser with tests driven by the spike fixtures

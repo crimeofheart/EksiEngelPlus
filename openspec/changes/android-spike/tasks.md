@@ -15,13 +15,13 @@
 
 ## 3. S2 + S3 — Selectors and cookie sharing, run together
 
-- [ ] 3.1 Build the capture harness: given a UA string, fetch every endpoint in `eksisozluk-client-contract` via OkHttp with the two load-bearing headers and write each response to disk verbatim
+- [x] 3.1 Build the capture harness: given a UA string, fetch every endpoint in `eksisozluk-client-contract` via OkHttp with the two load-bearing headers and write each response to disk verbatim
 - [ ] 3.2 Wire `CookieBridgeInterceptor` in prototype form — read `CookieManager.getCookie(url)` into a `Cookie` header, write `Set-Cookie` back into the jar
-- [ ] 3.3 Capture all endpoints under the desktop Chrome UA; confirm the responses match what the extension expects today
-- [ ] 3.4 Capture all endpoints under the Android Chrome UA
-- [ ] 3.5 Capture all endpoints under the Android WebView default UA from `WebSettings.getDefaultUserAgent`
-- [ ] 3.6 Run every selector from `eksisozluk-client-contract` against all three capture sets and record per-selector match counts in a comparison table
-- [ ] 3.7 Determine specifically whether `.mobile-notification-icons .mobile-only a[title]` still yields the nick under each UA — the element name suggests a mobile variant may already differ
+- [x] 3.3 Capture all endpoints under the desktop Chrome UA; confirm the responses match what the extension expects today
+- [x] 3.4 Capture all endpoints under the Android Chrome UA
+- [x] 3.5 Capture all endpoints under the Android WebView default UA from `WebSettings.getDefaultUserAgent`
+- [x] 3.6 Run every selector from `eksisozluk-client-contract` against all three capture sets and record per-selector match counts in a comparison table
+- [x] 3.7 Determine specifically whether `.mobile-notification-icons .mobile-only a[title]` still yields the nick under each UA — the element name suggests a mobile variant may already differ
 - [ ] 3.8 Test whether the session is UA-bound: log in via WebView, then issue an OkHttp request with a *different* UA and record whether it 302s to login
 - [ ] 3.9 Determine whether `Referer` and `Origin` are required, by sending an authenticated read with and without each
 - [ ] 3.10 Perform one real `POST /userrelation/addrelation/{id}?r=m` against the controlled target; log the full request and response
@@ -48,10 +48,10 @@
 
 ## 6. Fixture corpus
 
-- [ ] 6.1 Commit captures to `docs/fixtures/eksisozluk/<ua>/` — one subdirectory per user agent, one file per endpoint
-- [ ] 6.2 Write `docs/fixtures/eksisozluk/MANIFEST.md` recording capture date, exact UA strings, account state, and the endpoint-to-file mapping
-- [ ] 6.3 Note in the manifest that captures contain user-generated content from the throwaway account, and that they are a point-in-time regression oracle rather than a permanent truth
-- [ ] 6.4 Verify the corpus is usable as a test oracle by parsing every fixture offline and asserting the documented extractions
+- [x] 6.1 Commit captures to `docs/fixtures/eksisozluk/<ua>/` — one subdirectory per user agent, one file per endpoint
+- [x] 6.2 Write `docs/fixtures/eksisozluk/MANIFEST.md` recording capture date, exact UA strings, account state, and the endpoint-to-file mapping
+- [x] 6.3 Note in the manifest that captures contain user-generated content from the throwaway account, and that they are a point-in-time regression oracle rather than a permanent truth
+- [x] 6.4 Verify the corpus is usable as a test oracle by parsing every fixture offline and asserting the documented extractions
 
 ## 7. Report and gate
 

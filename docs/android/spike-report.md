@@ -42,10 +42,31 @@ Three things worth carrying forward:
 3. **Live nicks contain spaces** — `0 derece`, `ben ne diyorum sen ne diyorsun` —
    so the `@`-strip and space-to-hyphen rules are exercised in practice.
 
-Remaining, and minor: `/follower` and `/following` element shapes are still
-unseen because both test accounts have empty lists, and
-`.relation-link[data-add-caption]` plus `#button-blocked-link` need a *foreign*
-profile — they never render on one's own page.
+**Closed on device against a populated account**, using the production modules
+rather than the throwaway harness:
+
+```
+authenticated as 'crime-of-heart'
+  authorId         -> 162151
+  registrationDate -> 2005-10-01   (TurkishDateParser, from a month-name value)
+  blocked page1: items=0   isLast=true
+  titles  page1: items=2   isLast=true
+  muted   page1: items=25  isLast=false
+  follower:  items=38   first='guru' id=7556 isBuddy=true followsMe=true
+  following: items=100  first='guru' id=7556 isBuddy=true followsMe=true
+  pageIndex=0 rejected before any request
+```
+
+`/follower` and `/following` element shapes are therefore verified: `Id`,
+`Nick.Value`, `IsBuddy` and `IsFollowCurrentUser` all present and populated.
+
+**New finding — page size differs by endpoint family.** `/relation-list` caps at
+25, the follow endpoints at 100. The exact 100 looks like a server-side cap. No
+client may assume a single page size, and neither value is a termination signal.
+
+Still outstanding, and minor: `.relation-link[data-add-caption]` and
+`#button-blocked-link` need a *foreign* profile — they never render on one's own
+page — so the harness's target box has to be filled to exercise that branch.
 
 ### The logged-out pass (original method)
 

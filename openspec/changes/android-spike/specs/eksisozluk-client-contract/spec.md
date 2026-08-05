@@ -240,6 +240,24 @@ still ends on `IsLast` — but it is the basis for progress estimation.
 - **WHEN** pages are fetched with increasing `pageIndex`
 - **THEN** iteration stops when the returned array is empty, since no `IsLast` field exists
 
+#### Scenario: Populated follow list
+
+- **WHEN** `/follower?nick={nick}&pageIndex=1` is fetched for an account with followers
+- **THEN** each element carries `Id`, `Nick.Value`, `IsBuddy` and `IsFollowCurrentUser`, all populated
+
+Verified on device: `follower` returned 38 items and `following` returned exactly
+100, with a first element of `{"Id":7556,"Nick":{"Value":"guru"},"IsBuddy":true,"IsFollowCurrentUser":true}`.
+
+#### Scenario: Page size differs by endpoint family
+
+- **WHEN** `/relation-list` and `/follower`/`/following` are both paginated
+- **THEN** `/relation-list` returns at most **25** per page while the follow endpoints return at most **100**
+
+A client SHALL NOT assume one page size across endpoints, and SHALL NOT use either
+as a termination signal — `/relation-list` ends on `IsLast`, the follow endpoints
+on an empty array. The exact 100 strongly suggests a server-side cap rather than
+a coincidence.
+
 #### Scenario: Page index zero is rejected
 
 - **WHEN** any of `/relation-list`, `/follower`, or `/following` is requested with `pageIndex=0`

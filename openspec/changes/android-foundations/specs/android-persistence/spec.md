@@ -113,10 +113,18 @@ only as a crash on a user's device.
 
 ### Requirement: Configuration is structured and typed
 
-Config SHALL use Proto DataStore, not Preferences, because `dateFilterRules` is a
-repeated structured value (`config.js:43-55`). It SHALL carry the eight booleans
-from `config.js`, the base URL, and the rule list. Install identity SHALL live in
-a separate store.
+Config SHALL use a **typed** DataStore — `DataStore<T>` with a custom serializer —
+not Preferences, because `dateFilterRules` is a repeated structured value
+(`config.js:43-55`) and Preferences would mean hand-parsing JSON out of a string
+key. It SHALL carry the eight booleans from `config.js`, the base URL, and the
+rule list. Install identity SHALL live in a separate store.
+
+The serializer SHALL be kotlinx-serialization rather than protobuf. Both satisfy
+"typed and structured"; kotlinx-serialization is already a dependency for the
+three JSON endpoints, needs no `protoc` toolchain in the build, and keeps the
+schema declared in Kotlin next to the code that uses it. Protobuf's wire-format
+compactness and cross-language story buy nothing for a single-process Android
+config file.
 
 The shared API key SHALL NOT be stored in DataStore; it belongs in `BuildConfig`.
 

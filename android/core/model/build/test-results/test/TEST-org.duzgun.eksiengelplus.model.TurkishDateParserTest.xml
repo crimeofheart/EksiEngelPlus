@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.duzgun.eksiengelplus.model.TurkishDateParserTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-08-05T18:06:00.580Z" hostname="cachyos-gmktec" time="0.021">
+  <properties/>
+  <testcase name="all twelve month names resolve to the first of that month" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.012"/>
+  <testcase name="iso form parses" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.001"/>
+  <testcase name="dotted day-month-year form parses" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.0"/>
+  <testcase name="an unknown month name is rejected" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.001"/>
+  <testcase name="live values observed during the spike parse" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.0"/>
+  <testcase name="day difference counts whole days" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.0"/>
+  <testcase name="month names are case insensitive and tolerate surrounding whitespace" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.002"/>
+  <testcase name="day difference is signed the same way regardless of order" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.0"/>
+  <testcase name="unparseable input returns null rather than guessing" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.003"/>
+  <testcase name="dotted form with a trailing time parses to the date" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.0"/>
+  <testcase name="dotless i and other Turkish characters are handled" classname="org.duzgun.eksiengelplus.model.TurkishDateParserTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

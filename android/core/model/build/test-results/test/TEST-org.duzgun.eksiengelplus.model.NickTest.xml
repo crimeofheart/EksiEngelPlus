@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.duzgun.eksiengelplus.model.NickTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-08-05T18:06:00.575Z" hostname="cachyos-gmktec" time="0.004">
+  <properties/>
+  <testcase name="single word nick is unchanged" classname="org.duzgun.eksiengelplus.model.NickTest" time="0.003"/>
+  <testcase name="nicks observed live during the spike" classname="org.duzgun.eksiengelplus.model.NickTest" time="0.0"/>
+  <testcase name="surrounding whitespace is trimmed before substitution" classname="org.duzgun.eksiengelplus.model.NickTest" time="0.0"/>
+  <testcase name="spaces become hyphens" classname="org.duzgun.eksiengelplus.model.NickTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

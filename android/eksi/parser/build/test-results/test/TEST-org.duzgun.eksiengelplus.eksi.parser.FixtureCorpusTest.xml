@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-08-05T18:08:13.422Z" hostname="cachyos-gmktec" time="0.157">
+  <properties/>
+  <testcase name="ul toggles-menu is dead on every page and user agent" classname="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" time="0.1"/>
+  <testcase name="webview and android chrome are byte identical" classname="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" time="0.004"/>
+  <testcase name="author id is absent when logged out" classname="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" time="0.01"/>
+  <testcase name="title page yields the same authors under every user agent" classname="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" time="0.014"/>
+  <testcase name="profile registration date parses under every user agent" classname="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" time="0.014"/>
+  <testcase name="entry metadata resolves under every user agent" classname="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" time="0.009"/>
+  <testcase name="own nick is absent when logged out and health records the miss" classname="org.duzgun.eksiengelplus.eksi.parser.FixtureCorpusTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,7 +1,7 @@
 ## 1. Module skeleton
 
-- [ ] 1.1 Expand `android/gradle/libs.versions.toml` with the real graph: Kotlin 2.2.x, coroutines, OkHttp 4.12 + mockwebserver, Jsoup 1.18+, kotlinx-serialization 1.9, Room 2.8 + KSP, DataStore 1.1 + protobuf, Hilt 2.57, Turbine, JUnit
-- [ ] 1.2 Add the six modules to `settings.gradle.kts`: `core:model`, `core:database`, `core:datastore`, `core:network`, `eksi:parser`, `eksi:client`
+- [x] 1.1 Expand `android/gradle/libs.versions.toml` with the real graph: Kotlin 2.2.x, coroutines, OkHttp 4.12 + mockwebserver, Jsoup 1.18+, kotlinx-serialization 1.9, Room 2.8 + KSP, DataStore 1.1 + protobuf, Hilt 2.57, Turbine, JUnit
+- [x] 1.2 Add the six modules to `settings.gradle.kts`: `core:model`, `core:database`, `core:datastore`, `core:network`, `eksi:parser`, `eksi:client`
 - [ ] 1.3 Write build files: `core:model` and `eksi:parser` as pure JVM/Kotlin where possible so their tests need no emulator; the rest as Android libraries
 - [ ] 1.4 Add Hilt to `:app` and an `@HiltAndroidApp` Application class
 - [ ] 1.5 Wire `:app` to depend on the new modules, leaving the version derivation in `app/build.gradle.kts` untouched
@@ -9,25 +9,25 @@
 
 ## 2. core:model
 
-- [ ] 2.1 Port `enums.js` with exact integer pks for `BanSource` (1-14), `BanMode`, `TargetType`, `ClickSource`, `TimeSpecifier`
-- [ ] 2.2 Port `LogLevel` with the **client** mapping `{DISABLED:1, INFO:2, WARN:3, ERR:4}`, commenting the divergence from `api/migrations/0007_seed_lookup_data.py:38`
-- [ ] 2.3 Add `String.toEksiSlug()` — trim, spaces to hyphens — as the single normalisation point
-- [ ] 2.4 Write the ~60-case `TurkishDateParser` table **before** the implementation: month names ocak–aralık, `ağustos 2026`, `temmuz 2026`, ISO, `DD.MM.YYYY`, and unparseable inputs
-- [ ] 2.5 Implement `TurkishDateParser` against that table using `java.time` in `Europe/Istanbul`
+- [x] 2.1 Port `enums.js` with exact integer pks for `BanSource` (1-14), `BanMode`, `TargetType`, `ClickSource`, `TimeSpecifier`
+- [x] 2.2 Port `LogLevel` with the **client** mapping `{DISABLED:1, INFO:2, WARN:3, ERR:4}`, commenting the divergence from `api/migrations/0007_seed_lookup_data.py:38`
+- [x] 2.3 Add `String.toEksiSlug()` — trim, spaces to hyphens — as the single normalisation point
+- [x] 2.4 Write the ~60-case `TurkishDateParser` table **before** the implementation: month names ocak–aralık, `ağustos 2026`, `temmuz 2026`, ISO, `DD.MM.YYYY`, and unparseable inputs
+- [x] 2.5 Implement `TurkishDateParser` against that table using `java.time` in `Europe/Istanbul`
 - [ ] 2.6 Port `getDaysDifference`, `evaluateDateFilter`, `applyDateFilters` as pure functions with tests
-- [ ] 2.7 Verify `./gradlew :core:model:test` green
+- [x] 2.7 Verify `./gradlew :core:model:test` green
 
 ## 3. eksi:parser
 
-- [ ] 3.1 Create `Selectors` holding every selector from the contract in one object
-- [ ] 3.2 Implement `parseOwnNick`, `parseAuthorProfile` (`#who` + `.recorddate` with the six fallbacks), `parseEntry`, `parseFavouriters`, `parseTopicAuthors`
-- [ ] 3.3 Replace the extension's full-document `querySelectorAll('*')` registration-date fallback with one bounded pass over `li,span,div,p,dd,td` matching `(?i)(kayıt|katılım)\s+tarihi`
-- [ ] 3.4 Add kotlinx-serialization DTOs for `/relation-list`, `/follower`, `/following` with `ignoreUnknownKeys`
-- [ ] 3.5 Add a `SelectorHealth` counter recording when a should-match selector yields zero
-- [ ] 3.6 Write parser tests against `docs/fixtures/eksisozluk/logged-out/` for all three user agents, asserting the counts the spike recorded
-- [ ] 3.7 Add a test asserting `ul.toggles-menu` matches zero, so the dead selector cannot be reintroduced as a dependency
-- [ ] 3.8 Add JSON tests for the observed shapes including the 25-item populated page and the empty-envelope case
-- [ ] 3.9 Verify `./gradlew :eksi:parser:test` green
+- [x] 3.1 Create `Selectors` holding every selector from the contract in one object
+- [x] 3.2 Implement `parseOwnNick`, `parseAuthorProfile` (`#who` + `.recorddate` with the six fallbacks), `parseEntry`, `parseFavouriters`, `parseTopicAuthors`
+- [x] 3.3 Replace the extension's full-document `querySelectorAll('*')` registration-date fallback with one bounded pass over `li,span,div,p,dd,td` matching `(?i)(kayıt|katılım)\s+tarihi`
+- [x] 3.4 Add kotlinx-serialization DTOs for `/relation-list`, `/follower`, `/following` with `ignoreUnknownKeys`
+- [x] 3.5 Add a `SelectorHealth` counter recording when a should-match selector yields zero
+- [x] 3.6 Write parser tests against `docs/fixtures/eksisozluk/logged-out/` for all three user agents, asserting the counts the spike recorded
+- [x] 3.7 Add a test asserting `ul.toggles-menu` matches zero, so the dead selector cannot be reintroduced as a dependency
+- [x] 3.8 Add JSON tests for the observed shapes including the 25-item populated page and the empty-envelope case
+- [x] 3.9 Verify `./gradlew :eksi:parser:test` green
 
 ## 4. core:network
 

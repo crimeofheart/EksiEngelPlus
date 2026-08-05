@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.duzgun.eksiengelplus.model.EnumsTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-08-05T18:06:00.553Z" hostname="cachyos-gmktec" time="0.02">
+  <properties/>
+  <testcase name="target type relation codes match the mutation endpoint" classname="org.duzgun.eksiengelplus.model.EnumsTest" time="0.006"/>
+  <testcase name="round trips through pk" classname="org.duzgun.eksiengelplus.model.EnumsTest" time="0.0"/>
+  <testcase name="ban mode maps to the right url segment" classname="org.duzgun.eksiengelplus.model.EnumsTest" time="0.0"/>
+  <testcase name="ban source pks match enums js exactly" classname="org.duzgun.eksiengelplus.model.EnumsTest" time="0.012"/>
+  <testcase name="log level keeps the client mapping not the server seed" classname="org.duzgun.eksiengelplus.model.EnumsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

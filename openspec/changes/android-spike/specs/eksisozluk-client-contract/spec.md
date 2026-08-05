@@ -217,6 +217,14 @@ and `/following` it terminates on an empty page.
 
 Reference: `frontend/app/assets/js/scrapingHandler.js:225-277`, `:777-812`, `:827-862`.
 
+#### Scenario: Populated relation list
+
+- **WHEN** `/relation-list?relationType=u&pageIndex=1` is fetched for an account with muted users
+- **THEN** the response is 200 with `IsLast=false` and **25** items, each carrying `Id` and `Nick.Value`
+
+Page size is 25. A client SHALL NOT hardcode it as a termination signal — pagination
+still ends on `IsLast` — but it is the basis for progress estimation.
+
 #### Scenario: Envelope shape is stable when the list is empty
 
 - **WHEN** `/relation-list?relationType={m|i|u}&pageIndex=1` is fetched for an account with no relations
@@ -260,6 +268,39 @@ place per client so a site change is a single-file diff.
 
 Reference: `frontend/app/assets/js/scrapingHandler.js`.
 
+#### Scenario: Injection targets exist on a logged-in title page
+
+- **WHEN** a title page is fetched with a session
+- **THEN** `#in-topic-search-options` matches once, `#title` carries `data-id` and `data-slug`, and `.content` matches once per entry (10 on a full page)
+
+#### Scenario: Injection targets exist on a logged-in entry page
+
+- **WHEN** an entry page is fetched with a session
+- **THEN** `.dropdown-menu` matches **4** times and `#user-notifications` once
+
+Because four dropdowns are present, a client SHALL identify the entry menu by its
+contents rather than by position — the extension text-matches
+`['engelle','modlog','şikayet','mesaj']` (`script.js:315`), which is required, not
+defensive.
+
+#### Scenario: `ul.toggles-menu` never matches
+
+- **WHEN** either a title page or an entry page is fetched with a session
+- **THEN** `ul.toggles-menu` matches zero elements
+
+It is a dead alternative in the extension's
+`.dropdown-menu, ul.toggles-menu, .other .dropdown-menu` selector list. Harmless,
+but a reimplementation SHALL NOT rely on it.
+
+#### Scenario: Favouriter fragments return anchor lists
+
+- **WHEN** `/entry/favorileyenler?entryId={id}` is fetched with a session
+- **THEN** the response is 200 with a fragment of `<a>` elements whose text is a nick prefixed with `@`, for example `@ben ne diyorum sen ne diyorsun`
+- **AND** `/entry/caylakfavorites?entryId={id}` returns 200 with the same shape
+
+Nicks here contain spaces, so the `@`-strip and the space-to-hyphen slug rule are
+both load-bearing on this path.
+
 #### Scenario: Every selector is verified against captured evidence
 
 - **WHEN** the spike captures each endpoint under desktop Chrome, Android Chrome, and Android WebView user agents
@@ -288,6 +329,11 @@ in one function.
 
 - **WHEN** the nick `bir iki uc` is normalized
 - **THEN** the result is `bir-iki-uc`
+
+#### Scenario: Real multi-word nicks occur in live data
+
+- **WHEN** a populated muted list or favouriter fragment is parsed
+- **THEN** nicks such as `0 derece` and `ben ne diyorum sen ne diyorsun` appear, confirming the rule is exercised in practice rather than defensively
 
 ### Requirement: The base URL is resolved, not hardcoded
 

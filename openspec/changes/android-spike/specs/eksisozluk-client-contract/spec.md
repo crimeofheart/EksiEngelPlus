@@ -133,10 +133,22 @@ Reference: `frontend/app/assets/js/relationHandler.js:107-127`.
 - **WHEN** `POST /userrelation/addrelation/{id}?r=m` is sent with body `id={id}`
 - **THEN** the response body is a bare JSON number, where `0` and `2` both indicate success (`2` meaning the relation already existed)
 
+#### Scenario: Blocking oneself returns an undocumented code
+
+- **WHEN** `addrelation` is sent with an `id` equal to the authenticated user's own id
+- **THEN** the response is HTTP 200 with body `4`, and no relation is created
+- **AND** a subsequent `removerelation` returns `{"result":true,"count":0}` — `result:true` despite nothing having been removed, so `result` alone does not prove a relation existed
+
+#### Scenario: An unrecognised numeric code is not success
+
+- **WHEN** a BAN response is a bare number outside `{0, 2}`
+- **THEN** the client SHALL treat it as a failure and record the code, because the meaning is unknown. `relationHandler.js:185` already does this, so `4` is currently a hard failure in the shipped extension.
+
 #### Scenario: Unblock succeeds
 
 - **WHEN** `POST /userrelation/removerelation/{id}?r=m` is sent
 - **THEN** the response body is a JSON object whose `result` field is `true`
+- **AND** the object also carries an undocumented `count` field, observed as `{"result":true,"count":0}`. Clients SHALL ignore unknown fields rather than failing to parse.
 
 #### Scenario: The response shape is polymorphic
 

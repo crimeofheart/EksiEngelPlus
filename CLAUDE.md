@@ -65,13 +65,14 @@ stays cached otherwise.
 
 ## Versioning and packaging
 
-The version is recorded in six places (`package.json`, `package-lock.json` ×2,
-both manifest variants, and the generated `manifest.json`). Never edit them by
-hand — the scripts keep them in lockstep and refuse to run on a mismatch.
+One version covers all three deliverables. It is recorded in seven places
+(`package.json`, `package-lock.json` ×2, both manifest variants, the generated
+`manifest.json`, and `android/version.json`). Never edit them by hand — the
+scripts keep them in lockstep and refuse to run on a mismatch.
 
 ```bash
 cd frontend/app
-npm run check       # assert all six versions agree, manifests are valid JSON
+npm run check       # assert all seven versions agree, manifests are valid JSON
 npm run package     # build both store zips into frontend/publish/dist/
 npm run version:patch   # or :minor / :major — bump everywhere, no commit
 ```
@@ -79,6 +80,18 @@ npm run version:patch   # or :minor / :major — bump everywhere, no commit
 `npm run package` writes `eksiengelplus-<version>-{chrome,firefox}.zip`,
 excluding `package*.json`, `scripts/`, and the manifest variants.
 Output is gitignored.
+
+**`npm run package` is extension-only and stays that way.** The APK and AAB are
+CI products — no JDK and no Android SDK are needed for extension work, and
+`frontend/app` keeps its zero dependencies. Reading `android/version.json` is a
+plain JSON read, never a Gradle invocation.
+
+`android/version.json` is JSON with a top-level `version` field precisely so
+`versionsIn()` and `rewriteVersion()` in `ext.mjs` consume it with no special
+casing. `android/app/build.gradle.kts` derives `versionCode` from it as
+`major*10000 + minor*100 + patch` (0.1.7 → 107), so Play's strictly-increasing
+integer never needs a separate bump. Keep minor and patch below 100; the Gradle
+config fails loudly otherwise.
 
 ## Commits
 
@@ -96,11 +109,63 @@ npm run release -- patch          # bump + commit "chore: release v0.1.3" + tag
 git push origin master --follow-tags
 ```
 
-Pushing the tag triggers `.github/workflows/extension-release.yml`, which
-rebuilds both zips and attaches them to a GitHub Release. Download those assets
-and upload them to the Chrome Web Store and addons.mozilla.org.
+Pushing the tag triggers `.github/workflows/release.yml`, which produces **four
+assets** on one GitHub Release: both browser zips, the Android AAB, and the APK.
+There is no separate Android tag namespace — one release means one tag.
+
+Download those assets and upload them to the Chrome Web Store,
+addons.mozilla.org, and Google Play.
 
 `npm run release` refuses to run on a dirty tree or an existing tag.
+
+### Store submission
+
+CI publishes *artifacts*, not store listings. The three stores cannot go live in
+step — Chrome review takes hours to days, AMO minutes to days, and Play adds
+review plus a 12-tester × 14-day gate on new accounts.
+
+Chrome and AMO uploads are manual. **Play submission is opt-in**: run
+`release.yml` via `workflow_dispatch` with `submit_to_play` set, so an
+extension-only fix never burns a Play review cycle on a bit-identical APK. That
+path fails hard if signing secrets are absent rather than uploading an unsigned
+artifact.
+
+Required repository secrets for a signed Android build:
+`ANDROID_KEYSTORE_B64`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`,
+`ANDROID_STORE_PASSWORD`, plus `PLAY_SERVICE_ACCOUNT_JSON` for Play upload.
+When `ANDROID_KEYSTORE_B64` is unset the Android job degrades to an unsigned
+debug build and the release still publishes — an unconfigured keystore must
+never block an extension release.
+
+## Android app
+
+`android/` is a Gradle project. Today it is a placeholder shell that exists so
+the release pipeline provably produces all three artifacts; the real port is
+tracked in `openspec/changes/`.
+
+```bash
+cd android
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew :app:assembleDebug
+```
+
+Gradle needs **JDK 17** — AGP does not support newer JDKs, so set `JAVA_HOME`
+explicitly if the system default is different.
+
+## Spec-driven changes
+
+Non-trivial work is specced with [OpenSpec](https://github.com/Fission-AI/OpenSpec)
+before implementation.
+
+```bash
+openspec list                      # active changes and task progress
+openspec show <change>             # read a change
+openspec validate <change>         # must pass before implementing
+openspec archive <change>          # on completion
+```
+
+`openspec/config.yaml` carries the project context and per-artifact rules that
+every generated artifact inherits — including the constraint that
+`frontend/app/` runtime code stays untouched by Android work.
 
 `.github/workflows/extension-check.yml` runs `check` + `package` on every push
 to `master` and on any PR into it, uploading the two zips as separate artifacts.

@@ -2,8 +2,8 @@
 
 - [ ] 1.1 Create or designate a throwaway Ekşi Sözlük account as the actor, and a second controlled account as the mutation target — never a third party's account
 - [ ] 1.2 Populate the actor account with a small blocked list, muted list, and followed list so the JSON list endpoints return non-empty, non-personal data
-- [ ] 1.3 Create the throwaway Android project in a scratch location outside `android/` — single Activity, WebView, OkHttp, nothing else
-- [ ] 1.4 Prepare a physical device and an API 35+ emulator; record OS version and WebView provider version for both
+- [x] 1.3 Create the throwaway Android project in a scratch location outside `android/` — single Activity, WebView, OkHttp, nothing else
+- [x] 1.4 Prepare a physical device and an API 35+ emulator; record OS version and WebView provider version for both
 
 ## 2. S1 — Does the site work in a WebView at all
 
@@ -11,7 +11,7 @@
 - [x] 2.2 Record whether a Cloudflare interstitial, bot check, or unsupported-browser page appears, on device and emulator
 - [ ] 2.3 Complete a full login inside the WebView and confirm the logged-in homepage renders
 - [ ] 2.4 Confirm the session survives an app restart, verifying `CookieManager` persistence and that `flush()` is needed
-- [ ] 2.5 Navigate a title page, an entry, and a profile page; record any rendering or interaction breakage
+- [x] 2.5 Navigate a title page, an entry, and a profile page; record any rendering or interaction breakage
 
 ## 3. S2 + S3 — Selectors and cookie sharing, run together
 
@@ -39,8 +39,8 @@
 
 ## 5. S5 — WebView capability floor
 
-- [ ] 5.1 Check `WebViewFeature.isFeatureSupported(DOCUMENT_START_SCRIPT)` on device and emulator; record the WebView provider version for each
-- [ ] 5.2 Check `WebViewFeature.isFeatureSupported(WEB_MESSAGE_LISTENER)` on both
+- [x] 5.1 Check `WebViewFeature.isFeatureSupported(DOCUMENT_START_SCRIPT)` on device and emulator; record the WebView provider version for each
+- [x] 5.2 Check `WebViewFeature.isFeatureSupported(WEB_MESSAGE_LISTENER)` on both
 - [ ] 5.3 Prototype `addDocumentStartJavaScript` injecting a trivial marker and confirm it runs before page script
 - [ ] 5.4 Prototype `addWebMessageListener` round-tripping one message from injected JS to Kotlin and back
 - [ ] 5.5 Confirm a menu item can be injected into a real Ekşi entry dropdown and that a tap reaches Kotlin

@@ -1,8 +1,10 @@
 # Android feasibility spike — report
 
-**Status: IN PROGRESS.** S2 partially answered. S1, S3, S4, S5 are blocked on a
-device and a logged-in throwaway account, and the gate stays closed until they
-are answered. No production Android code before then.
+**Status: IN PROGRESS.** S5 answered. S1 answered except the interactive login.
+S2 answered for public pages. S3 proven at the plumbing level. S4 outstanding.
+
+Everything still open requires a human-completed login, because Cloudflare
+Turnstile guards `/giris`. A spike APK exists for that purpose.
 
 Change: `openspec/changes/android-spike/`.
 
@@ -89,7 +91,17 @@ important selector in the contract and is currently unverified.
 
 ## S1 — Does the site work in a WebView at all?
 
-**Partially answered, and it produced the most consequential finding so far.**
+**Answered for browsing and the login surface; the login itself needs a human.**
+
+### The site renders correctly in an Android WebView
+
+Verified on an Android 15 emulator: `eksisozluk.com` loads and renders fully —
+gündem, entry list, authors, timestamps, navigation. No Cloudflare interstitial,
+no unsupported-browser page, no degraded fallback. `/giris` renders the real
+login form (`e-mail adresi`, `şifre`) with the Turnstile widget below it.
+
+The browsing half of the product therefore works as designed: a WebView pointed
+at the site is a usable Ekşi Sözlük client.
 
 ### Browsing is unchallenged
 
@@ -152,9 +164,34 @@ the site's deliberate anti-automation control.
 
 ## S3 — Does OkHttp + CookieManager cookies produce a successful mutation?
 
-**Not answered.** Needs a device and two throwaway accounts. This is the question
-that decides the architecture: if it fails, the native engine is replaced by
-WebView-injected `fetch`, which is slower and far more fragile.
+**Plumbing proven; the authenticated half is still open.**
+
+The spike harness implements the exact `CookieBridgeInterceptor` from the design
+— reading `CookieManager.getCookie(url)` into a `Cookie` header and writing
+`Set-Cookie` back — and runs it against a live site from the emulator:
+
+```
+jar cookie names: iq,ASP.NET_SessionId,app-suggestion,_ga_0SCWQ0JSDM,_ga
+GET / -> 200
+SELECTOR .mobile-notification-icons .mobile-only a[title] -> NO MATCH
+```
+
+Established:
+
+- `CookieManager` captures the cookies the WebView received, `ASP.NET_SessionId`
+  among them.
+- OkHttp, carrying those cookies plus the WebView's own user agent and
+  `x-requested-with: XMLHttpRequest`, reaches the site and gets **HTTP 200**. The
+  handoff mechanism works and is not rejected as a non-browser client.
+- The login selector correctly reports no match while logged out, so the check
+  discriminates rather than always passing.
+
+Not yet established, and it remains the go/no-go: whether an **authenticated**
+session survives the handoff, and whether `POST /userrelation/*` succeeds through
+it. That needs a login, which needs Turnstile, which needs a human.
+
+The mutation round trip is implemented in the harness behind an explicit target
+field and performs block → verify → immediate unblock.
 
 ---
 
@@ -168,9 +205,23 @@ been verified.
 
 ## S5 — WebView capability floor
 
-**Not answered.** Needs a device and an API 35+ emulator to check
-`DOCUMENT_START_SCRIPT` and `WEB_MESSAGE_LISTENER` support and derive the
-resulting `minSdk`.
+**ANSWERED: both features supported.**
+
+Measured on an Android 15 (API 35) emulator running the spike harness:
+
+```
+provider: com.google.android.webview 124.0.6367.219
+DOCUMENT_START_SCRIPT : true
+WEB_MESSAGE_LISTENER  : true
+```
+
+Both APIs the JS-bridge design depends on are available, and on a WebView build
+(124) that is already well behind current. The design can use
+`addDocumentStartJavaScript` for injection and `addWebMessageListener` for the
+JS→Kotlin channel, rather than falling back to `onPageFinished` and the
+origin-unscoped `addJavascriptInterface`.
+
+No `minSdk` increase is implied — `minSdk 26` stands.
 
 ---
 

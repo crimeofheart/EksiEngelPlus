@@ -196,8 +196,20 @@ and muted lists:
 [{"Id": 123, "Nick": {"Value": "nick"}, "IsFollowCurrentUser": true, "IsBuddy": false}]
 ```
 
-Pagination for `/relation-list` terminates on `Relations.IsLast`; for `/follower` and
-`/following` it terminates on an empty page.
+**Pagination is 1-indexed.** `pageIndex=0` is invalid and the server answers
+**HTTP 500 with an empty body**; `pageIndex=1` and omitting the parameter both
+return 200. Clients SHALL start at 1.
+
+The extension already does this correctly — every loop is
+`let index = 0; while (!isLast) { index++; fetch(index) }`
+(`scrapingHandler.js:355-358, 817-821, 490-499, 643-647, 943-954`), the resume
+paths increment before their first call, and `scrapeBlockedTitlesFirstPage`
+defaults `pageNumber = 1`. This requirement exists so a reimplementation does not
+regress it, since the failure is a 500 rather than an empty page and is easy to
+misread as a broken endpoint.
+
+Pagination for `/relation-list` terminates on `Relations.IsLast`; for `/follower`
+and `/following` it terminates on an empty page.
 
 Reference: `frontend/app/assets/js/scrapingHandler.js:225-277`, `:777-812`, `:827-862`.
 
@@ -210,6 +222,16 @@ Reference: `frontend/app/assets/js/scrapingHandler.js:225-277`, `:777-812`, `:82
 
 - **WHEN** pages are fetched with increasing `pageIndex`
 - **THEN** iteration stops when the returned array is empty, since no `IsLast` field exists
+
+#### Scenario: Page index zero is rejected
+
+- **WHEN** any of `/relation-list`, `/follower`, or `/following` is requested with `pageIndex=0`
+- **THEN** the server responds HTTP 500 with an empty body, and the client must not treat this as "list unavailable"
+
+#### Scenario: Error responses vary with the AJAX header
+
+- **WHEN** a request that would 500 is sent *without* `x-requested-with: XMLHttpRequest`
+- **THEN** the 500 carries a full HTML error page instead of an empty body, further confirming the header selects the response rendering path
 
 ### Requirement: HTML scrape targets
 

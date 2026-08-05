@@ -1,10 +1,11 @@
 # Android feasibility spike — report
 
-**Status: IN PROGRESS.** S5 answered. S1 answered except the interactive login.
-S2 answered for public pages. S3 proven at the plumbing level. S4 outstanding.
+**Status: GATE PASSED.** S1, S3 and S5 answered. S2 answered for public pages;
+the auth-gated selectors need one more device run now that the harness paginates
+correctly. S4 outstanding by design — it is scheduled last because it trips a
+server-side protection deliberately.
 
-Everything still open requires a human-completed login, because Cloudflare
-Turnstile guards `/giris`. A spike APK exists for that purpose.
+The architecture is confirmed. Production Android work can begin.
 
 Change: `openspec/changes/android-spike/`.
 
@@ -186,20 +187,65 @@ Established:
 - The login selector correctly reports no match while logged out, so the check
   discriminates rather than always passing.
 
-Not yet established, and it remains the go/no-go: whether an **authenticated**
-session survives the handoff, and whether `POST /userrelation/*` succeeds through
-it. That needs a login, which needs Turnstile, which needs a human.
+**ANSWERED ON A REAL DEVICE (WebView 149). S3 PASSES.**
 
-The mutation round trip is implemented in the harness behind an explicit target
-field and performs block → verify → immediate unblock.
+```
+SELECTOR .mobile-notification-icons .mobile-only a[title] -> coh81
+>> COOKIE BRIDGE WORKS: OkHttp is authenticated as 'coh81'
+
+actor=coh81 id=3658105 | target=coh id=3656098
+POST addrelation    r=m -> 200  body: 0                        SUCCESS
+POST removerelation r=m -> 200  body: {"result":true,"count":0} SUCCESS
+```
+
+An authenticated session established interactively in the WebView survives the
+handoff into OkHttp, and a full block → unblock round trip against a distinct
+target succeeds. **The native engine is viable and the WebView + Kotlin
+architecture is confirmed.** No fallback to WebView-injected `fetch` is needed.
+
+Also observed: `addrelation` against one's *own* id returns `4` and creates
+nothing, while `removerelation` still answers `result:true, count:0`. Both are
+now recorded in the contract.
 
 ---
 
 ## S4 — Is `Retry-After` returned on 429, and what is the real limit?
 
-**Not answered.** Requires authenticated mutations. The 12/min figure currently
-lives only in a user-facing string (`notificationHandler.js:60`) and has never
-been verified.
+**Not answered**, and now the only substantive question left. The harness can
+drive it, but it deliberately trips a server-side protection so it is scheduled
+last. The 12/min figure lives only in a user-facing string
+(`notificationHandler.js:60`) and has never been verified.
+
+---
+
+## Pagination is 1-indexed — and the extension already gets it right
+
+The first device run sent `pageIndex=0` and every JSON list endpoint answered
+**HTTP 500 with an empty body**, which looked like the endpoints were broken. A
+header-variant probe isolated the real cause:
+
+```
+pageIndex=0   -> 500  (empty body)
+pageIndex=1   -> 200
+no pageIndex  -> 200
+```
+
+It was never the headers. `pageIndex=0` is simply invalid.
+
+The shipped extension is **correct**: every loop is
+`let index = 0; while (!isLast) { index++; fetch(index) }`
+(`scrapingHandler.js:355-358, 817-821`), the three resume paths increment before
+their first call (`490→499`, `643→647`, `943→954`), `programController.js:891`
+increments before `:917`, and `scrapeBlockedTitlesFirstPage` defaults
+`pageNumber = 1`. The 500 was a defect in the spike harness, not in the product.
+
+Recorded as a contract requirement anyway, because the failure mode is a 500
+rather than an empty page and a reimplementation could easily read it as a dead
+endpoint.
+
+One supporting detail: the same failing request sent *without*
+`x-requested-with` returns a 1,206-byte HTML error page instead of an empty body,
+further confirming the header selects the response rendering path.
 
 ---
 

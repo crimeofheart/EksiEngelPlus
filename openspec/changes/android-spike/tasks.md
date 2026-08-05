@@ -16,16 +16,16 @@
 ## 3. S2 + S3 — Selectors and cookie sharing, run together
 
 - [x] 3.1 Build the capture harness: given a UA string, fetch every endpoint in `eksisozluk-client-contract` via OkHttp with the two load-bearing headers and write each response to disk verbatim
-- [ ] 3.2 Wire `CookieBridgeInterceptor` in prototype form — read `CookieManager.getCookie(url)` into a `Cookie` header, write `Set-Cookie` back into the jar
+- [x] 3.2 Wire `CookieBridgeInterceptor` in prototype form — read `CookieManager.getCookie(url)` into a `Cookie` header, write `Set-Cookie` back into the jar
 - [x] 3.3 Capture all endpoints under the desktop Chrome UA; confirm the responses match what the extension expects today
 - [x] 3.4 Capture all endpoints under the Android Chrome UA
 - [x] 3.5 Capture all endpoints under the Android WebView default UA from `WebSettings.getDefaultUserAgent`
 - [x] 3.6 Run every selector from `eksisozluk-client-contract` against all three capture sets and record per-selector match counts in a comparison table
 - [x] 3.7 Determine specifically whether `.mobile-notification-icons .mobile-only a[title]` still yields the nick under each UA — the element name suggests a mobile variant may already differ
-- [ ] 3.8 Test whether the session is UA-bound: log in via WebView, then issue an OkHttp request with a *different* UA and record whether it 302s to login
-- [ ] 3.9 Determine whether `Referer` and `Origin` are required, by sending an authenticated read with and without each
-- [ ] 3.10 Perform one real `POST /userrelation/addrelation/{id}?r=m` against the controlled target; log the full request and response
-- [ ] 3.11 Reverse it with `removerelation` and log the response; confirm the two documented shapes — bare number for BAN, object with `result` for UNDOBAN
+- [x] 3.8 Test whether the session is UA-bound: log in via WebView, then issue an OkHttp request with a *different* UA and record whether it 302s to login
+- [x] 3.9 Determine whether `Referer` and `Origin` are required, by sending an authenticated read with and without each
+- [x] 3.10 Perform one real `POST /userrelation/addrelation/{id}?r=m` against the controlled target; log the full request and response
+- [x] 3.11 Reverse it with `removerelation` and log the response; confirm the two documented shapes — bare number for BAN, object with `result` for UNDOBAN
 - [ ] 3.12 Repeat 3.10–3.11 for `r=u` (mute) and `r=b` (follow) to confirm the relation codes behave as documented
 - [ ] 3.13 Verify the negative case: issue the same mutation with `x-requested-with` omitted and record how the response shape changes
 
@@ -41,10 +41,10 @@
 
 - [x] 5.1 Check `WebViewFeature.isFeatureSupported(DOCUMENT_START_SCRIPT)` on device and emulator; record the WebView provider version for each
 - [x] 5.2 Check `WebViewFeature.isFeatureSupported(WEB_MESSAGE_LISTENER)` on both
-- [ ] 5.3 Prototype `addDocumentStartJavaScript` injecting a trivial marker and confirm it runs before page script
-- [ ] 5.4 Prototype `addWebMessageListener` round-tripping one message from injected JS to Kotlin and back
+- [x] 5.3 Prototype `addDocumentStartJavaScript` injecting a trivial marker and confirm it runs before page script
+- [x] 5.4 Prototype `addWebMessageListener` round-tripping one message from injected JS to Kotlin and back
 - [ ] 5.5 Confirm a menu item can be injected into a real Ekşi entry dropdown and that a tap reaches Kotlin
-- [ ] 5.6 Determine the minimum WebView provider version supporting both features, and derive the `minSdk` implication
+- [x] 5.6 Determine the minimum WebView provider version supporting both features, and derive the `minSdk` implication
 
 ## 6. Fixture corpus
 

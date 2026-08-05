@@ -1,0 +1,182 @@
+name: Check
+
+# Validates every deliverable on each push to master and on any PR into it.
+#
+# Three jobs:
+#   verify     — version lockstep across all seven locations. Unfiltered: a drift
+#                between frontend/app and android/ is invisible to a path filter,
+#                because the drifting commit may touch only one side.
+#   extension  — Chrome and Firefox zips, uploaded as two separate downloads.
+#   android    — debug APK, lint, unit tests.
+#
+# Only the two build jobs are path-filtered, via a `changes` job rather than
+# workflow-level `paths`, so `verify` still runs when neither tree is touched.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Version consistency
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      suffix: ${{ steps.bump.outputs.suffix }}
+    defaults:
+      run:
+        working-directory: frontend/app
+
+    steps:
+      # Full history so the PR's version can be compared against its base.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      # No install step: the extension is plain ES modules with no dependencies,
+      # and scripts/ext.mjs only uses the Node standard library. Reading
+      # android/version.json is a file read, so this needs no JDK either.
+      - name: Check version consistency and manifest validity
+        run: npm run check
+
+      - name: Read version
+        id: meta
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Detect version bump
+        id: bump
+        if: github.event_name == 'pull_request'
+        env:
+          # The PR's base commit, not origin/<base_ref>: a pull_request checkout
+          # lands on the merge commit, where that ref does not reliably point at
+          # the base branch tip.
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          git show "$BASE_SHA:frontend/app/package.json" > /tmp/base-package.json
+          base_version="$(node -p "require('/tmp/base-package.json').version")"
+          echo "base ($BASE_SHA) = $base_version | head = $VERSION"
+          if [ "$base_version" = "$VERSION" ]; then
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+            echo "### No version bump — still \`$VERSION\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Artifacts below are a test build, not a release candidate." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "suffix=-rc" >> "$GITHUB_OUTPUT"
+            echo "### Version bump: \`$base_version\` → \`$VERSION\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Release candidate. After merging, tag \`v$VERSION\` to publish." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  changes:
+    name: Detect touched trees
+    runs-on: ubuntu-latest
+    outputs:
+      extension: ${{ steps.filter.outputs.extension }}
+      android: ${{ steps.filter.outputs.android }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            extension:
+              - 'frontend/app/**'
+              - '.github/workflows/check.yml'
+            android:
+              - 'android/**'
+              - '.github/workflows/check.yml'
+
+  extension:
+    name: Chrome + Firefox zips
+    needs: [verify, changes]
+    if: needs.changes.outputs.extension == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/app
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Build Chrome and Firefox zips
+        run: npm run package
+
+      # One artifact per browser, so each is a separate download.
+      - name: Upload Chrome zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: eksiengelplus-${{ needs.verify.outputs.version }}${{ needs.verify.outputs.suffix }}-chrome
+          path: frontend/publish/dist/*-chrome.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Firefox zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: eksiengelplus-${{ needs.verify.outputs.version }}${{ needs.verify.outputs.suffix }}-firefox
+          path: frontend/publish/dist/*-firefox.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  android:
+    name: Android debug build
+    needs: [verify, changes]
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Assert versionName matches the recorded version
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          out="$(./gradlew printVersion --console=plain -q | tail -1)"
+          echo "$out"
+          case "$out" in
+            "versionName=$VERSION "*) ;;
+            *) echo "::error::Gradle reports '$out' but the recorded version is $VERSION"; exit 1 ;;
+          esac
+
+      - name: Build, lint and test
+        run: ./gradlew :app:assembleDebug lintDebug testDebugUnitTest
+
+      # Room writes exported schemas into the tree. A schema change that is not
+      # committed means a migration was not authored, which only surfaces as a
+      # crash on a user's device. No-op until Room lands with android-foundations.
+      - name: Room schema drift
+        run: |
+          if [ -d core/database/schemas ] && ! git diff --quiet -- core/database/schemas; then
+            echo "::error::core/database/schemas is dirty after the build — commit the exported Room schema"
+            git --no-pager diff -- core/database/schemas
+            exit 1
+          fi
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: eksiengelplus-${{ needs.verify.outputs.version }}${{ needs.verify.outputs.suffix }}-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

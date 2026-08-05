@@ -34,7 +34,11 @@ Neither client SHALL send an `Origin` header.
 #### Scenario: Header absent
 
 - **WHEN** the same request omits `x-requested-with`
-- **THEN** the response is a full HTML page and the JSON parse fails
+- **THEN** the server answers **HTTP 500** carrying an HTML error page (~1.2 KB), not a JSON body
+
+Measured on device: `/relation-list?relationType=m&pageIndex=1` returns 200 with
+the two headers set and 500 without them. The header is not merely selecting a
+rendering mode — the endpoint is unusable without it.
 
 ### Requirement: Authentication is ambient session cookies only
 
@@ -212,6 +216,11 @@ Pagination for `/relation-list` terminates on `Relations.IsLast`; for `/follower
 and `/following` it terminates on an empty page.
 
 Reference: `frontend/app/assets/js/scrapingHandler.js:225-277`, `:777-812`, `:827-862`.
+
+#### Scenario: Envelope shape is stable when the list is empty
+
+- **WHEN** `/relation-list?relationType={m|i|u}&pageIndex=1` is fetched for an account with no relations
+- **THEN** the response is 200 with `{"Relations":{"IsLast":true,"Items":[]}}` — the envelope is present and parseable rather than null or an error
 
 #### Scenario: Relation list pagination
 

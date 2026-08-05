@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Placeholder shell for the release pipeline. No launcher activity, no application
+    code: this module exists so `v*` tags provably produce an AAB and APK before the
+    real port (android-foundations) starts. See openspec/changes/unified-release-pipeline.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:label="EksiEngelPlus" />
+
+</manifest>

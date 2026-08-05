@@ -1,0 +1,61 @@
+schema: spec-driven
+
+context: |
+  EksiEngelPlus — mass block/mute/follow tooling for Ekşi Sözlük (eksisozluk.com),
+  a Turkish social platform. Turkish-language UI, English code comments.
+
+  Three deliverables ship from this one repo:
+    1. frontend/app/  — Chrome MV3 extension (browser zip)
+    2. frontend/app/  — Firefox MV3 extension (same source, different manifest)
+    3. android/       — native Android app (planned; AAB + APK)
+  A single `v*` git tag must publish all three artifacts.
+
+  Backend: backend/django_EksiEngel/ — Django 4.1 + DRF + Postgres, telemetry only.
+  Deployed on a bare VPS (nginx → gunicorn). No Docker, no backend CI.
+
+  ## Hard constraints
+
+  - The shipped extension MUST keep working. frontend/app/ runtime code is out of
+    scope for the Android project. assets/js/jsdom.js stays and stays REQUIRED:
+    Chrome MV3 service workers have no DOM, so parseHTML() (scrapingHandler.js:19-38)
+    falls through to JSDOM. Firefox background scripts have DOMParser, which is why
+    `npm run package` substitutes scripts/jsdom-stub.firefox.js into the Firefox zip
+    to stay under the 5 MB addons.mozilla.org limit.
+  - manifest.json is GENERATED and gitignored. Edit manifest.chrome.json /
+    manifest.firefox.json only.
+  - Version is recorded in multiple files kept in lockstep by
+    frontend/app/scripts/ext.mjs. Never hand-edit a version. `npm run check` must
+    pass. The tooling refuses to run on a mismatch — preserve that invariant.
+  - frontend/app has ZERO npm dependencies. `npm install` is never needed, and
+    `npm run check` / `npm run package` must keep working with no JDK and no
+    Android SDK on PATH.
+  - Ekşi Sözlük's HTTP surface is undocumented, unversioned, and can change without
+    notice. Two clients (extension JSDOM + Android Jsoup) implement the same
+    selector contract; changes must be made to both.
+  - Rate limit: ~12 block actions/minute server-side. Clients pace UNDER it.
+  - The `x-requested-with: XMLHttpRequest` header is load-bearing — it makes
+    eksisozluk return JSON/partial HTML instead of full pages.
+  - Auth is ambient session cookies only. No tokens, no CSRF, no login flow.
+
+  ## Conventions
+
+  - Conventional Commits. Subject + body only.
+  - NEVER add Co-Authored-By or any AI attribution trailer to a commit message.
+    This keeps release commits byte-identical to what ext.mjs generates.
+  - Work happens directly on master; no long-lived branches.
+
+rules:
+  proposal:
+    - State explicitly whether frontend/app/ runtime code is touched. Default is no.
+    - Include a "Non-goals" section.
+  specs:
+    - When a requirement covers the Ekşi Sözlük HTTP surface, cite the concrete
+      selector, URL pattern, or JSON shape — never paraphrase it.
+    - Note which of the two client implementations (extension, Android) each
+      requirement binds.
+  design:
+    - Cite existing code as file:line when describing what is being replaced or reused.
+    - Call out any defect being deliberately carried forward, with the reason.
+  tasks:
+    - Break tasks into chunks of max 2 hours.
+    - "Every phase must end with a task re-verifying the extension still builds: `cd frontend/app && npm run check && npm run package`."

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-01
+goal: Prove or disprove WebView login, OkHttp cookie sharing, and selector
+  stability under mobile UA before any production Android code

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-01
+goal: One v* tag publishes Chrome zip, Firefox zip, and Android AAB+APK from
+  seven lockstepped version locations

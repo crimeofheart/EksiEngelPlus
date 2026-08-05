@@ -21,6 +21,15 @@ import { fileURLToPath } from "node:url";
 
 const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_DIR = path.resolve(APP_DIR, "../publish/dist");
+const REPO_ROOT = path.resolve(APP_DIR, "../..");
+
+/**
+ * The Android app records the same product version. It is JSON with a top-level
+ * "version" field precisely so versionsIn() and rewriteVersion() consume it with
+ * no special casing — see versionFiles(). Reading it is a file read, so `check`,
+ * `version` and `package` still run with no JDK and no Android SDK installed.
+ */
+const ANDROID_VERSION_FILE = path.join(REPO_ROOT, "android", "version.json");
 
 const BROWSERS = ["chrome", "firefox"];
 const manifestFor = (browser) => path.join(APP_DIR, `manifest.${browser}.json`);
@@ -84,12 +93,13 @@ function bumpSemver(current, spec) {
   fail(`unknown version spec "${spec}" (expected patch|minor|major|x.y.z)`);
 }
 
-/** Every file that records the extension version. manifest.json is generated. */
+/** Every file that records the product version. manifest.json is generated. */
 function versionFiles() {
   const files = [
     path.join(APP_DIR, "package.json"),
     path.join(APP_DIR, "package-lock.json"),
     ...BROWSERS.map(manifestFor),
+    ANDROID_VERSION_FILE,
   ];
   if (fs.existsSync(ACTIVE_MANIFEST)) files.push(ACTIVE_MANIFEST);
   return files;

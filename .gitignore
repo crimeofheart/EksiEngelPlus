@@ -9,6 +9,20 @@ frontend/app/manifest.json
 # build output of `npm run package`
 frontend/publish/dist/
 
+# per-machine Claude Code permissions; the shared skills/commands are tracked
+.claude/settings.local.json
+
+# android build output.
+# gradle/wrapper/gradle-wrapper.jar is deliberately NOT ignored -- the wrapper is
+# only reproducible if the jar is committed.
+android/.gradle/
+android/build/
+android/*/build/
+android/local.properties
+android/app/release/
+*.keystore
+*.jks
+
 # django related files
 **/static
 *.db

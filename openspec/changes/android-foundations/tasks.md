@@ -3,8 +3,8 @@
 - [x] 1.1 Expand `android/gradle/libs.versions.toml` with the real graph: Kotlin 2.2.x, coroutines, OkHttp 4.12 + mockwebserver, Jsoup 1.18+, kotlinx-serialization 1.9, Room 2.8 + KSP, DataStore 1.1 + protobuf, Hilt 2.57, Turbine, JUnit
 - [x] 1.2 Add the six modules to `settings.gradle.kts`: `core:model`, `core:database`, `core:datastore`, `core:network`, `eksi:parser`, `eksi:client`
 - [x] 1.3 Write build files: `core:model` and `eksi:parser` as pure JVM/Kotlin where possible so their tests need no emulator; the rest as Android libraries
-- [ ] 1.4 Add Hilt to `:app` and an `@HiltAndroidApp` Application class
-- [ ] 1.5 Wire `:app` to depend on the new modules, leaving the version derivation in `app/build.gradle.kts` untouched
+- [x] 1.4 Add Hilt to `:app` and an `@HiltAndroidApp` Application class
+- [x] 1.5 Wire `:app` to depend on the new modules, leaving the version derivation in `app/build.gradle.kts` untouched
 - [x] 1.6 Verify `./gradlew :app:assembleDebug` still succeeds and `printVersion` still reports the derived pair
 
 ## 2. core:model
@@ -35,10 +35,10 @@
 - [x] 4.2 Implement `CookieFlusher` debouncing `CookieManager.flush()` to ~10 s with a forced flush hook
 - [x] 4.3 Implement `UserAgentInterceptor` sending `WebSettings.getDefaultUserAgent`, cached, never constructing a WebView per call
 - [x] 4.4 Implement `EksiHeadersInterceptor` for the two load-bearing headers, sending no `Origin`
-- [ ] 4.5 Implement `AuthGuardInterceptor` classifying redirect-to-`giris`, 401/403, and HTML-where-JSON-expected as session-expired
+- [x] 4.5 Implement `AuthGuardInterceptor` classifying redirect-to-`giris`, 401/403, and HTML-where-JSON-expected as session-expired
 - [x] 4.6 Implement `WebViewAvailability` so `MissingWebViewPackageException` surfaces as a typed state, not a crash
-- [ ] 4.7 Provide the OkHttp graph via Hilt with `followRedirects(false)` so a login redirect is observable
-- [ ] 4.8 Verify `./gradlew :core:network:testDebugUnitTest` green
+- [x] 4.7 Provide the OkHttp graph via Hilt with `followRedirects(false)` so a login redirect is observable
+- [x] 4.8 Verify `./gradlew :core:network:testDebugUnitTest` green
 
 ## 5. eksi:client
 
@@ -62,7 +62,7 @@
 - [x] 6.6 Write `Flow`-returning DAOs; expose counts only as `COUNT(*)`, never a stored column
 - [x] 6.7 Enable `exportSchema` and commit `android/core/database/schemas/`
 - [x] 6.8 Instrumented tests: upsert idempotence on the composite key, count-follows-content, TTL expiry
-- [ ] 6.9 Confirm the CI schema-drift guard fails on an uncommitted schema change
+- [x] 6.9 Confirm the CI schema-drift guard fails on an uncommitted schema change
 
 ## 7. core:datastore
 

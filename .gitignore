@@ -16,8 +16,8 @@ frontend/publish/dist/
 # gradle/wrapper/gradle-wrapper.jar is deliberately NOT ignored -- the wrapper is
 # only reproducible if the jar is committed.
 android/.gradle/
-android/build/
-android/*/build/
+# Modules nest two deep (android/core/database), so a single-level glob misses them.
+android/**/build/
 android/local.properties
 android/app/release/
 *.keystore

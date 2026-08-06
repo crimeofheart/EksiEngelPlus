@@ -1,2 +1,0 @@
-08-05 23:06:53.197  3140  3158 I TestRunner: started: reScrapingIsIdempotentOnTheCompositeKey(org.duzgun.eksiengelplus.database.EksiDatabaseTest)
-08-05 23:06:53.205  3140  3158 I TestRunner: finished: reScrapingIsIdempotentOnTheCompositeKey(org.duzgun.eksiengelplus.database.EksiDatabaseTest)

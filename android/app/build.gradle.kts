@@ -3,6 +3,8 @@ import groovy.json.JsonSlurper
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 /**
@@ -98,6 +100,19 @@ android {
     kotlin {
         jvmToolchain(17)
     }
+}
+
+dependencies {
+    implementation(project(":core:network"))
+    implementation(project(":core:database"))
+    implementation(project(":core:datastore"))
+    implementation(project(":eksi:client"))
+    implementation(project(":eksi:parser"))
+    implementation(project(":core:model"))
+
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 }
 
 /** Lets CI assert the derivation without parsing build output. */

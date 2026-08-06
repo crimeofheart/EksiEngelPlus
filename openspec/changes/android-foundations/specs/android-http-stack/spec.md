@@ -122,8 +122,16 @@ slept on inside the client, so a future pacer can apply it globally.
 
 ### Requirement: Session expiry is detected, never silently retried
 
-An `AuthGuardInterceptor` SHALL classify as session-expired: a redirect to a path
-containing `giris`, a 401 or 403, and an HTML body where JSON was expected.
+A shared `SessionExpiry` classifier SHALL treat as session-expired: a redirect to
+a path containing `giris`, a 401 or 403, and an HTML body where JSON was expected.
+
+It is a classifier applied in the client layer, **not** an OkHttp interceptor.
+Deciding on the body requires reading it, and an OkHttp response body can be
+consumed only once — an interceptor that peeked would have to buffer every
+response to hand an intact copy downstream, paying that cost on every request to
+serve an uncommon case. The clients already hold the body at the point they
+classify, so the check is free there. The rule itself is unchanged; only its
+placement is.
 
 Because `/giris` is protected by Cloudflare Turnstile, a session cannot be renewed
 headlessly. The client SHALL NOT retry, re-authenticate, or prompt for

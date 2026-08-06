@@ -1,2 +1,0 @@
-08-05 23:06:53.163  3140  3158 I TestRunner: started: aKnownAbsentRegistrationDateIsStillCached(org.duzgun.eksiengelplus.database.EksiDatabaseTest)
-08-05 23:06:53.171  3140  3158 I TestRunner: finished: aKnownAbsentRegistrationDateIsStillCached(org.duzgun.eksiengelplus.database.EksiDatabaseTest)

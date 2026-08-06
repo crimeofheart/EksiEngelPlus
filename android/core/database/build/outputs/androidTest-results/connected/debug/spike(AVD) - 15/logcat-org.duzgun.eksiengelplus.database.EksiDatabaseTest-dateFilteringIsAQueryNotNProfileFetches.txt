@@ -1,2 +1,0 @@
-08-05 23:06:53.172  3140  3158 I TestRunner: started: dateFilteringIsAQueryNotNProfileFetches(org.duzgun.eksiengelplus.database.EksiDatabaseTest)
-08-05 23:06:53.180  3140  3158 I TestRunner: finished: dateFilteringIsAQueryNotNProfileFetches(org.duzgun.eksiengelplus.database.EksiDatabaseTest)

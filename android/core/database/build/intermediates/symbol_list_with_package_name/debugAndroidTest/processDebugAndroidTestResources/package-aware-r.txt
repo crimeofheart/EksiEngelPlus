@@ -1,3 +1,0 @@
-org.duzgun.eksiengelplus.database.test
-style WhiteBackgroundDialogTheme
-style WhiteBackgroundTheme

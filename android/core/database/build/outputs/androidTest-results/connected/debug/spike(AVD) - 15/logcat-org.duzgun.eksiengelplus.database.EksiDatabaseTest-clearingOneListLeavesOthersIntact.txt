@@ -1,2 +1,0 @@
-08-05 23:06:53.189  3140  3158 I TestRunner: started: clearingOneListLeavesOthersIntact(org.duzgun.eksiengelplus.database.EksiDatabaseTest)
-08-05 23:06:53.197  3140  3158 I TestRunner: finished: clearingOneListLeavesOthersIntact(org.duzgun.eksiengelplus.database.EksiDatabaseTest)

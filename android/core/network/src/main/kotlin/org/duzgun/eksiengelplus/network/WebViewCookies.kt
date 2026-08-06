@@ -42,23 +42,29 @@ class WebViewCookieJar(
  * forced at checkpoints.
  */
 class CookieFlusher(
-    private val cookies: CookieManager,
+    private val flush: () -> Unit,
     private val minIntervalMs: Long = 10_000L,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    @Volatile private var lastFlush = 0L
+    constructor(cookies: CookieManager) : this(flush = { cookies.flush() })
+
+    // Not a sentinel timestamp: with lastFlush = 0 the first call would only
+    // flush because wall-clock millis happen to be large, which is accidental
+    // and breaks under an injected clock.
+    @Volatile private var lastFlush: Long? = null
 
     fun requestFlush() {
         val now = clock()
-        if (now - lastFlush >= minIntervalMs) {
+        val last = lastFlush
+        if (last == null || now - last >= minIntervalMs) {
             lastFlush = now
-            cookies.flush()
+            flush()
         }
     }
 
     fun flushNow() {
         lastFlush = clock()
-        cookies.flush()
+        flush()
     }
 }
 

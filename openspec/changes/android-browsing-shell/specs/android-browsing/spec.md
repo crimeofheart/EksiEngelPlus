@@ -214,3 +214,66 @@ An operation in `PAUSED_AUTH` SHALL become resumable when a session is observed.
 
 - **WHEN** an auth cookie exists but the homepage yields no nick
 - **THEN** the state is logged out
+
+### Requirement: Ekşi links never leave the app
+
+Any navigation to an Ekşi host SHALL stay inside the WebView. Only genuinely
+external hosts SHALL be handed to the system.
+
+Handing an Ekşi URL out is worse than it sounds: the system browser opens, then
+Android app-link handling forwards it to the *official* Ekşi app, so a tap inside
+our client silently ends up in a competitor's. Host matching SHALL therefore be
+permissive about Ekşi — any host containing `eksisozluk`, plus the configured
+base and known mirrors — rather than an exact list that a subdomain or mirror can
+slip past.
+
+Links opened with `target="_blank"` or `window.open` SHALL also stay in the
+WebView.
+
+#### Scenario: A mirror domain stays in the app
+
+- **WHEN** a link points at an Ekşi mirror or subdomain not literally listed
+- **THEN** it loads in the WebView rather than being handed to the system
+
+#### Scenario: A genuinely external link leaves
+
+- **WHEN** a link points at an unrelated host
+- **THEN** it opens outside the WebView
+
+#### Scenario: A new-window link does not escape
+
+- **WHEN** a link declares `target="_blank"`
+- **THEN** it loads in the same WebView
+
+### Requirement: Confirmation is unobtrusive
+
+The confirmation shown after queuing an operation SHALL be a small transient
+overlay of our own, not the site's notification component.
+
+Reusing `#user-notifications` inherits Ekşi's mobile styling, which renders at
+full width with a large call-to-action and dominates the screen for a message
+that only needs to say "queued".
+
+#### Scenario: Queuing shows a compact confirmation
+
+- **WHEN** an operation is queued
+- **THEN** a small toast appears briefly and disappears on its own, without covering page content
+
+### Requirement: Entries can be shared through the system sheet
+
+The share menu of an entry SHALL carry a plain "paylaş" item, placed above the
+site's own per-network options, which opens the Android share sheet with the
+entry's URL.
+
+The site offers only per-network destinations. The system sheet covers everything
+the user actually has installed, and is the interaction an Android user expects.
+
+#### Scenario: Sharing an entry
+
+- **WHEN** the user taps the injected "paylaş" item
+- **THEN** the Android share sheet opens carrying that entry's URL
+
+#### Scenario: Placement
+
+- **WHEN** the share menu is injected
+- **THEN** the item appears before the site's own network-specific entries

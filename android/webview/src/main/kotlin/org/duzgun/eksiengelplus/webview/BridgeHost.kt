@@ -23,7 +23,11 @@ data class BridgeEnvelope(
     val type: String,
     val reqId: String = "",
     val payload: EnqueuePayload? = null,
+    val share: SharePayload? = null,
 )
+
+@Serializable
+data class SharePayload(val url: String = "", val title: String = "")
 
 /**
  * The exact fields EksiEngel_sendMessage posts (script.js:30-45), so the bridge
@@ -89,6 +93,7 @@ class BridgeHost(
     private val context: Context,
     private val allowedOrigins: Set<String>,
     private val onEnqueue: (OperationRequest) -> Unit,
+    private val onShare: (url: String, title: String) -> Unit = { _, _ -> },
     private val onLog: (String) -> Unit = {},
 ) {
     companion object {
@@ -147,16 +152,36 @@ class BridgeHost(
         webView.evaluateJavascript(js, null)
     }
 
+    /**
+     * Parsed separately because the share payload has a different shape to the
+     * enqueue one, and widening EnqueuePayload to cover both would let a
+     * malformed share silently look like a valid operation.
+     */
+    private fun shareFrom(raw: String) {
+        val obj = runCatching {
+            BridgeJson.parseToJsonElement(raw).let { el ->
+                el as? kotlinx.serialization.json.JsonObject
+            }
+        }.getOrNull() ?: return
+        val payload = obj["payload"] as? kotlinx.serialization.json.JsonObject ?: return
+        val url = (payload["url"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+        val title = (payload["title"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+        if (url.isNotBlank()) onShare(url, title)
+    }
+
     private fun handle(raw: String?) {
         val envelope = raw?.let {
             runCatching { BridgeJson.decodeFromString(BridgeEnvelope.serializer(), it) }.getOrNull()
         } ?: return
 
+        val body = raw
         when (envelope.type) {
             "enqueueAction" -> envelope.payload
                 ?.let(BridgeMapper::toRequest)
                 ?.let(onEnqueue)
                 ?: onLog("bridge: unmappable enqueue payload")
+
+            "share" -> shareFrom(body)
 
             "log" -> onLog("page: ${envelope.payload}")
         }

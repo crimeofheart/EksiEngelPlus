@@ -48,16 +48,40 @@
     toast("EksiEngelPlus, istediğiniz işlemi sıraya ekledi.");
   }
 
-  /** Reuses the site's own notification list, as script.js:63-69 does. */
+  /**
+   * A small overlay of our own.
+   *
+   * script.js:63-69 reuses the site's #user-notifications component, which on
+   * mobile renders full-width with a large call-to-action -- far too heavy for a
+   * message that only says "queued".
+   */
   function toast(text) {
-    var host = document.getElementById("user-notifications");
-    if (!host) return;
-    var ul = document.createElement("ul");
-    ul.innerHTML =
-      '<ul><li class="success"><img src="' + ICON + '"> ' + text +
-      '<a class="close">×</a></li></ul>';
-    host.appendChild(ul);
-    setTimeout(function () { ul.remove(); }, 3000);
+    var el = document.createElement("div");
+    el.textContent = text;
+    el.style.cssText = [
+      "position:fixed",
+      "left:50%",
+      "bottom:24px",
+      "transform:translateX(-50%)",
+      "max-width:88vw",
+      "padding:8px 14px",
+      "border-radius:18px",
+      "background:rgba(32,32,32,0.92)",
+      "color:#fff",
+      "font-size:13px",
+      "line-height:1.35",
+      "z-index:2147483647",
+      "box-shadow:0 2px 8px rgba(0,0,0,0.3)",
+      "pointer-events:none",
+      "opacity:0",
+      "transition:opacity 150ms ease"
+    ].join(";");
+    document.body.appendChild(el);
+    requestAnimationFrame(function () { el.style.opacity = "1"; });
+    setTimeout(function () {
+      el.style.opacity = "0";
+      setTimeout(function () { el.remove(); }, 200);
+    }, 2200);
   }
 
   function item(label) {
@@ -279,21 +303,57 @@
 
   // --------------------------------------------------------- the observer
 
+  /**
+   * The site's share menu offers per-network destinations only. The Android
+   * share sheet covers whatever the user actually has installed, which is the
+   * interaction they expect, so ours goes first.
+   */
+  var SHARE_MARKERS = ["paylaş", "kopyala"];
+
+  function isShareMenu(menu) {
+    var text = (menu.textContent || "").toLowerCase();
+    if (isEntryMenu(menu)) return false;          // that is the block menu
+    for (var i = 0; i < SHARE_MARKERS.length; i++) {
+      if (text.indexOf(SHARE_MARKERS[i]) !== -1) return true;
+    }
+    return false;
+  }
+
+  function injectShareMenu(menu) {
+    if (!isShareMenu(menu)) return;
+
+    var li = menu.closest("li[data-id]") || menu.closest("article[data-id]");
+    var entryId = li && li.getAttribute("data-id");
+    var url = entryId ? location.origin + "/entry/" + entryId : location.href;
+
+    var share = item("paylaş");
+    share.onclick = function () {
+      send("share", { url: url, title: document.title || "ekşi sözlük" });
+    };
+    // Above the site's own options, not appended after them.
+    if (menu.firstChild) menu.insertBefore(share, menu.firstChild);
+    else menu.appendChild(share);
+  }
+
   var injectors = [
     { selector: "#in-topic-search-options", apply: injectTitleMenu },
     { selector: ".dropdown-menu", apply: injectEntryMenu },
+    { selector: ".dropdown-menu", apply: injectShareMenu },
     { selector: ".profile-buttons", apply: injectProfile }
   ];
 
   function scan() {
     for (var i = 0; i < injectors.length; i++) {
       var inj = injectors[i];
-      var nodes = document.querySelectorAll(inj.selector + ":not([" + MARK + '="true"])');
+      // Per-injector mark: two injectors share the .dropdown-menu selector, so a
+      // single shared mark would let whichever ran first consume the node.
+      var mark = MARK + "-" + i;
+      var nodes = document.querySelectorAll(inj.selector + ":not([" + mark + '="true"])');
       for (var j = 0; j < nodes.length; j++) {
         var node = nodes[j];
         // Marked before applying: an injector that throws must not be retried
         // forever on every mutation.
-        node.setAttribute(MARK, "true");
+        node.setAttribute(mark, "true");
         try {
           inj.apply(node);
         } catch (e) {
@@ -342,8 +402,11 @@
     if (msg.type === "configChanged") {
       CONFIG = msg.payload || {};
       // Re-render labels in place rather than waiting for a reload.
-      var marked = document.querySelectorAll("[" + MARK + '="true"]');
-      for (var i = 0; i < marked.length; i++) marked[i].removeAttribute(MARK);
+      for (var n = 0; n < injectors.length; n++) {
+        var mk = MARK + "-" + n;
+        var marked = document.querySelectorAll("[" + mk + '="true"]');
+        for (var i = 0; i < marked.length; i++) marked[i].removeAttribute(mk);
+      }
       scan();
     } else if (msg.type === "toast") {
       toast(msg.payload && msg.payload.text);

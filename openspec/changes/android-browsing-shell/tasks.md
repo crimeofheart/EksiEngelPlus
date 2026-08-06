@@ -43,3 +43,12 @@
 - [x] 5.5 Re-verify the extension: `cd frontend/app && npm run check && npm run package`
 - [x] 5.6 Confirm `git diff --stat -- frontend/app/assets/` is empty
 - [x] 5.7 `openspec validate android-browsing-shell` clean
+
+## 6. Refinements from device testing
+
+- [x] 6.1 Match Ekşi hosts permissively so mirrors and subdomains stay in-app; handing one out lands the user in the official app via Android app links
+- [x] 6.2 Keep `target="_blank"` and `window.open` navigations inside the WebView
+- [x] 6.3 Replace the site-styled confirmation with a compact self-styled toast
+- [x] 6.4 Inject a "paylaş" item above the site's per-network share options
+- [x] 6.5 Add a `share` bridge message opening `Intent.ACTION_SEND` with the entry URL
+- [ ] 6.6 Verify on the emulator that an external link leaves and an Ekşi link does not

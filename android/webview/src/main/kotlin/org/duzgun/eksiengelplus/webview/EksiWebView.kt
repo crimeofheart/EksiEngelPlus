@@ -30,7 +30,7 @@ class EksiWebViewClient(
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val host = request.url.host ?: return true
-        if (allowedHosts.any { host == it || host.endsWith(".$it") }) return false
+        if (isEksiHost(host) || allowedHosts.any { host == it || host.endsWith(".$it") }) return false
 
         return try {
             context.startActivity(Intent(Intent.ACTION_VIEW, request.url).apply {
@@ -61,7 +61,10 @@ fun WebView.configureForEksi(context: Context) {
         userAgentString = UserAgent.of(context)
         allowFileAccess = false
         allowContentAccess = false
+        // target="_blank" and window.open load in this same WebView rather than
+        // asking for a new window we would then have to route somewhere.
         setSupportMultipleWindows(false)
+        javaScriptCanOpenWindowsAutomatically = false
         mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
     }
     if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
@@ -78,7 +81,18 @@ fun WebView.configureForEksi(context: Context) {
     }
 }
 
-/** Hosts that may load inside the WebView. */
+/**
+ * Any Ekşi host stays in the app.
+ *
+ * Matching is permissive on purpose. Handing an Ekşi URL to the system is worse
+ * than it looks: the browser opens, then Android app-link handling forwards it to
+ * the OFFICIAL Ekşi app, so a tap inside this client silently lands the user in a
+ * different one. An exact-match list would let any mirror or subdomain do that,
+ * and the site is periodically blocked in Turkey precisely so mirrors exist.
+ */
+fun isEksiHost(host: String): Boolean = host.contains("eksisozluk", ignoreCase = true)
+
+/** Hosts that may load inside the WebView, beyond the Ekşi match above. */
 fun allowedHostsFor(baseUrl: String): Set<String> =
     setOfNotNull(Uri.parse(baseUrl).host, "eksisozluk.com", "challenges.cloudflare.com")
 

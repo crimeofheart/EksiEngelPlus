@@ -1,5 +1,6 @@
 package org.duzgun.eksiengelplus
 
+import android.content.Intent
 import android.os.Bundle
 import android.webkit.WebView
 import android.widget.TextView
@@ -53,6 +54,7 @@ class BrowserActivity : AppCompatActivity() {
             context = this,
             allowedOrigins = allowedOriginsFor(base),
             onEnqueue = ::enqueue,
+            onShare = ::share,
         )
         bridge.install(
             web,
@@ -88,6 +90,20 @@ class BrowserActivity : AppCompatActivity() {
             SessionState.LoggedOut -> "giriş yapılmadı — devam etmek için giriş yapın"
             SessionState.Unknown -> "…"
         }
+    }
+
+    /**
+     * The site offers per-network share destinations only. The system sheet
+     * covers whatever the user actually has installed, which is what an Android
+     * user expects from a share affordance.
+     */
+    private fun share(url: String, title: String) {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+            putExtra(Intent.EXTRA_SUBJECT, title)
+        }
+        startActivity(Intent.createChooser(send, null))
     }
 
     private fun enqueue(request: OperationRequest) {

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-06
+goal: Paced, resumable, foreground-service operation engine plus the six
+  single-shot block sources

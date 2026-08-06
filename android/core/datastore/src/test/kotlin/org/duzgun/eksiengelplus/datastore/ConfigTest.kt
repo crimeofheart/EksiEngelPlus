@@ -12,15 +12,27 @@ class ConfigTest {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
-    @Test fun `defaults match the extension except telemetry`() {
+    @Test fun `defaults match the extension`() {
         val c = EksiConfig()
         assertThat(c.eksiSozlukUrl).isEqualTo("https://eksisozluk.com")
         assertThat(c.enableNoobBan).isTrue()      // config.js:29
         assertThat(c.enableMute).isFalse()
-        // config.js:25-26 default BOTH of these to true. Off here pending the
-        // first-run consent screen; a silent restore would be a privacy change.
-        assertThat(c.sendData).isFalse()
-        assertThat(c.sendLog).isFalse()
+        // Deliberate parity with config.js:25-26, not an oversight. Defaulting
+        // these off makes the dashboard report the client as near-dead, since
+        // nobody enables telemetry by hand. See openspec/specs/android-persistence.
+        assertThat(c.sendData).isTrue()
+        assertThat(c.sendLog).isTrue()
+    }
+
+    @Test fun `the user can turn telemetry off and it persists`() {
+        // Default-on only defensible if opting out actually works.
+        val off = EksiConfig(sendData = false, sendLog = false)
+        val back = json.decodeFromString(
+            EksiConfig.serializer(),
+            json.encodeToString(EksiConfig.serializer(), off),
+        )
+        assertThat(back.sendData).isFalse()
+        assertThat(back.sendLog).isFalse()
     }
 
     @Test fun `rule list round trips`() {

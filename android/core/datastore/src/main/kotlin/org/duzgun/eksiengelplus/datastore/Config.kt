@@ -21,15 +21,22 @@ data class EksiConfig(
     val banPremiumIcons: Boolean = false,
 
     /**
-     * The extension defaults both of these to true (config.js:25-26), shipping the
-     * user's own nick plus up to 10,000 target nicks by default.
+     * On by default, at parity with the extension (config.js:25-26).
      *
-     * Off here, pending the first-run consent screen. Flipping them is a product
-     * decision recorded in the plan, and it materially de-risks the Play data
-     * safety declaration. Do not silently restore the extension's default.
+     * Deliberate, and NOT to be quietly reversed while tidying -- see
+     * openspec/specs/android-persistence. Defaulting off was tried and rejected:
+     * approximately nobody enables telemetry by hand, so the dashboard would
+     * report this client as near-dead regardless of real usage. Hashing
+     * author_list was also rejected because it empties the admin's most_banned
+     * and EksiSozlukUserStatView views (api/views.py:44-65), which rank users by
+     * plaintext identity.
+     *
+     * The consequence is carried by the Play submission: author_list holds up to
+     * 10,000 identifiers belonging to people who are not users of this app, so
+     * Data Safety declares User IDs as collected and not optional.
      */
-    val sendData: Boolean = false,
-    val sendLog: Boolean = false,
+    val sendData: Boolean = true,
+    val sendLog: Boolean = true,
 
     val enableDateFilter: Boolean = false,
     val dateFilterRules: List<DateFilterRule> = emptyList(),

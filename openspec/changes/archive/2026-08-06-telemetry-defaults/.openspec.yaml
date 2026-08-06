@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-06
+goal: "Ship telemetry defaults at parity with the extension: sendData and
+  sendLog both on, author_list in plaintext"

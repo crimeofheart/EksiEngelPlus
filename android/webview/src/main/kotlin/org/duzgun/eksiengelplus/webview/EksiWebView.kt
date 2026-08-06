@@ -82,15 +82,25 @@ fun WebView.configureForEksi(context: Context) {
 }
 
 /**
- * Any Ekşi host stays in the app.
+ * Any Ekşi property stays in the app.
  *
- * Matching is permissive on purpose. Handing an Ekşi URL to the system is worse
- * than it looks: the browser opens, then Android app-link handling forwards it to
- * the OFFICIAL Ekşi app, so a tap inside this client silently lands the user in a
- * different one. An exact-match list would let any mirror or subdomain do that,
- * and the site is periodically blocked in Turkey precisely so mirrors exist.
+ * Handing one to the system is worse than it looks: the browser opens, then
+ * Android app-link handling forwards it to the OFFICIAL Ekşi app, so a tap inside
+ * this client silently lands the user in a different one. An exact-match list
+ * would let any mirror or sibling site do that, and mirrors exist precisely
+ * because the site is periodically blocked in Turkey.
+ *
+ * The family is wider than the dictionary itself -- eksiup hosts images,
+ * eksiseyler is the content arm -- so matching is by prefix rather than by name.
+ *
+ * A dot-separated LABEL must start with "eksi"; a bare substring test would drag
+ * in unrelated hosts, "meksika" being the obvious Turkish one. That still admits
+ * something like eksik.com, which is a fair trade: the cost is one page rendering
+ * in the app instead of the browser, against the cost of silently handing users
+ * to a competing client.
  */
-fun isEksiHost(host: String): Boolean = host.contains("eksisozluk", ignoreCase = true)
+fun isEksiHost(host: String): Boolean =
+    host.lowercase().split('.').any { it.startsWith("eksi") }
 
 /** Hosts that may load inside the WebView, beyond the Ekşi match above. */
 fun allowedHostsFor(baseUrl: String): Set<String> =

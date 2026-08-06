@@ -222,10 +222,17 @@ external hosts SHALL be handed to the system.
 
 Handing an Ekşi URL out is worse than it sounds: the system browser opens, then
 Android app-link handling forwards it to the *official* Ekşi app, so a tap inside
-our client silently ends up in a competitor's. Host matching SHALL therefore be
-permissive about Ekşi — any host containing `eksisozluk`, plus the configured
-base and known mirrors — rather than an exact list that a subdomain or mirror can
-slip past.
+our client silently ends up in a competitor's.
+
+The family is wider than the dictionary — `eksiup` hosts images, `eksiseyler` is
+the content arm — so a host SHALL be treated as Ekşi when any dot-separated
+**label** begins with `eksi`, plus the configured base and known mirrors.
+
+A bare substring test SHALL NOT be used: it would capture unrelated hosts, most
+obviously anything containing `meksika`. The label rule still admits something
+like `eksik.com`, which is the right trade — the cost is one page rendering
+in-app rather than in the browser, against the cost of silently handing users to
+a competing client.
 
 Links opened with `target="_blank"` or `window.open` SHALL also stay in the
 WebView.
@@ -234,6 +241,16 @@ WebView.
 
 - **WHEN** a link points at an Ekşi mirror or subdomain not literally listed
 - **THEN** it loads in the WebView rather than being handed to the system
+
+#### Scenario: Sibling Ekşi properties stay in the app
+
+- **WHEN** a link points at `eksiup.com`, `img.eksiup.com` or `eksiseyler.com`
+- **THEN** it loads in the WebView
+
+#### Scenario: A lookalike host is not captured
+
+- **WHEN** a link points at a host merely containing `eksi` inside another word, such as `meksika-haber.com`
+- **THEN** it is treated as external and opens outside the WebView
 
 #### Scenario: A genuinely external link leaves
 

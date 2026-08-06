@@ -10,16 +10,22 @@ import org.junit.Test
  */
 class HostRoutingTest {
 
-    @Test fun `every Ekşi host stays in the app`() {
+    @Test fun `every Ekşi property stays in the app`() {
         listOf(
             "eksisozluk.com",
             "www.eksisozluk.com",
             "m.eksisozluk.com",
+            "static.eksisozluk.com",
             // Mirrors exist because the site is periodically blocked in Turkey,
             // so an exact-match list would leak exactly when it matters most.
             "eksisozluk1923.com",
             "eksisozluk2023.com",
-            "static.eksisozluk.com",
+            // The family is wider than the dictionary: eksiup hosts images,
+            // eksiseyler is the content arm.
+            "eksiup.com",
+            "img.eksiup.com",
+            "eksiseyler.com",
+            "eksi.com",
         ).forEach { assertWithMessage(it).that(isEksiHost(it)).isTrue() }
     }
 
@@ -29,9 +35,18 @@ class HostRoutingTest {
             "twitter.com",
             "youtube.com",
             "example.org",
-            "eksi.com",          // similar, but not the site
             "sozluk.com",
+            // A bare substring test would drag these in. "meksika" is the one
+            // that actually occurs in Turkish content.
+            "meksika-haber.com",
+            "www.meksika.org",
+            "deksia.io",
         ).forEach { assertWithMessage(it).that(isEksiHost(it)).isFalse() }
+    }
+
+    @Test fun `a subdomain of an unrelated host is still excluded`() {
+        // The label test must apply per label, not to the whole string.
+        assertWithMessage("cdn.meksika.com").that(isEksiHost("cdn.meksika.com")).isFalse()
     }
 
     @Test fun `matching ignores case`() {

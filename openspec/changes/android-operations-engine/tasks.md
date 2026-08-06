@@ -1,26 +1,26 @@
 ## 1. Module setup
 
-- [ ] 1.1 Add `:ops:engine` and `:ops:tasks` to `settings.gradle.kts`; keep `:ops:engine` as Android (WorkManager) and put every pure piece behind interfaces so it stays testable without a device
+- [x] 1.1 Add `:ops:engine` and `:ops:tasks` to `settings.gradle.kts`; keep `:ops:engine` as Android (WorkManager) and put every pure piece behind interfaces so it stays testable without a device
 - [ ] 1.2 Add WorkManager and Hilt work to the version catalog; wire `HiltWorkerFactory` into the Application
 - [ ] 1.3 Add `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_DATA_SYNC` to the app manifest, with the `dataSync` service type merged in
 
 ## 2. Pacing (pure, no Android)
 
-- [ ] 2.1 Write the `ActionPacer` test table first: sustained 12/min, idle-then-burst up to capacity, and that acquiring never exceeds the rate over a window
-- [ ] 2.2 Implement `ActionPacer` as a token bucket with an injected clock so tests need no real time
-- [ ] 2.3 Implement `penalize(seconds)` draining the bucket and blocking every caller until the delay elapses; test that a second caller waits on the first's 429
-- [ ] 2.4 Implement AIMD — widen the interval per 429, decay on sustained success, never below the configured rate; test both directions
-- [ ] 2.5 Persist and restore bucket state; test that resuming after a simulated kill does not start with a full bucket
-- [ ] 2.6 Implement `ReadPacer` at a looser rate for scrapes, and test it is independent of the action budget
-- [ ] 2.7 Implement `RetryPolicy`: three attempts, retry only `RateLimited`; test that `SelfTarget`, `SessionExpired` and unknown codes are terminal
-- [ ] 2.8 `./gradlew :ops:engine:test` green
+- [x] 2.1 Write the `ActionPacer` test table first: sustained 12/min, idle-then-burst up to capacity, and that acquiring never exceeds the rate over a window
+- [x] 2.2 Implement `ActionPacer` as a token bucket with an injected clock so tests need no real time
+- [x] 2.3 Implement `penalize(seconds)` draining the bucket and blocking every caller until the delay elapses; test that a second caller waits on the first's 429
+- [x] 2.4 Implement AIMD — widen the interval per 429, decay on sustained success, never below the configured rate; test both directions
+- [x] 2.5 Persist and restore bucket state; test that resuming after a simulated kill does not start with a full bucket
+- [x] 2.6 Implement `ReadPacer` at a looser rate for scrapes, and test it is independent of the action budget
+- [x] 2.7 Implement `RetryPolicy`: three attempts, retry only `RateLimited`; test that `SelfTarget`, `SessionExpired` and unknown codes are terminal
+- [x] 2.8 `./gradlew :ops:engine:test` green
 
 ## 3. State machine (pure, no IO)
 
-- [ ] 3.1 Define `OperationState` with the seven ported states plus `PAUSED_AUTH`, `PAUSED_BUDGET`, `PAUSED_NETWORK`
-- [ ] 3.2 Implement transitions as a pure function; test every legal transition and that illegal ones are rejected rather than silently ignored
-- [ ] 3.3 Implement the cooperative pause protocol with a 30s acknowledgement timeout that force-pauses and flags the checkpoint for re-verification
-- [ ] 3.4 Test that stop is terminal and pause is resumable
+- [x] 3.1 Define `OperationState` with the seven ported states plus `PAUSED_AUTH`, `PAUSED_BUDGET`, `PAUSED_NETWORK`
+- [x] 3.2 Implement transitions as a pure function; test every legal transition and that illegal ones are rejected rather than silently ignored
+- [x] 3.3 Implement the cooperative pause protocol with a 30s acknowledgement timeout that force-pauses and flags the checkpoint for re-verification
+- [x] 3.4 Test that stop is terminal and pause is resumable
 
 ## 4. Operation context and checkpointing
 

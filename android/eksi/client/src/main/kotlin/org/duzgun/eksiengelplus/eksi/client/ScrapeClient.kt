@@ -51,6 +51,45 @@ class ScrapeClient(
     suspend fun authorProfile(nick: String) =
         parser.parseAuthorProfile(nick, parser.parse(get("${baseUrlProvider()}/biri/$nick")))
 
+
+    /**
+     * Favouriters of an entry. The fragment is a flat anchor list of "@nick" with
+     * no ids, so callers must resolve ids per nick afterwards.
+     */
+    suspend fun favouriters(entryId: Long): List<String> =
+        parser.parseFavouriters(get("${baseUrlProvider()}/entry/favorileyenler?entryId=$entryId"))
+
+    /** Novice favourites live on a separate endpoint (scrapingHandler.js:186). */
+    suspend fun noviceFavouriters(entryId: Long): List<String> =
+        parser.parseFavouriters(get("${baseUrlProvider()}/entry/caylakfavorites?entryId=$entryId"))
+
+    /**
+     * Every distinct author in a title, de-duplicated across pages: a prolific
+     * author appears many times but must be acted on once.
+     *
+     * lastDayOnly maps to ?a=dailynice, the extension's LAST_24_H specifier.
+     * Pagination ends when a page yields no authors.
+     */
+    suspend fun allTopicAuthors(
+        slug: String,
+        titleId: Long,
+        lastDayOnly: Boolean = false,
+        onPage: suspend (Int) -> Unit = {},
+    ): List<org.duzgun.eksiengelplus.eksi.parser.TopicAuthor> {
+        val seen = LinkedHashMap<String, org.duzgun.eksiengelplus.eksi.parser.TopicAuthor>()
+        var page = FIRST_PAGE
+        while (true) {
+            onPage(page)
+            val daily = if (lastDayOnly) "a=dailynice&" else ""
+            val body = get("${baseUrlProvider()}/$slug--$titleId?$daily" + "p=$page")
+            val authors = parser.parseTopicAuthors(parser.parse(body))
+            if (authors.isEmpty()) break
+            authors.forEach { seen.putIfAbsent(it.nick, it) }
+            page++
+        }
+        return seen.values.toList()
+    }
+
     /** relationType: m blocked, i title-blocked, u muted. */
     suspend fun relationPage(targetType: TargetType, pageIndex: Int): RelationPage {
         require(pageIndex >= FIRST_PAGE) { "pageIndex is 1-based; $pageIndex would 500" }

@@ -15,4 +15,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.kotlin.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
 }

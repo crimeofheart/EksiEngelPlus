@@ -24,8 +24,8 @@
 
 ## 4. Operation context and checkpointing
 
-- [ ] 4.1 Define `OperationContext` exposing `ensureActive()`, `checkpoint(cursor)` and `publishProgress()`
-- [ ] 4.2 Implement `ensureActive()` reading the persisted command mailbox and throwing `PauseSignal`/`StopSignal`
+- [x] 4.1 Define `OperationContext` exposing `ensureActive()`, `checkpoint(cursor)` and `publishProgress()`
+- [x] 4.2 Implement `ensureActive()` reading the persisted command mailbox and throwing `PauseSignal`/`StopSignal`
 - [ ] 4.3 Write checkpoint and its effect rows in one Room transaction; instrumented test that a crash mid-write leaves neither
 - [ ] 4.4 Checkpoint every N units, N=1 for destructive operations
 - [ ] 4.5 Implement `TaskQueueRepository` over `QueuedTaskEntity` with strictly serial dequeue
@@ -50,14 +50,14 @@
 
 ## 7. The six sources
 
-- [ ] 7.1 `OperationTask` interface and `SingleActionTask` (ban_source 1)
-- [ ] 7.2 `ListActionTask` (4) over the stored author list, resolving ids as needed
-- [ ] 7.3 `FavActionTask` (2): both favouriter endpoints, novice gated on `enableNoobBan`, ids backfilled per nick
-- [ ] 7.4 `FollowActionTask` (3) over a target's followers
-- [ ] 7.5 `TitleActionTask` (6) honouring the time specifier and de-duplicating authors
-- [ ] 7.6 `UndoBanAllTask` (5) over the scraped blocked list, checkpointing every unit
-- [ ] 7.7 Verify each task sends the `ban_source` integer from `enums.js`
-- [ ] 7.8 MockWebServer coverage per task: happy path, a mid-run 429, and a mid-run session expiry
+- [x] 7.1 `OperationTask` interface and `SingleActionTask` (ban_source 1)
+- [x] 7.2 `ListActionTask` (4) over the stored author list, resolving ids as needed
+- [x] 7.3 `FavActionTask` (2): both favouriter endpoints, novice gated on `enableNoobBan`, ids backfilled per nick
+- [x] 7.4 `FollowActionTask` (3) over a target's followers
+- [x] 7.5 `TitleActionTask` (6) honouring the time specifier and de-duplicating authors
+- [x] 7.6 `UndoBanAllTask` (5) over the scraped blocked list, checkpointing every unit
+- [x] 7.7 Verify each task sends the `ban_source` integer from `enums.js`
+- [x] 7.8 MockWebServer coverage per task: happy path, a mid-run 429, and a mid-run session expiry
 
 ## 8. Close out
 

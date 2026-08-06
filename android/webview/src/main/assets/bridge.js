@@ -217,6 +217,56 @@
     container.appendChild(banFollowers);
   }
 
+  /**
+   * Hides Ekşi's "open in our app" interstitial.
+   *
+   * It is injected client-side, not present in the served HTML, so there is no
+   * stable class name to rely on -- it did not appear in any captured fixture.
+   * Anchored on content instead: a fixed or sticky overlay that mentions both the
+   * app and continuing. Narrow on purpose, so ordinary sticky UI is untouched.
+   *
+   * Precedent for hiding site chrome at the user's request is the extension's own
+   * banPremiumIcons. Gated on config so it stays the user's choice.
+   */
+  var APP_PROMO_SELECTORS = [
+    ".app-download-banner",
+    ".mobile-app-banner",
+    "#app-banner",
+    ".smart-app-banner",
+    "[class*=app-promo]",
+    "[class*=appPromo]"
+  ];
+
+  function looksLikeAppPromo(el) {
+    var text = (el.textContent || "").toLowerCase();
+    if (text.length > 400) return false;             // too big to be the banner
+    var mentionsApp = text.indexOf("uygulama") !== -1;
+    var offersContinue = text.indexOf("devam et") !== -1 || text.indexOf("tarayıcı") !== -1;
+    return mentionsApp && offersContinue;
+  }
+
+  function hideAppPromo() {
+    if (CONFIG.hideAppPromo === false) return;
+
+    for (var i = 0; i < APP_PROMO_SELECTORS.length; i++) {
+      var known = document.querySelectorAll(APP_PROMO_SELECTORS[i]);
+      for (var j = 0; j < known.length; j++) known[j].style.display = "none";
+    }
+
+    // Content-anchored fallback, restricted to overlays so normal page content
+    // can never be caught by it.
+    var candidates = document.querySelectorAll("div,section,aside");
+    for (var k = 0; k < candidates.length; k++) {
+      var el = candidates[k];
+      if (el.dataset.eksiengelPromoChecked) continue;
+      var pos = "";
+      try { pos = window.getComputedStyle(el).position; } catch (e) { continue; }
+      if (pos !== "fixed" && pos !== "sticky") continue;
+      el.dataset.eksiengelPromoChecked = "1";
+      if (looksLikeAppPromo(el)) el.style.display = "none";
+    }
+  }
+
   /** Premium badge hiding, script.js:107-178. */
   function hideBadges() {
     if (!CONFIG.banPremiumIcons) return;
@@ -252,6 +302,7 @@
       }
     }
     hideBadges();
+    hideAppPromo();
   }
 
   var scheduled = false;

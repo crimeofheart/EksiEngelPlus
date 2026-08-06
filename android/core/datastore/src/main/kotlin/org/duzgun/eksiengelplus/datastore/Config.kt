@@ -21,6 +21,14 @@ data class EksiConfig(
     val banPremiumIcons: Boolean = false,
 
     /**
+     * Hides Ekşi's "open in our app" interstitial, which covers the lower part of
+     * the page on mobile. Same category as banPremiumIcons: site chrome the user
+     * has asked not to see. On by default because in this app the prompt is pure
+     * friction -- the user already chose a client.
+     */
+    val hideAppPromo: Boolean = true,
+
+    /**
      * On by default, at parity with the extension (config.js:25-26).
      *
      * Deliberate, and NOT to be quietly reversed while tidying -- see

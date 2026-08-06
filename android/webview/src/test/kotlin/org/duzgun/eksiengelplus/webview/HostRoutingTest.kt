@@ -26,6 +26,12 @@ class HostRoutingTest {
             "img.eksiup.com",
             "eksiseyler.com",
             "eksi.com",
+            // Their shortener. This is the one that actually bit: an entry
+            // embedding a soz.lk image link went to the browser, which followed
+            // the redirect and let app-links hand the user to the official app.
+            "soz.lk",
+            "www.soz.lk",
+            "sourtimes.org",
         ).forEach { assertWithMessage(it).that(isEksiHost(it)).isTrue() }
     }
 
@@ -41,6 +47,10 @@ class HostRoutingTest {
             "meksika-haber.com",
             "www.meksika.org",
             "deksia.io",
+            // Other shorteners are NOT assumed to be theirs.
+            "bit.ly",
+            "t.co",
+            "soz.lk.evil.com",
         ).forEach { assertWithMessage(it).that(isEksiHost(it)).isFalse() }
     }
 

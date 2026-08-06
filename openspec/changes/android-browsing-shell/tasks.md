@@ -51,4 +51,5 @@
 - [x] 6.3 Replace the site-styled confirmation with a compact self-styled toast
 - [x] 6.4 Inject a "paylaş" item above the site's per-network share options
 - [x] 6.5 Add a `share` bridge message opening `Intent.ACTION_SEND` with the entry URL
-- [ ] 6.6 Verify on the emulator that an external link leaves and an Ekşi link does not
+- [x] 6.6 Verify on the emulator that an external link leaves and an Ekşi link does not
+- [x] 6.7 Name Ekşi-owned hosts that contain no "eksi", starting with the soz.lk shortener

@@ -247,6 +247,15 @@ WebView.
 - **WHEN** a link points at `eksiup.com`, `img.eksiup.com` or `eksiseyler.com`
 - **THEN** it loads in the WebView
 
+#### Scenario: Their shortener stays in the app
+
+- **WHEN** an entry embeds a `soz.lk` link, as image posts do
+- **THEN** it loads in the WebView and the redirect resolves there
+
+A shortener defeats host matching by design — the destination is only knowable
+after the redirect — so Ekşi-owned hosts carrying no `eksi` in their name SHALL be
+named explicitly. Other shorteners SHALL NOT be assumed to be theirs.
+
 #### Scenario: A lookalike host is not captured
 
 - **WHEN** a link points at a host merely containing `eksi` inside another word, such as `meksika-haber.com`

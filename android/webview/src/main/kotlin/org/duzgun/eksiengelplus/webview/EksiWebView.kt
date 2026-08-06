@@ -161,8 +161,27 @@ fun WebView.configureForEksi(context: Context) {
  * in the app instead of the browser, against the cost of silently handing users
  * to a competing client.
  */
-fun isEksiHost(host: String): Boolean =
-    host.lowercase().split('.').any { it.startsWith("eksi") }
+fun isEksiHost(host: String): Boolean {
+    val h = host.lowercase()
+    if (h.split('.').any { it.startsWith("eksi") }) return true
+    return EKSI_OWNED_HOSTS.any { h == it || h.endsWith(".$it") }
+}
+
+/**
+ * Ekşi properties whose names contain no "eksi" at all.
+ *
+ * soz.lk is their link shortener, and it is the one that actually bit: an entry
+ * embedding a soz.lk image link looked external, so it went to the browser, which
+ * followed the redirect to an Ekşi domain, which app-links then handed to the
+ * official app. A shortener defeats host matching by design -- the destination is
+ * only knowable after the redirect -- so it has to be named.
+ *
+ * sourtimes.org is the historical domain and still redirects here.
+ */
+private val EKSI_OWNED_HOSTS = setOf(
+    "soz.lk",
+    "sourtimes.org",
+)
 
 /** Hosts that may load inside the WebView, beyond the Ekşi match above. */
 fun allowedHostsFor(baseUrl: String): Set<String> =

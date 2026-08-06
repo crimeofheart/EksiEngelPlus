@@ -150,4 +150,57 @@ class RuntimeTest {
         // Surfaced for the user to choose, never silently restarted.
         assertThat(reconciler.resumable()).contains("op1")
     }
+
+    @Test fun budgetWarningFiresOnceAtTheThreshold() = runTest {
+        var warnings = 0
+        val budget = ForegroundBudget(softBudgetMs = 10_000, warnFraction = 0.8, clock = { now })
+            .apply { resume(0) }
+        val ctx = RoomOperationContext(
+            operationId = "op1",
+            request = OperationRequest(BanSource.LIST, BanMode.BAN),
+            startCursor = OperationCursor(),
+            db = db,
+            commands = commands,
+            budget = budget,
+            actionPacer = ActionPacer(sleep = {}, clock = { now }),
+            readPacer = ReadPacer(sleep = {}, clock = { now }),
+            onBudgetWarning = { warnings++ },
+            clock = { now },
+        )
+
+        ctx.ensureActive()                 // 0% consumed
+        assertThat(warnings).isEqualTo(0)
+
+        now += 7_000                       // 70%
+        ctx.ensureActive()
+        assertThat(warnings).isEqualTo(0)
+
+        now += 1_500                       // 85% -- crosses the threshold
+        ctx.ensureActive()
+        assertThat(warnings).isEqualTo(1)
+
+        // Repeating it would train the user to dismiss the one that matters.
+        repeat(5) { ctx.ensureActive() }
+        assertThat(warnings).isEqualTo(1)
+    }
+
+    @Test fun theWarningLeavesEnoughRunwayToAct() {
+        val budget = ForegroundBudget(softBudgetMs = 10_000, warnFraction = 0.8, clock = { now })
+            .apply { resume(0) }
+        now += 8_000
+        assertThat(budget.shouldWarn()).isTrue()
+        // Fired with a fifth of the budget still available, not at the buzzer.
+        assertThat(budget.remainingMs()).isEqualTo(2_000)
+        assertThat(budget.isExhausted()).isFalse()
+    }
+
+    @Test fun goingVisibleStopsBillingSoTheRunContinuesFree() {
+        // The whole point of the warning: with the app open, work costs nothing.
+        val budget = ForegroundBudget(softBudgetMs = 10_000, clock = { now }).apply { resume(0) }
+        now += 8_000
+        budget.releaseForeground()
+        now += 10 * 60 * 1000               // ten minutes of visible use
+        assertThat(budget.consumedMs()).isEqualTo(8_000)
+        assertThat(budget.isExhausted()).isFalse()
+    }
 }

@@ -33,6 +33,7 @@ class OpsNotifier(private val context: Context) {
         const val CHANNEL_ALERTS = "ops_alerts"
         const val NOTIFICATION_ID_PROGRESS = 1001
         const val NOTIFICATION_ID_ALERT = 1002
+        const val NOTIFICATION_ID_BUDGET_WARNING = 1003
 
         const val ACTION_PAUSE = "org.duzgun.eksiengelplus.PAUSE"
         const val ACTION_STOP = "org.duzgun.eksiengelplus.STOP"
@@ -109,6 +110,41 @@ class OpsNotifier(private val context: Context) {
         }
         if (!manager.areNotificationsEnabled()) return
         manager.notify(NOTIFICATION_ID_ALERT, n)
+    }
+
+    /**
+     * Fired once, shortly before the foreground budget runs out.
+     *
+     * There is no honest way to extend background time -- the uncapped
+     * foreground-service types would all misrepresent what this service does. But
+     * work performed while the app is VISIBLE costs no budget at all, because a
+     * visible activity keeps the process alive without a service. So the offer is
+     * "open the app and finish now", not "we found more time".
+     */
+    fun budgetWarning(remainingItems: Int, launchIntent: PendingIntent?) {
+        val text = if (remainingItems > 0) {
+            "Arka plan süresi azalıyor. Kalan $remainingItems işlemi hemen bitirmek " +
+                "için uygulamayı açık tutun; açıkken arka plan süresi harcanmaz."
+        } else {
+            "Arka plan süresi azalıyor. Uygulamayı açık tutarsanız işlem kesintisiz sürer."
+        }
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle("İşleme devam edilsin mi?")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setAutoCancel(true)
+        launchIntent?.let { builder.setContentIntent(it) }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        if (!manager.areNotificationsEnabled()) return
+        manager.notify(NOTIFICATION_ID_BUDGET_WARNING, builder.build())
     }
 
     /** False when the user refused notifications, or disabled them later. */

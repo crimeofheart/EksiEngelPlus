@@ -33,15 +33,23 @@ private val Json = Json { ignoreUnknownKeys = true }
  */
 class ForegroundBudget(
     private val softBudgetMs: Long = DEFAULT_SOFT_BUDGET_MS,
+    private val warnFraction: Double = DEFAULT_WARN_FRACTION,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     companion object {
         /** Five hours, comfortably under the ~6h platform cap. */
         const val DEFAULT_SOFT_BUDGET_MS = 5L * 60 * 60 * 1000
+
+        /**
+         * Warn at 80% -- four hours in, with an hour of runway. Early enough to
+         * act on, late enough not to be noise.
+         */
+        const val DEFAULT_WARN_FRACTION = 0.8
     }
 
     private var startedAt: Long? = null
     private var consumedMs: Long = 0
+    private var warned = false
 
     fun resume(alreadyConsumedMs: Long) {
         consumedMs = alreadyConsumedMs
@@ -59,6 +67,24 @@ class ForegroundBudget(
     fun isExhausted(): Boolean = consumedMs() >= softBudgetMs
 
     fun remainingMs(): Long = (softBudgetMs - consumedMs()).coerceAtLeast(0)
+
+    /**
+     * True exactly once, on the first crossing of the warning threshold.
+     *
+     * There is no way to get more background time honestly, so the warning's job
+     * is to surface the option that exists the whole time: work done with the app
+     * visible costs no budget at all. Hence "open the app to finish now" rather
+     * than any suggestion that the limit can be extended.
+     *
+     * Once, not repeatedly. A notification that fires every few minutes trains
+     * the user to dismiss it, including the time it mattered.
+     */
+    fun shouldWarn(): Boolean {
+        if (warned) return false
+        if (consumedMs() < (softBudgetMs * warnFraction).toLong()) return false
+        warned = true
+        return true
+    }
 }
 
 /**
@@ -80,6 +106,11 @@ class RoomOperationContext(
     private val actionPacer: ActionPacer,
     private val readPacer: ReadPacer,
     private val onProgress: suspend (OperationProgress) -> Unit = {},
+    /**
+     * Invoked once when the budget is nearly spent. A callback rather than the
+     * notifier itself, so ops:engine never learns about Android.
+     */
+    private val onBudgetWarning: suspend (remainingMs: Long) -> Unit = {},
     private val clock: () -> Long = System::currentTimeMillis,
 ) : OperationContext, RateLimitAware {
 
@@ -94,6 +125,7 @@ class RoomOperationContext(
         // Checked here rather than on a timer so the operation always stops
         // between units, never mid-mutation.
         if (budget.isExhausted()) throw BudgetExhaustedSignal()
+        if (budget.shouldWarn()) onBudgetWarning(budget.remainingMs())
     }
 
     override suspend fun checkpoint(cursor: OperationCursor, effects: suspend () -> Unit) {

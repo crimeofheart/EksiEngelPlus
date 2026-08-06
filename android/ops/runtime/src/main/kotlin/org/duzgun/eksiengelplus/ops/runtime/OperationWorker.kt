@@ -102,6 +102,9 @@ class OperationWorker @AssistedInject constructor(
         }
     }
 
+    /** Kept so the budget warning can state how much work is left. */
+    private var lastRemaining: Int = 0
+
     private val operationId: String
         get() = inputData.getString(KEY_OPERATION_ID) ?: "unknown"
 
@@ -141,7 +144,23 @@ class OperationWorker @AssistedInject constructor(
             budget = budget,
             actionPacer = actionPacer,
             readPacer = readPacer,
+            onBudgetWarning = { _ ->
+                // Opens the app: while it is visible the run costs no budget.
+                val launch = applicationContext.packageManager
+                    .getLaunchIntentForPackage(applicationContext.packageName)
+                    ?.let {
+                        android.app.PendingIntent.getActivity(
+                            applicationContext,
+                            0,
+                            it,
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                                android.app.PendingIntent.FLAG_IMMUTABLE,
+                        )
+                    }
+                notifier.budgetWarning(remainingItems = lastRemaining, launchIntent = launch)
+            },
             onProgress = { p ->
+                lastRemaining = (p.total - p.processed).coerceAtLeast(0)
                 setForeground(
                     ForegroundInfo(
                         OpsNotifier.NOTIFICATION_ID_PROGRESS,

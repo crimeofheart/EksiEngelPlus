@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-06
+goal: Warn before the foreground budget runs out and let the user continue
+  immediately by opening the app

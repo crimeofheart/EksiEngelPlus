@@ -42,6 +42,11 @@ class BrowserActivity : AppCompatActivity() {
 
     private val base = EksiConfig.DEFAULT_BASE_URL
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.data?.toString()?.takeIf { it.startsWith("http") }?.let { web.loadUrl(it) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_browser)
@@ -81,7 +86,10 @@ class BrowserActivity : AppCompatActivity() {
             }
         })
 
-        web.loadUrl(base)
+        // A VIEW intent lets other apps -- and adb -- open a specific entry here
+        // rather than in a browser.
+        val requested = intent?.data?.toString()?.takeIf { it.startsWith("http") }
+        web.loadUrl(requested ?: base)
     }
 
     private fun render(state: SessionState) {

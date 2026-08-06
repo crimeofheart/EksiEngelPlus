@@ -18,6 +18,19 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!--
+                Offers this app as a destination for Ekşi links. Deliberately NOT
+                autoVerify: hijacking every link would be presumptuous, and the
+                user should get a chooser rather than have it decided for them.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="eksisozluk.com"/>
+                <data android:scheme="https" android:host="*.eksisozluk.com"/>
+            </intent-filter>
         </activity>
     </application>
 

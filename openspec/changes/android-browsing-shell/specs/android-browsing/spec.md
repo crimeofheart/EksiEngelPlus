@@ -262,6 +262,29 @@ WebView.
 - **WHEN** a link declares `target="_blank"`
 - **THEN** it loads in the same WebView
 
+#### Scenario: An app-open intent is swallowed
+
+- **WHEN** the page navigates to an `intent://` URL naming the official Ekşi app, or to an `eksi*` custom scheme
+- **THEN** the navigation is discarded and, where the intent carries a `browser_fallback_url` on an Ekşi host, that URL loads in the WebView instead
+
+#### Scenario: Unrelated schemes still reach the system
+
+- **WHEN** the page navigates to `mailto:` or `tel:`
+- **THEN** it is handed to the system, because the app genuinely cannot handle those
+
+### Requirement: The app can open Ekşi links from elsewhere
+
+The browsing activity SHALL accept `VIEW` intents for Ekşi URLs so other apps can
+open a link here.
+
+The filter SHALL NOT use `autoVerify`: claiming every Ekşi link would decide for
+the user rather than offering a choice.
+
+#### Scenario: Opening a shared link
+
+- **WHEN** an Ekşi URL is opened from another app and this one is chosen
+- **THEN** that URL loads in the WebView rather than the homepage
+
 ### Requirement: Confirmation is unobtrusive
 
 The confirmation shown after queuing an operation SHALL be a small transient

@@ -29,11 +29,22 @@ class EksiWebViewClient(
 ) : WebViewClient() {
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-        val host = request.url.host ?: return true
+        val url = request.url
+        val scheme = url.scheme?.lowercase()
+
+        // Anything that is not plain web content gets inspected before it is
+        // handed anywhere. This is where users were being lost: the page fires an
+        // app-open URL, and blindly ACTION_VIEWing it launches the official Ekşi
+        // app -- from inside this one.
+        if (scheme != "http" && scheme != "https") {
+            return handleNonWebScheme(view, url.toString(), scheme)
+        }
+
+        val host = url.host ?: return true
         if (isEksiHost(host) || allowedHosts.any { host == it || host.endsWith(".$it") }) return false
 
         return try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, request.url).apply {
+            context.startActivity(Intent(Intent.ACTION_VIEW, url).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
             true
@@ -42,6 +53,57 @@ class EksiWebViewClient(
             // better a dead tap than an arbitrary page inside the bridge origin.
             true
         }
+    }
+
+    /**
+     * Handles intent:// and custom-scheme URLs.
+     *
+     * The mobile site pushes readers into the official app with these. Following
+     * one means a tap inside this client opens a competing one, so an Ekşi-bound
+     * app intent is swallowed and its web equivalent loaded here instead.
+     *
+     * Unrelated schemes -- mailto, tel -- are still handed to the system, because
+     * those are things this app genuinely cannot do.
+     */
+    private fun handleNonWebScheme(view: WebView, raw: String, scheme: String?): Boolean {
+        val parsed = if (scheme == "intent") {
+            runCatching { Intent.parseUri(raw, Intent.URI_INTENT_SCHEME) }.getOrNull()
+        } else {
+            null
+        }
+
+        // Prefer the site's own fallback: it is the same content as a web URL.
+        val fallback = parsed?.getStringExtra("browser_fallback_url")
+        if (fallback != null && Uri.parse(fallback).host?.let(::isEksiHost) == true) {
+            view.loadUrl(fallback)
+            return true
+        }
+
+        val targetsEksiApp = parsed?.`package`?.contains("eksisozluk", ignoreCase = true) == true ||
+            scheme?.startsWith("eksi") == true
+
+        if (targetsEksiApp) {
+            // Swallowed. The user is already in a client; bouncing them into
+            // another is never what the tap meant.
+            return true
+        }
+
+        if (scheme == "intent") {
+            // A non-Ekşi app intent. Let the system decide, but never crash if
+            // nothing handles it.
+            return runCatching {
+                parsed?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                parsed?.let { context.startActivity(it) }
+                true
+            }.getOrDefault(true)
+        }
+
+        return runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(raw)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+            true
+        }.getOrDefault(true)
     }
 
     override fun onPageFinished(view: WebView, url: String?) {

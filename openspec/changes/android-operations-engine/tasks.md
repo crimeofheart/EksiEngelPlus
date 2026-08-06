@@ -1,8 +1,8 @@
 ## 1. Module setup
 
 - [x] 1.1 Add `:ops:engine` and `:ops:tasks` to `settings.gradle.kts`; keep `:ops:engine` as Android (WorkManager) and put every pure piece behind interfaces so it stays testable without a device
-- [ ] 1.2 Add WorkManager and Hilt work to the version catalog; wire `HiltWorkerFactory` into the Application
-- [ ] 1.3 Add `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_DATA_SYNC` to the app manifest, with the `dataSync` service type merged in
+- [x] 1.2 Add WorkManager and Hilt work to the version catalog; wire `HiltWorkerFactory` into the Application
+- [x] 1.3 Add `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_DATA_SYNC` to the app manifest, with the `dataSync` service type merged in
 
 ## 2. Pacing (pure, no Android)
 
@@ -26,27 +26,27 @@
 
 - [x] 4.1 Define `OperationContext` exposing `ensureActive()`, `checkpoint(cursor)` and `publishProgress()`
 - [x] 4.2 Implement `ensureActive()` reading the persisted command mailbox and throwing `PauseSignal`/`StopSignal`
-- [ ] 4.3 Write checkpoint and its effect rows in one Room transaction; instrumented test that a crash mid-write leaves neither
-- [ ] 4.4 Checkpoint every N units, N=1 for destructive operations
+- [x] 4.3 Write checkpoint and its effect rows in one Room transaction; instrumented test that a crash mid-write leaves neither
+- [x] 4.4 Checkpoint every N units, N=1 for destructive operations
 - [ ] 4.5 Implement `TaskQueueRepository` over `QueuedTaskEntity` with strictly serial dequeue
 
 ## 5. Worker and lifecycle
 
-- [ ] 5.1 Implement `OperationWorker` as a `@HiltWorker` `CoroutineWorker` with `getForegroundInfo()` of type `dataSync`
-- [ ] 5.2 Enqueue as unique work with `ExistingWorkPolicy.KEEP` and a CONNECTED constraint; test that a second request does not run concurrently
-- [ ] 5.3 Track foreground-service time against a soft budget, counting only while the FGS holds the process
-- [ ] 5.4 On budget exhaustion or `onTimeout()`: checkpoint, enter `PAUSED_BUDGET`, return success, schedule a delayed continuation
-- [ ] 5.5 Implement `OperationReconciler` from `Application.onCreate`: a RUNNING checkpoint with no live WorkManager request becomes INTERRUPTED
-- [ ] 5.6 Implement `PAUSED_AUTH` — checkpoint, stop the FGS, expose a resume route; never retry
+- [x] 5.1 Implement `OperationWorker` as a `@HiltWorker` `CoroutineWorker` with `getForegroundInfo()` of type `dataSync`
+- [x] 5.2 Enqueue as unique work with `ExistingWorkPolicy.KEEP` and a CONNECTED constraint; test that a second request does not run concurrently
+- [x] 5.3 Track foreground-service time against a soft budget, counting only while the FGS holds the process
+- [x] 5.4 On budget exhaustion or `onTimeout()`: checkpoint, enter `PAUSED_BUDGET`, return success, schedule a delayed continuation
+- [x] 5.5 Implement `OperationReconciler` from `Application.onCreate`: a RUNNING checkpoint with no live WorkManager request becomes INTERRUPTED
+- [x] 5.6 Implement `PAUSED_AUTH` — checkpoint, stop the FGS, expose a resume route; never retry
 - [ ] 5.7 WorkManager `TestDriver` coverage for the continuation-after-budget path
 
 ## 6. Notifications
 
-- [ ] 6.1 Create the two channels: low-importance progress, high-importance alerts
-- [ ] 6.2 Progress notification with determinate bar, counts, remaining estimate, and pause/stop actions
-- [ ] 6.3 Route notification actions through persisted commands so they work with no screen open
+- [x] 6.1 Create the two channels: low-importance progress, high-importance alerts
+- [x] 6.2 Progress notification with determinate bar, counts, remaining estimate, and pause/stop actions
+- [x] 6.3 Route notification actions through persisted commands so they work with no screen open
 - [ ] 6.4 Request `POST_NOTIFICATIONS` at first operation start; degrade rather than block on denial
-- [ ] 6.5 Alerts for completed, session expired, budget paused, and fatal error
+- [x] 6.5 Alerts for completed, session expired, budget paused, and fatal error
 
 ## 7. The six sources
 

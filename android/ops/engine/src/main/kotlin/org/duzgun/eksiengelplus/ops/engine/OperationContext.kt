@@ -14,6 +14,7 @@ class StopSignal : RuntimeException("stop requested")
 class BudgetExhaustedSignal : RuntimeException("foreground budget exhausted")
 
 /** What the user asked for. Mirrors the payload script.js:30-45 posts. */
+@kotlinx.serialization.Serializable
 data class OperationRequest(
     val source: BanSource,
     val mode: BanMode,
@@ -32,6 +33,7 @@ data class OperationRequest(
 )
 
 /** Where an operation got to, so a resumed run does not redo work. */
+@kotlinx.serialization.Serializable
 data class OperationCursor(
     val page: Int = 1,
     val index: Int = 0,

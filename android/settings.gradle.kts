@@ -35,6 +35,7 @@ include(":core:datastore")
 include(":core:network")
 include(":eksi:client")
 include(":ops:engine")
+include(":ops:runtime")
 
 // Temporary. Dogfoods the production modules against the live site on a real
 // device -- the only way to validate the cookie bridge and the parsers outside a

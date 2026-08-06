@@ -2,10 +2,11 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
-    namespace = "org.duzgun.eksiengelplus.database"
+    namespace = "org.duzgun.eksiengelplus.ops.runtime"
     compileSdk = 36
     defaultConfig {
         minSdk = 26
@@ -18,23 +19,22 @@ android {
     kotlin { jvmToolchain(17) }
 }
 
-// Exported schemas are committed and CI fails when they are dirty. An
-// uncommitted schema change means a migration was never authored, which only
-// surfaces as a crash on a user's device.
-ksp { arg("room.schemaLocation", "$projectDir/schemas") }
-
 dependencies {
-    api(project(":core:model"))
-    // api, not implementation: EksiDatabase extends RoomDatabase and consumers
-    // need withTransaction, so Room is part of this module's surface.
-    api(libs.room.runtime)
-    api(libs.room.ktx)
-    ksp(libs.room.compiler)
-    implementation(libs.kotlin.coroutines.android)
+    api(project(":ops:engine"))
+    api(project(":core:database"))
+    implementation(project(":core:datastore"))
+    implementation(project(":core:network"))
+
+    implementation(libs.work.runtime)
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
+    ksp(libs.hilt.work.compiler)
+    implementation(libs.androidx.core.ktx)
 
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.truth)
+    androidTestImplementation(libs.work.testing)
     androidTestImplementation(libs.kotlin.coroutines.test)
-    androidTestImplementation(libs.room.testing)
 }

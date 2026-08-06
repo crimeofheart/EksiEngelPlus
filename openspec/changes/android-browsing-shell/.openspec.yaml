@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-08-06
+goal: WebView browsing with the extension's menu items injected, bridged to the
+  native engine

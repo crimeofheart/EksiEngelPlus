@@ -60,10 +60,20 @@ row-per-user schema makes the separate key unnecessary.
 - **WHEN** a sync is stopped by the user or by a network failure at page 3 of 40
 - **THEN** the rows from pages 1–3 remain queryable and exportable, and the list is flagged partial
 
-#### Scenario: Departed users are pruned only on a full pass
+#### Scenario: Departed users are pruned only on an uninterrupted full pass
 
-- **WHEN** a sync reaches its terminator
-- **THEN** rows of that `listType` whose `lastSeenAt` predates the sync start are deleted, and this pruning SHALL NOT occur on a partial sync
+- **WHEN** a sync that started at page 1 reaches its terminator
+- **THEN** rows of that `listType` whose `lastSeenAt` predates the sync start are deleted
+
+#### Scenario: A resumed pass prunes nothing
+
+- **WHEN** a sync that resumed from a stored cursor reaches its terminator
+- **THEN** no rows are pruned, because the pages before the cursor were stamped by the earlier attempt and pruning would delete exactly what resumption preserved
+
+#### Scenario: Syncing does not forget a known registration date
+
+- **WHEN** a user already carrying a registration date is seen again by a sync
+- **THEN** the date and the original `addedAt` survive, and only `lastSeenAt` and the nick are updated — the relation endpoints carry no date, and losing it would send the next date-filtered run back to fetch every profile
 
 ### Requirement: Lists are surfaced with count, freshness and partial state
 

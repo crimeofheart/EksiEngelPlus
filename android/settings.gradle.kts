@@ -38,6 +38,10 @@ include(":ops:engine")
 include(":ops:runtime")
 include(":webview")
 
+// Feature modules. Screens plus the logic only that screen needs, so :app stays
+// assembly-only and the pure parts (the CSV codec, the sync driver) keep JVM tests.
+include(":feature:lists")
+
 // Temporary. Dogfoods the production modules against the live site on a real
 // device -- the only way to validate the cookie bridge and the parsers outside a
 // mock. Deleted when android-foundations is archived; never shipped.

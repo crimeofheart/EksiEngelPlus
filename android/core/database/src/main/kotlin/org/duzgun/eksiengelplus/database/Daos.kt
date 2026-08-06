@@ -21,6 +21,35 @@ interface RelationUserDao {
     @Upsert
     suspend fun upsert(row: RelationUserEntity)
 
+    /**
+     * Records that a user is currently on a list, without disturbing what is already
+     * known about them.
+     *
+     * A plain @Upsert would be wrong here: the relation endpoints carry no
+     * registration date, so upserting a whole row would null out a date learned from
+     * a CSV import or a profile fetch, and the next date-filtered run would refetch
+     * every profile. `addedAt` is likewise left alone -- the user joined the list
+     * when they joined it, not when we last looked.
+     */
+    @Query(
+        "INSERT INTO relation_user " +
+            "(listType, userId, nick, addedAt, lastSeenAt, registrationDate, isFollowCurrentUser, isBuddy) " +
+            "VALUES (:listType, :userId, :nick, :seenAt, :seenAt, NULL, :isFollowCurrentUser, :isBuddy) " +
+            "ON CONFLICT(listType, userId) DO UPDATE SET " +
+            "nick = excluded.nick, " +
+            "lastSeenAt = excluded.lastSeenAt, " +
+            "isFollowCurrentUser = excluded.isFollowCurrentUser, " +
+            "isBuddy = excluded.isBuddy",
+    )
+    suspend fun markSeen(
+        listType: ListType,
+        userId: Long,
+        nick: String,
+        seenAt: Long,
+        isFollowCurrentUser: Boolean?,
+        isBuddy: Boolean?,
+    )
+
     /** Derived, never stored -- content and count cannot drift apart. */
     @Query("SELECT COUNT(*) FROM relation_user WHERE listType = :listType")
     fun countOf(listType: ListType): Flow<Int>
@@ -39,6 +68,17 @@ interface RelationUserDao {
 
     @Query("DELETE FROM relation_user WHERE listType = :listType")
     suspend fun clear(listType: ListType)
+
+    /**
+     * Removes users who have left the list, identified by a [lastSeenAt] older than
+     * the sync that just completed.
+     *
+     * This is why a sync upserts forward instead of calling [clear] first: an
+     * interrupted sync must not be able to leave the user with fewer rows than they
+     * started with. Only a sync that reached its terminator may prune.
+     */
+    @Query("DELETE FROM relation_user WHERE listType = :listType AND lastSeenAt < :seenBefore")
+    suspend fun pruneStale(listType: ListType, seenBefore: Long): Int
 
     /** Date filtering is a query because registrationDate is denormalised onto the row. */
     @Query(
@@ -123,6 +163,14 @@ interface AuthorListDao {
 
     @Query("SELECT * FROM author_list ORDER BY addedAt")
     fun observe(): Flow<List<AuthorListEntity>>
+
+    /**
+     * The one-shot read a LIST operation takes at start. Not a Flow: the operation
+     * checkpoints by index, so a target set that shifted under a resumed run would
+     * resume at the wrong place.
+     */
+    @Query("SELECT * FROM author_list ORDER BY addedAt")
+    suspend fun getAll(): List<AuthorListEntity>
 
     @Query("DELETE FROM author_list")
     suspend fun clear()

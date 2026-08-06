@@ -61,11 +61,17 @@ all it must not draw down the Android 15 foreground-service budget that
 six-hour daily budget on a forty-second read would be a real regression.
 
 Alternative considered: a seventh `OperationTask`. Rejected for the budget
-reason. Telemetry parity is preserved separately — the sync still reports
-`BanSource.REFRESH_BLOCKED_LIST` / `REFRESH_MUTED_LIST` /
+reason.
+
+Telemetry is *recorded but not sent*. `ListSyncWorker.telemetrySource()` maps each
+list to `BanSource.REFRESH_BLOCKED_LIST` / `REFRESH_MUTED_LIST` /
 `REFRESH_FOLLOWED_LIST` (`core/model/.../Enums.kt:26-30`), because those pks are
 rows in the shared backend and the backend should not be able to tell the two
-clients apart.
+clients apart. Nothing emits it yet: no operation in the app writes to
+`telemetry_outbox`, and the 24-field `Action` payload
+(`frontend/app/assets/js/commHandler.js:47-93`) is a contract that belongs to
+`android-settings-telemetry`. Inventing it here for one read-only job would fix
+the shape before the change that owns it gets a say.
 
 ### Upsert forward, prune only on a complete pass
 
@@ -78,6 +84,22 @@ key, so re-scraping is idempotent by construction — and `lastSeenAt` is stampe
 with the sync's start time. Only when the terminator is reached does a new
 `pruneStale(listType, before)` query delete rows whose `lastSeenAt` is older,
 removing users who have genuinely left the list. A partial sync prunes nothing.
+
+**A resumed pass does not prune either**, even when it reaches the terminator.
+Pages before the cursor were stamped by an earlier attempt with an earlier
+timestamp, so `lastSeenAt < startedAt` would delete exactly the rows resumption
+existed to preserve. Persisting the original pass timestamp would fix that
+properly, at the cost of a `list_sync_state` column and therefore schema version
+2 with a migration. Departed users lingering until one uninterrupted pass runs is
+the cheaper half of that trade, and it fails in the safe direction — a stale row
+is a name in a list, a wrongly pruned one is a user silently dropped from an
+export.
+
+The upsert is a hand-written `INSERT … ON CONFLICT DO UPDATE`
+(`RelationUserDao.markSeen`) rather than Room's `@Upsert`, because `@Upsert`
+replaces the whole row: the relation endpoints carry no registration date, so it
+would null out a date learned from a CSV import and send the next date-filtered
+run back to fetch every profile. `addedAt` is preserved for the same reason.
 
 This is why the schema stores rows rather than the extension's serialised array
 plus a separate `partial*` key — the partial case needs no separate storage.

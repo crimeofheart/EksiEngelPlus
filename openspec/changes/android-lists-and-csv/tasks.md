@@ -1,29 +1,29 @@
 ## 1. Module scaffold
 
-- [ ] 1.1 Add `:feature:lists` to `android/settings.gradle.kts` and create `android/feature/lists/build.gradle.kts` as an Android library (Hilt, KSP, serialization, `minSdk 26`, JVM 17) depending on `:core:database`, `:core:model`, `:eksi:client`, WorkManager and Material
-- [ ] 1.2 Add `implementation(project(":feature:lists"))` to `android/app/build.gradle.kts`; confirm `:app:assembleDebug` still builds with the empty module
-- [ ] 1.3 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 1.1 Add `:feature:lists` to `android/settings.gradle.kts` and create `android/feature/lists/build.gradle.kts` as an Android library (Hilt, KSP, serialization, `minSdk 26`, JVM 17) depending on `:core:database`, `:core:model`, `:eksi:client`, WorkManager and Material
+- [x] 1.2 Add `implementation(project(":feature:lists"))` to `android/app/build.gradle.kts`; confirm `:app:assembleDebug` still builds with the empty module
+- [x] 1.3 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 2. CSV codec (pure, JVM-tested)
 
-- [ ] 2.1 Write `CsvCodec.parseLine` in `:feature:lists` — quoted-field handling, ported from `authorListPage.js:112-132`
-- [ ] 2.2 Write `CsvCodec.parseImport(text)` — split on `/\r?\n/`, detect a `username` header, skip blank lines and blank first fields, return `(nick, epochDay?)` pairs
-- [ ] 2.3 Wire date parsing: `YYYY-MM-DD` first, then `TurkishDateParser`; an unparseable date yields a null date, never a dropped row
-- [ ] 2.4 Write `CsvCodec.writeExport(rows, out)` — streams `Username,RegistrationDate` plus `<nick>,<YYYY-MM-DD or blank>` rows joined with `\n`, formatting the epoch day in UTC, unquoted, matching `notificationHandler.js:186-194`
-- [ ] 2.5 Write `CsvCodec.suggestedFilename(listType, today)` → `eksiengel_<blocked|muted|followed>_users_<YYYY-MM-DD>.csv`
-- [ ] 2.6 Unit-test the codec in `src/test/`: headerless file, `username` header, quoted comma, Turkish date, `dün` (unparseable, nick kept), blank date column, CRLF input, and a round trip of export→import
-- [ ] 2.7 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 2.1 Write `CsvCodec.parseLine` in `:feature:lists` — quoted-field handling, ported from `authorListPage.js:112-132`
+- [x] 2.2 Write `CsvCodec.parseImport(text)` — split on `/\r?\n/`, detect a `username` header, skip blank lines and blank first fields, return `(nick, epochDay?)` pairs
+- [x] 2.3 Wire date parsing: `YYYY-MM-DD` first, then `TurkishDateParser`; an unparseable date yields a null date, never a dropped row
+- [x] 2.4 Write `CsvCodec.writeExport(rows, out)` — streams `Username,RegistrationDate` plus `<nick>,<YYYY-MM-DD or blank>` rows joined with `\n`, formatting the epoch day in UTC, unquoted, matching `notificationHandler.js:186-194`
+- [x] 2.5 Write `CsvCodec.suggestedFilename(listType, today)` → `eksiengel_<blocked|muted|followed>_users_<YYYY-MM-DD>.csv`
+- [x] 2.6 Unit-test the codec in `src/test/`: headerless file, `username` header, quoted comma, Turkish date, `dün` (unparseable, nick kept), blank date column, CRLF input, and a round trip of export→import
+- [x] 2.7 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 3. Relation list sync
 
-- [ ] 3.1 Add `RelationUserDao.pruneStale(listType, seenBefore): Int` and `AuthorListDao.getAll(): List<AuthorListEntity>` as new `@Query` methods; confirm the committed Room schema `1.json` is unchanged
-- [ ] 3.2 Write `ListSyncer` — for `BLOCKED`/`MUTED` drive `ScrapeClient.relationPage` page by page from the stored cursor until `relations.isLast`; for `FOLLOWED` drive `followPage(FOLLOWING, ownNick, n)` until an empty array
-- [ ] 3.3 Upsert each page into `relation_user` with `lastSeenAt` = sync start, then advance `list_sync_state.cursorPage` in the same suspend step
-- [ ] 3.4 On reaching the terminator: `pruneStale`, set `isPartial = false`, stamp `lastFullRefreshAt`. On any early exit: set `isPartial = true` and prune nothing
-- [ ] 3.5 Map `SessionExpiredException` to an explicit session-lost result rather than an empty-list success
-- [ ] 3.6 Wrap `ListSyncer` in `ListSyncWorker` (`CoroutineWorker`, unique work per `ListType`, `ExistingWorkPolicy.KEEP`) and report `BanSource.REFRESH_BLOCKED_LIST` / `REFRESH_MUTED_LIST` / `REFRESH_FOLLOWED_LIST` telemetry
-- [ ] 3.7 Unit-test `ListSyncer` against a fake `ScrapeClient` and an in-memory DAO: resume from page 8, partial run prunes nothing, complete run prunes departed users, session loss does not clear rows
-- [ ] 3.8 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 3.1 Add `RelationUserDao.pruneStale(listType, seenBefore): Int` and `AuthorListDao.getAll(): List<AuthorListEntity>` as new `@Query` methods; confirm the committed Room schema `1.json` is unchanged
+- [x] 3.2 Write `ListSyncer` — for `BLOCKED`/`MUTED` drive `ScrapeClient.relationPage` page by page from the stored cursor until `relations.isLast`; for `FOLLOWED` drive `followPage(FOLLOWING, ownNick, n)` until an empty array
+- [x] 3.3 Upsert each page into `relation_user` with `lastSeenAt` = sync start, then advance `list_sync_state.cursorPage` in the same suspend step
+- [x] 3.4 On reaching the terminator: `pruneStale` (only when the pass started at page 1), set `isPartial = false`, stamp `lastFullRefreshAt`. On any early exit: set `isPartial = true` and prune nothing
+- [x] 3.5 Map `SessionExpiredException` to an explicit session-lost result rather than an empty-list success
+- [x] 3.6 Wrap `ListSyncer` in `ListSyncWorker` (`CoroutineWorker`, unique work per `ListType`, `ExistingWorkPolicy.KEEP`) and record the `BanSource.REFRESH_*_LIST` mapping for the telemetry sender that `android-settings-telemetry` will add
+- [x] 3.7 Unit-test `ListSyncer` against a fake `ScrapeClient` and an in-memory DAO: resume from page 8, partial run prunes nothing, complete run prunes departed users, session loss does not clear rows
+- [x] 3.8 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 4. Lists screen
 

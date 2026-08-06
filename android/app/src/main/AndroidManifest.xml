@@ -11,6 +11,14 @@
     <application
         android:name=".EksiEngelPlusApp"
         android:allowBackup="false"
-        android:label="EksiEngelPlus" />
+        android:label="EksiEngelPlus"
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        <activity android:name=".BrowserActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
 
 </manifest>

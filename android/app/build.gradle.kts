@@ -3,6 +3,7 @@ import groovy.json.JsonSlurper
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -82,6 +83,8 @@ android {
         }
     }
 
+    buildFeatures { viewBinding = false }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -104,6 +107,7 @@ android {
 
 dependencies {
     implementation(project(":core:network"))
+    implementation(project(":webview"))
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
     implementation(project(":eksi:client"))
@@ -111,6 +115,11 @@ dependencies {
     implementation(project(":core:model"))
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.work.runtime)
+    implementation(libs.kotlin.serialization.json)
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.activity:activity-ktx:1.9.3")
+    implementation("com.google.android.material:material:1.12.0")
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 }

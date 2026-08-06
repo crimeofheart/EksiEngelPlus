@@ -35,5 +35,9 @@ dependencies {
     testImplementation(libs.truth)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    // ActivityScenario: the bridge tests need the WebView in a real window, since
+    // requestAnimationFrame -- which the injector coalesces on -- does not fire in
+    // a detached one.
+    androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.truth)
 }

@@ -8,6 +8,15 @@
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:padding="6dp" android:textSize="12sp" android:text="…"/>
 
+    <!-- Hidden until a session appears with a run parked on PAUSED_AUTH. An offer,
+         so it is tapped rather than acted on by itself. -->
+    <TextView android:id="@+id/resumeBar"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="10dp" android:textSize="13sp"
+        android:visibility="gone"
+        android:background="#81c14b" android:textColor="#000000"
+        android:text="@string/resume_paused_operation"/>
+
     <WebView android:id="@+id/web"
         android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1"/>

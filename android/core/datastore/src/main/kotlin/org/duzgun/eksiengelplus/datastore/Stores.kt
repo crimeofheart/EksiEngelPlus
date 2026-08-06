@@ -65,6 +65,12 @@ object Stores {
         produceFile = { context.dataStoreFile("config.json") },
     )
 
+    /**
+     * Lets a caller take the repository without naming DataStore, which would
+     * otherwise force the dependency onto every module that only wants config.
+     */
+    fun configRepository(context: Context): ConfigRepository = ConfigRepository(config(context))
+
     fun identity(context: Context): DataStore<Identity> = DataStoreFactory.create(
         serializer = JsonSerializer(Identity.serializer(), Identity()),
         produceFile = { context.dataStoreFile("identity.json") },

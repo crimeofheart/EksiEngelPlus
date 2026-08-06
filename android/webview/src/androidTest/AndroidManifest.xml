@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <application>
+        <!--
+            The WebView must be attached to a window: requestAnimationFrame does not
+            fire in a detached one, and the injector's coalescing is built on it, so
+            an off-window test would pass without ever exercising a rescan.
+        -->
+        <activity
+            android:name="org.duzgun.eksiengelplus.webview.BridgeTestActivity"
+            android:exported="true"/>
+    </application>
+
+</manifest>

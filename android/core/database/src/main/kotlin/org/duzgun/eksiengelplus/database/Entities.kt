@@ -99,6 +99,16 @@ data class OperationCheckpointEntity(
     val workRequestId: String?,
     /** Foreground-service milliseconds consumed, for the Android 15 6h/24h budget. */
     val fgsMillisUsed: Long = 0,
+    /**
+     * The serialised OperationRequest, so a paused run can be resumed without the
+     * caller reconstructing it.
+     *
+     * Necessary because WorkManager's WorkInfo does not expose input data, so once
+     * the worker returns there is nowhere else the request survives. A PAUSED_AUTH
+     * operation is resumed by a screen that never saw the original request --
+     * typically hours later, after a login.
+     */
+    val requestJson: String? = null,
 )
 
 /** History. The extension caps this at 100 rows; SQLite affords far more. */

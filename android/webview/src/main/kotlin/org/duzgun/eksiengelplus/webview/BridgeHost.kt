@@ -3,6 +3,7 @@ package org.duzgun.eksiengelplus.webview
 import android.content.Context
 import android.webkit.WebView
 import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.ScriptHandler
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -102,6 +103,7 @@ class BridgeHost(
     }
 
     private var replyProxy: JavaScriptReplyProxy? = null
+    private var scriptHandler: ScriptHandler? = null
     private val script: String by lazy {
         context.assets.open(ASSET).bufferedReader().use { it.readText() }
     }
@@ -120,8 +122,6 @@ class BridgeHost(
         """.trimIndent()
 
     fun install(webView: WebView, configJson: String, iconDataUri: String) {
-        val full = preamble(configJson, iconDataUri) + "\n" + script
-
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(
                 webView,
@@ -133,8 +133,36 @@ class BridgeHost(
             }
         }
 
+        registerDocumentStart(webView, configJson, iconDataUri)
+    }
+
+    /**
+     * Applies a config change to the page the user is looking at AND to every
+     * page loaded afterwards.
+     *
+     * Two halves because they solve different problems: the live page is already
+     * running and can only be told, while the next document reads the preamble
+     * before any of our code runs, so the preamble itself has to be replaced. Doing
+     * only the push would leave the next navigation rendering the old labels;
+     * doing only the re-registration would leave the current page stale until the
+     * user navigated.
+     */
+    fun updateConfig(webView: WebView, configJson: String, iconDataUri: String) {
+        registerDocumentStart(webView, configJson, iconDataUri)
+        push(webView, "configChanged", configJson)
+    }
+
+    /**
+     * The previous handler is removed first: addDocumentStartJavaScript accumulates
+     * rather than replaces, so leaving it registered would run two preambles, with
+     * the stale one winning or losing depending on order.
+     */
+    private fun registerDocumentStart(webView: WebView, configJson: String, iconDataUri: String) {
+        val full = preamble(configJson, iconDataUri) + "\n" + script
+
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            WebViewCompat.addDocumentStartJavaScript(webView, full, allowedOrigins)
+            scriptHandler?.remove()
+            scriptHandler = WebViewCompat.addDocumentStartJavaScript(webView, full, allowedOrigins)
         } else {
             // Fallback for older WebViews. bridge.js guards on
             // __eksiEngelBridgeLoaded, so double installation is harmless.

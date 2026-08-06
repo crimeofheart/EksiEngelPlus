@@ -2,6 +2,7 @@ package org.duzgun.eksiengelplus
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.webkit.WebView
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
@@ -14,9 +15,12 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import org.duzgun.eksiengelplus.datastore.ConfigRepository
 import org.duzgun.eksiengelplus.datastore.EksiConfig
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
+import org.duzgun.eksiengelplus.ops.runtime.OperationReconciler
 import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
+import org.duzgun.eksiengelplus.ops.runtime.PausedOperation
 import org.duzgun.eksiengelplus.webview.BridgeHost
 import org.duzgun.eksiengelplus.webview.EksiWebViewClient
 import org.duzgun.eksiengelplus.webview.SessionMonitor
@@ -35,10 +39,16 @@ import org.duzgun.eksiengelplus.webview.configureForEksi
 class BrowserActivity : AppCompatActivity() {
 
     @Inject lateinit var sessionMonitor: SessionMonitor
+    @Inject lateinit var configRepository: ConfigRepository
+    @Inject lateinit var reconciler: OperationReconciler
 
     private lateinit var web: WebView
     private lateinit var sessionBar: TextView
+    private lateinit var resumeBar: TextView
     private lateinit var bridge: BridgeHost
+
+    /** The run the resume bar is currently offering, if any. */
+    private var offered: PausedOperation? = null
 
     private val base = EksiConfig.DEFAULT_BASE_URL
 
@@ -52,6 +62,8 @@ class BrowserActivity : AppCompatActivity() {
         setContentView(R.layout.activity_browser)
         web = findViewById(R.id.web)
         sessionBar = findViewById(R.id.sessionBar)
+        resumeBar = findViewById(R.id.resumeBar)
+        resumeBar.setOnClickListener { resumeOffered() }
 
         web.configureForEksi(this)
 
@@ -60,11 +72,6 @@ class BrowserActivity : AppCompatActivity() {
             allowedOrigins = allowedOriginsFor(base),
             onEnqueue = ::enqueue,
             onShare = ::share,
-        )
-        bridge.install(
-            web,
-            configJson = Json.encodeToString(EksiConfig.serializer(), EksiConfig()),
-            iconDataUri = ICON_DATA_URI,
         )
 
         web.webViewClient = EksiWebViewClient(this, allowedHostsFor(base)) { url ->
@@ -89,7 +96,24 @@ class BrowserActivity : AppCompatActivity() {
         // A VIEW intent lets other apps -- and adb -- open a specific entry here
         // rather than in a browser.
         val requested = intent?.data?.toString()?.takeIf { it.startsWith("http") }
-        web.loadUrl(requested ?: base)
+
+        // The first page load waits for stored config, so the very first render of
+        // the menu already carries the right labels. Every later emission is a
+        // settings change: pushed to the open page and folded into the preamble the
+        // next document will read.
+        lifecycleScope.launch {
+            var loaded = false
+            configRepository.config.collectLatest { config ->
+                val json = Json.encodeToString(EksiConfig.serializer(), config)
+                if (!loaded) {
+                    loaded = true
+                    bridge.install(web, configJson = json, iconDataUri = ICON_DATA_URI)
+                    web.loadUrl(requested ?: base)
+                } else {
+                    bridge.updateConfig(web, configJson = json, iconDataUri = ICON_DATA_URI)
+                }
+            }
+        }
     }
 
     private fun render(state: SessionState) {
@@ -98,6 +122,32 @@ class BrowserActivity : AppCompatActivity() {
             SessionState.LoggedOut -> "giriş yapılmadı — devam etmek için giriş yapın"
             SessionState.Unknown -> "…"
         }
+        if (state is SessionState.LoggedIn) offerAuthResume() else hideResumeOffer()
+    }
+
+    /**
+     * A session reappearing is the only thing that makes a PAUSED_AUTH run
+     * runnable again, and nothing else in the app is watching for it.
+     *
+     * Offered rather than resumed: the user may have logged in to read, not to
+     * restart a run they walked away from hours ago.
+     */
+    private fun offerAuthResume() {
+        lifecycleScope.launch {
+            val parked = reconciler.pausedForAuth().firstOrNull()
+            offered = parked
+            resumeBar.visibility = if (parked == null) View.GONE else View.VISIBLE
+        }
+    }
+
+    private fun hideResumeOffer() {
+        offered = null
+        resumeBar.visibility = View.GONE
+    }
+
+    private fun resumeOffered() {
+        offered?.let { reconciler.resume(it) }
+        hideResumeOffer()
     }
 
     /**

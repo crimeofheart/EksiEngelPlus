@@ -25,20 +25,20 @@
 - [x] 3.2 Register `addWebMessageListener` under the name `EksiEngelPlus`, origin-scoped
 - [x] 3.3 Define the envelope and map `enqueueAction` onto `OperationRequest`
 - [x] 3.4 Serialise config into the preamble so the page reads it synchronously
-- [ ] 3.5 Push `configChanged` to open pages and re-register the preamble for subsequent loads
+- [x] 3.5 Push `configChanged` to open pages and re-register the preamble for subsequent loads
 - [x] 3.6 Enqueue the operation via `OperationWorker` and reply so the page can toast
 
 ## 4. Session
 
 - [x] 4.1 Implement `SessionMonitor` exposing login state, authoritative via the homepage avatar and using a cookie check only as a fast negative
 - [x] 4.2 Re-probe when the WebView navigates to `/`, `/giris` or `/cikis`
-- [ ] 4.3 Offer resumption of `PAUSED_AUTH` operations when a session appears
+- [x] 4.3 Offer resumption of `PAUSED_AUTH` operations when a session appears
 
 ## 5. Verify
 
 - [x] 5.1 Unit-test the envelope mapping onto `OperationRequest`
-- [ ] 5.2 Instrumented test: the bridge is present on an allowed origin and absent elsewhere
-- [ ] 5.3 Instrumented test: injection is idempotent across repeated observer passes
+- [x] 5.2 Instrumented test: the bridge is present on an allowed origin and absent elsewhere
+- [x] 5.3 Instrumented test: injection is idempotent across repeated observer passes
 - [x] 5.4 `./gradlew build` green and instrumented tests green on an emulator
 - [x] 5.5 Re-verify the extension: `cd frontend/app && npm run check && npm run package`
 - [x] 5.6 Confirm `git diff --stat -- frontend/app/assets/` is empty

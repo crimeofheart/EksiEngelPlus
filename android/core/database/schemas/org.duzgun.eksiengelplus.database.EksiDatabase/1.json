@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "a05a2d64d05d4d88e5a2a1707e499e29",
+    "identityHash": "b4f5574a69e515b136b7d7ab7de7e856",
     "entities": [
       {
         "tableName": "relation_user",
@@ -223,7 +223,7 @@
       },
       {
         "tableName": "operation_checkpoint",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`operationId` TEXT NOT NULL, `type` TEXT NOT NULL, `state` TEXT NOT NULL, `cursorJson` TEXT NOT NULL, `processed` INTEGER NOT NULL, `total` INTEGER NOT NULL, `successful` INTEGER NOT NULL, `failed` INTEGER NOT NULL, `startedAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `workRequestId` TEXT, `fgsMillisUsed` INTEGER NOT NULL, PRIMARY KEY(`operationId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`operationId` TEXT NOT NULL, `type` TEXT NOT NULL, `state` TEXT NOT NULL, `cursorJson` TEXT NOT NULL, `processed` INTEGER NOT NULL, `total` INTEGER NOT NULL, `successful` INTEGER NOT NULL, `failed` INTEGER NOT NULL, `startedAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `workRequestId` TEXT, `fgsMillisUsed` INTEGER NOT NULL, `requestJson` TEXT, PRIMARY KEY(`operationId`))",
         "fields": [
           {
             "fieldPath": "operationId",
@@ -295,6 +295,11 @@
             "columnName": "fgsMillisUsed",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "requestJson",
+            "columnName": "requestJson",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -461,7 +466,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a05a2d64d05d4d88e5a2a1707e499e29')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b4f5574a69e515b136b7d7ab7de7e856')"
     ]
   }
 }

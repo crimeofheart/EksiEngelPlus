@@ -171,6 +171,15 @@ synchronously, and changes SHALL be pushed to already-loaded pages.
 The extension reads config asynchronously (`script.js:7-28`) and can inject a
 label before the value arrives. Baking it into the preamble removes the race.
 
+A change SHALL be applied twice over: pushed to the open page, and folded into the
+document-start script so the next document reads the new values. The push alone
+would leave the next navigation stale; the re-registration alone would leave the
+page in front of the user stale until they navigated.
+
+Re-rendering SHALL remove the items already injected before rescanning. Clearing
+the processed marks alone appends a second set, leaving "engelle" and "sessize al"
+in the same menu.
+
 #### Scenario: Labels are correct on first paint
 
 - **WHEN** a page loads with `enableMute` set
@@ -180,6 +189,16 @@ label before the value arrives. Baking it into the preamble removes the race.
 
 - **WHEN** config changes while a page is open
 - **THEN** the page is notified and re-renders its labels
+
+#### Scenario: A settings change survives the next navigation
+
+- **WHEN** a page is loaded after config changed
+- **THEN** it reads the new values from the preamble, without a second push
+
+#### Scenario: Re-rendering replaces rather than accumulates
+
+- **WHEN** labels are re-rendered after a config change
+- **THEN** exactly one set of injected items remains
 
 ### Requirement: Assets are embedded, not served
 
@@ -204,11 +223,28 @@ homepage avatar; a cookie check MAY be used as a fast negative but never as a
 positive.
 
 An operation in `PAUSED_AUTH` SHALL become resumable when a session is observed.
+It SHALL be offered, never resumed automatically: a login is not consent to
+restart a run the user may have abandoned deliberately.
+
+Resumption SHALL NOT depend on the caller still holding the original request. The
+request SHALL be persisted alongside the checkpoint, because `WorkInfo` does not
+expose a worker's input data once it has returned, and the screen making the offer
+is typically a different one, hours later.
 
 #### Scenario: Logging in resumes a parked operation
 
 - **WHEN** the user logs in while an operation waits in `PAUSED_AUTH`
 - **THEN** the operation is offered for resumption
+
+#### Scenario: The offer is not a restart
+
+- **WHEN** a session appears and the offer is not taken
+- **THEN** the operation stays parked
+
+#### Scenario: Resumption outlives the screen that started the run
+
+- **WHEN** the process has died since the operation was queued
+- **THEN** the offer still carries enough to restart it, from its stored cursor
 
 #### Scenario: Cookie presence is not proof
 

@@ -4,8 +4,12 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.database.EksiDatabase
+import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.OperationState
+
+private val Json = Json { ignoreUnknownKeys = true }
 
 /**
  * Startup crash recovery.
@@ -63,4 +67,38 @@ class OperationReconciler @Inject constructor(
             OperationState.PAUSED_NETWORK,
             OperationState.INTERRUPTED,
         ).flatMap { db.checkpoints().withState(it.name) }.map { it.operationId }
+
+    /**
+     * Runs parked because the session went away.
+     *
+     * Separated from resumable() because this is the one pause with an external
+     * trigger: the user logging back in is exactly the condition that makes these
+     * runnable again, and nothing else is watching for it. A row whose request
+     * never made it to disk is skipped rather than guessed at.
+     */
+    suspend fun pausedForAuth(): List<PausedOperation> =
+        db.checkpoints().withState(OperationState.PAUSED_AUTH.name).mapNotNull { cp ->
+            val request = cp.requestJson
+                ?.let { runCatching { Json.decodeFromString(OperationRequest.serializer(), it) }.getOrNull() }
+                ?: return@mapNotNull null
+            PausedOperation(cp.operationId, request)
+        }
+
+    /**
+     * Hands the operation back to WorkManager, which picks up from the stored
+     * cursor rather than starting over.
+     *
+     * Offered, never automatic: the reconciler deliberately does not restart work
+     * on its own, and a login is not consent to resume a run the user may have
+     * abandoned on purpose.
+     */
+    fun resume(operation: PausedOperation) {
+        OperationWorker.enqueue(workManager, operation.operationId, operation.request)
+    }
 }
+
+/** A parked run plus everything needed to restart it. */
+data class PausedOperation(
+    val operationId: String,
+    val request: OperationRequest,
+)

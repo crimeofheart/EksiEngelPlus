@@ -145,6 +145,9 @@ class RoomOperationContext(
                     updatedAt = clock(),
                     workRequestId = null,
                     fgsMillisUsed = budget.consumedMs(),
+                    // Carried on the row so resumption does not depend on the
+                    // caller still holding the request.
+                    requestJson = Json.encodeToString(OperationRequest.serializer(), request),
                 ),
             )
         }

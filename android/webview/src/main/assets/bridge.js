@@ -22,6 +22,9 @@
   var CONFIG = window.__EKSIENGEL_CONFIG__ || {};
   var ICON = window.__EKSIENGEL_ICON__ || "";
   var MARK = "data-eksiengel-processed";
+  // Everything we add carries this, so a re-render can take our own items back
+  // out without touching the site's.
+  var ITEM_MARK = "data-eksiengel-item";
 
   // enums.js pks. Shared database keys -- must not drift.
   var BanSource = { SINGLE: 1, FAV: 2, FOLLOW: 3, TITLE: 6 };
@@ -86,6 +89,7 @@
 
   function item(label) {
     var li = document.createElement("li");
+    li.setAttribute(ITEM_MARK, "true");
     li.innerHTML =
       '<a href="javascript:void(0);"><img src="' + ICON +
       '" style="width:16px;height:16px;vertical-align:middle;margin-right:5px;"> ' +
@@ -401,6 +405,11 @@
     try { msg = JSON.parse(raw); } catch (e) { return; }
     if (msg.type === "configChanged") {
       CONFIG = msg.payload || {};
+      // Our own items come out first. Clearing the marks alone would rescan a
+      // menu that still holds the previous labels, leaving "engelle" and
+      // "sessize al" side by side.
+      var mine = document.querySelectorAll("[" + ITEM_MARK + '="true"]');
+      for (var p = 0; p < mine.length; p++) mine[p].remove();
       // Re-render labels in place rather than waiting for a reload.
       for (var n = 0; n < injectors.length; n++) {
         var mk = MARK + "-" + n;

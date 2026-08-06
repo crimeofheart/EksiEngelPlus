@@ -98,7 +98,16 @@ port is a copy that diverges only where Android requires.
 
 - **Custom Tabs versus an intent for off-site links.** Custom Tabs is nicer but
   adds a dependency; an intent is free. Starting with an intent.
-- **Whether config push needs re-registering the document-start script.** Live
-  pages get a message; the next document needs the updated preamble. Both are
-  implemented; whether the re-registration races a navigation in flight needs a
-  real-device look.
+## Resolved
+
+- **Config push and the document-start script are both required.** Live pages get
+  a message; the next document needs the updated preamble. Re-registration removes
+  the previous `ScriptHandler` first, since `addDocumentStartJavaScript`
+  accumulates rather than replaces. A navigation already in flight keeps the
+  preamble it started with and then receives the push, so the worst case is the
+  page the user is looking at being correct by a different route.
+
+- **The checkpoint carries the request.** `WorkInfo` exposes no input data, so once
+  the worker returns, a run parked on `PAUSED_AUTH` has nothing left to restart it
+  from. Serialising `OperationRequest` onto the checkpoint row is the only place it
+  survives, and it is the row resumption already reads for the cursor.

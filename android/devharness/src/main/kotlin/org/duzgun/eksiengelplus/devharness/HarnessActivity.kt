@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -35,6 +36,7 @@ import org.duzgun.eksiengelplus.network.WebViewState
  *
  * Temporary: deleted when android-foundations is archived.
  */
+@AndroidEntryPoint
 class HarnessActivity : AppCompatActivity() {
 
     private lateinit var b: ActivityMainBinding
@@ -97,6 +99,8 @@ class HarnessActivity : AppCompatActivity() {
         b.btnChecks.setOnClickListener { runChecks() }
         b.btnMutate.setOnClickListener { runMutation() }
         b.btnShare.setOnClickListener { share() }
+        b.btnEngine.setOnClickListener { engineRun(realMutations = false) }
+        b.btnEngineReal.setOnClickListener { engineRun(realMutations = true) }
     }
 
     private fun runChecks() = lifecycleScope.launch {
@@ -173,6 +177,73 @@ class HarnessActivity : AppCompatActivity() {
             if (add is RelationResult.Success && rm is RelationResult.Success) {
                 out(">> production RelationClient works end to end")
             }
+        } catch (e: Exception) {
+            out("ERROR ${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
+    /**
+     * Drives the real TargetRunner, pacer, retry policy and checkpointing against
+     * the live site. Dry run resolves targets and exercises the whole loop without
+     * mutating; the real run blocks then immediately unblocks one target.
+     */
+    private fun engineRun(realMutations: Boolean) = lifecycleScope.launch {
+        val target = b.target.text.toString().trim()
+        if (realMutations && target.isEmpty()) {
+            out("!! real run needs a target nick you control")
+            return@launch
+        }
+        try {
+            out("=== engine ${if (realMutations) "REAL" else "dry"} run ===")
+            // The dry run only exercises the local pacer, so it needs no session.
+            if (realMutations && scrape.ownNick() == null) {
+                out("not logged in"); return@launch
+            }
+
+            val pacer = org.duzgun.eksiengelplus.ops.engine.ActionPacer(
+                sleep = { ms -> out("  pacer: waiting ${ms}ms"); kotlinx.coroutines.delay(ms) },
+            )
+            val readPacer = org.duzgun.eksiengelplus.ops.engine.ReadPacer(
+                sleep = { kotlinx.coroutines.delay(it) },
+            )
+            out("pacer configured at ${org.duzgun.eksiengelplus.ops.engine.ActionPacer.DEFAULT_PERMITS_PER_MINUTE}/min")
+
+            if (!realMutations) {
+                // Prove pacing without touching anyone: 13 permits from a 12-token
+                // bucket must make the last one wait.
+                val t0 = System.currentTimeMillis()
+                repeat(13) { pacer.acquire() }
+                out("13 permits took ${System.currentTimeMillis() - t0}ms (13th waits ~5s)")
+                out(">> pacer works. Use 'Engine REAL' with a target to run the full loop.")
+                return@launch
+            }
+
+            val ctx = HarnessContext(
+                org.duzgun.eksiengelplus.ops.engine.OperationRequest(
+                    source = org.duzgun.eksiengelplus.model.BanSource.LIST,
+                    mode = BanMode.BAN,
+                    nicks = listOf(target),
+                ),
+                pacer, readPacer, ::out,
+            )
+            val runner = org.duzgun.eksiengelplus.ops.engine.TargetRunner(relations, scrape)
+            val outcome = runner.applyToAll(
+                ctx,
+                listOf(org.duzgun.eksiengelplus.ops.engine.Target(target, null)),
+                checkpointEvery = 1,
+            )
+            out("block outcome: $outcome  cursor=${ctx.checkpoints.lastOrNull()}")
+
+            val undoCtx = HarnessContext(
+                ctx.request.copy(mode = BanMode.UNDOBAN), pacer, readPacer, ::out,
+            )
+            val undo = runner.applyToAll(
+                undoCtx,
+                listOf(org.duzgun.eksiengelplus.ops.engine.Target(target, null)),
+                checkpointEvery = 1,
+            )
+            out("undo outcome: $undo")
+            out(">> if both COMPLETED, the production engine works end to end.")
         } catch (e: Exception) {
             out("ERROR ${e.javaClass.simpleName}: ${e.message}")
         }

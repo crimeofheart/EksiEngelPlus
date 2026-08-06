@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -24,6 +26,10 @@ android {
 dependencies {
     // The point of this module: everything below is production code.
     implementation(project(":core:network"))
+    implementation(project(":ops:engine"))
+    implementation(project(":ops:runtime"))
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
     implementation(project(":eksi:client"))
     implementation(project(":eksi:parser"))
     implementation(project(":core:model"))

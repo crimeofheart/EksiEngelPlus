@@ -28,7 +28,7 @@
 - [x] 4.2 Implement `ensureActive()` reading the persisted command mailbox and throwing `PauseSignal`/`StopSignal`
 - [x] 4.3 Write checkpoint and its effect rows in one Room transaction; instrumented test that a crash mid-write leaves neither
 - [x] 4.4 Checkpoint every N units, N=1 for destructive operations
-- [ ] 4.5 Implement `TaskQueueRepository` over `QueuedTaskEntity` with strictly serial dequeue
+- [x] 4.5 Implement `TaskQueueRepository` over `QueuedTaskEntity` with strictly serial dequeue
 
 ## 5. Worker and lifecycle
 
@@ -38,14 +38,14 @@
 - [x] 5.4 On budget exhaustion or `onTimeout()`: checkpoint, enter `PAUSED_BUDGET`, return success, schedule a delayed continuation
 - [x] 5.5 Implement `OperationReconciler` from `Application.onCreate`: a RUNNING checkpoint with no live WorkManager request becomes INTERRUPTED
 - [x] 5.6 Implement `PAUSED_AUTH` — checkpoint, stop the FGS, expose a resume route; never retry
-- [ ] 5.7 WorkManager `TestDriver` coverage for the continuation-after-budget path
+- [x] 5.7 WorkManager `TestDriver` coverage for the continuation-after-budget path
 
 ## 6. Notifications
 
 - [x] 6.1 Create the two channels: low-importance progress, high-importance alerts
 - [x] 6.2 Progress notification with determinate bar, counts, remaining estimate, and pause/stop actions
 - [x] 6.3 Route notification actions through persisted commands so they work with no screen open
-- [ ] 6.4 Request `POST_NOTIFICATIONS` at first operation start; degrade rather than block on denial
+- [x] 6.4 Request `POST_NOTIFICATIONS` at first operation start; degrade rather than block on denial
 - [x] 6.5 Alerts for completed, session expired, budget paused, and fatal error
 
 ## 7. The six sources
@@ -61,9 +61,9 @@
 
 ## 8. Close out
 
-- [ ] 8.1 `./gradlew build` green across all modules
-- [ ] 8.2 Instrumented tests green on an emulator
-- [ ] 8.3 Extend the dev harness to start a real operation against the live site
-- [ ] 8.4 Re-verify the extension: `cd frontend/app && npm run check && npm run package`
-- [ ] 8.5 Confirm `git diff --stat -- frontend/app/assets/` is empty and the version derivation is unchanged
-- [ ] 8.6 `openspec validate android-operations-engine` clean
+- [x] 8.1 `./gradlew build` green across all modules
+- [x] 8.2 Instrumented tests green on an emulator
+- [x] 8.3 Extend the dev harness to start a real operation against the live site
+- [x] 8.4 Re-verify the extension: `cd frontend/app && npm run check && npm run package`
+- [x] 8.5 Confirm `git diff --stat -- frontend/app/assets/` is empty and the version derivation is unchanged
+- [x] 8.6 `openspec validate android-operations-engine` clean

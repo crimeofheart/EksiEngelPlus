@@ -2,6 +2,8 @@
 <resources>
     <string name="resume_paused_operation">duraklatılmış işlem var</string>
     <string name="resume_action">devam et</string>
+    <!-- "bugün yükleniyor…" -->
+    <string name="tab_loading">%s yükleniyor…</string>
     <string name="open_lists">listeler</string>
     <string name="resume_cancel">iptal</string>
     <string name="resume_cancelled">duraklatılmış işlem iptal edildi.</string>

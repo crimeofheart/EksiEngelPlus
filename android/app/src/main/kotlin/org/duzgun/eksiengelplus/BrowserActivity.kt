@@ -196,7 +196,7 @@ class BrowserActivity : AppCompatActivity() {
             0,
             0,
         )
-        loadingCover.text = label
+        loadingCover.text = getString(R.string.tab_loading, label)
         loadingCover.visibility = View.VISIBLE
         loadingCover.postDelayed({ loadingCover.visibility = View.GONE }, COVER_TIMEOUT_MS)
     }
@@ -340,7 +340,7 @@ class BrowserActivity : AppCompatActivity() {
          * so aligning to it alone sat every label slightly left of the tab it
          * names. This is the inner padding the site puts inside the anchor.
          */
-        private const val COVER_TEXT_LEFT_NUDGE_PX = 22
+        private const val COVER_TEXT_LEFT_NUDGE_PX = 38
 
         /** A little breathing room under the line the cover starts at. */
         private const val COVER_TEXT_TOP_PAD_PX = 24

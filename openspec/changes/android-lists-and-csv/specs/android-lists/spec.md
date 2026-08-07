@@ -93,8 +93,47 @@ operations.
 
 #### Scenario: Partial state is visible, not silent
 
-- **WHEN** a list's `isPartial` is true
+- **WHEN** a list's `isPartial` is true and no sync is running
 - **THEN** the screen says so, so the user does not read a truncated list as complete
+
+### Requirement: A running sync is visible and its controls reflect it
+
+The screen SHALL distinguish three states per list — idle, queued, and running —
+and SHALL take them from WorkManager rather than from anything the view model
+remembers, because WorkManager survives process death and a screen reopened
+mid-sync must still show the truth.
+
+While a sync is queued or running, Refresh SHALL be disabled and Stop SHALL be
+enabled; otherwise the reverse. A running sync SHALL report the page it is on and
+how many users it has seen, updated as pages land.
+
+Progress SHALL NOT be expressed as a percentage. Neither endpoint reports a total,
+so a percentage could only be invented, and an invented one is worse than an
+honest count.
+
+The partial badge SHALL be suppressed while a sync for that list is active — a
+refresh in progress is resolving that state, and flagging it alongside a live
+progress line reads as an error rather than as work underway.
+
+#### Scenario: Refresh cannot be double-fired
+
+- **WHEN** a sync for a list is already queued or running
+- **THEN** that list's Refresh is disabled, rather than accepting a tap the `KEEP` policy would silently discard
+
+#### Scenario: Stop is offered only when there is something to stop
+
+- **WHEN** no sync is active for a list
+- **THEN** that list's Stop is disabled
+
+#### Scenario: Waiting for a network is not the same as working
+
+- **WHEN** a sync is enqueued but its network constraint is unmet
+- **THEN** the screen says it is waiting for a connection, not that it is refreshing
+
+#### Scenario: Progress advances with the pages
+
+- **WHEN** a sync completes a page
+- **THEN** the reported page and user count advance, and they describe rows already stored rather than rows about to be fetched
 
 ### Requirement: CSV export is byte-compatible with the extension
 

@@ -44,7 +44,16 @@ class ListSyncWorker @AssistedInject constructor(
         // isStopped covers both the user's Stop button (cancelUniqueWork) and the
         // system reclaiming the worker. Either way the pages already fetched stay,
         // and the cursor points at where to pick up.
-        return when (val outcome = ListSyncer(source, store).sync(listType) { isStopped }) {
+        val outcome = ListSyncer(source, store).sync(
+            listType = listType,
+            shouldStop = { isStopped },
+            // Published through WorkInfo rather than the database: this is transient
+            // state about a run, not a fact about the list, and putting it in Room
+            // would mean a write per page purely to drive a label.
+            onProgress = { setProgress(progressData(it)) },
+        )
+
+        return when (outcome) {
             is SyncOutcome.Completed -> Result.success()
             is SyncOutcome.Stopped -> Result.success()
             // Retrying a session loss would just fail the same way until the user
@@ -56,7 +65,21 @@ class ListSyncWorker @AssistedInject constructor(
 
     companion object {
         const val KEY_LIST_TYPE = "listType"
+        const val KEY_PAGE = "page"
+        const val KEY_SEEN = "seen"
         private const val MAX_ATTEMPTS = 3
+
+        fun progressData(progress: SyncProgress): Data = Data.Builder()
+            .putInt(KEY_PAGE, progress.page)
+            .putInt(KEY_SEEN, progress.seen)
+            .build()
+
+        /** Null when the work carries no progress yet, i.e. before the first page lands. */
+        fun progressOf(data: Data): SyncProgress? {
+            val page = data.getInt(KEY_PAGE, 0)
+            if (page <= 0) return null
+            return SyncProgress(page = page, seen = data.getInt(KEY_SEEN, 0))
+        }
 
         /** One unique work name per list, so the three can sync independently. */
         fun uniqueWorkName(listType: ListType) = "eksiengel-list-sync-${listType.name.lowercase()}"

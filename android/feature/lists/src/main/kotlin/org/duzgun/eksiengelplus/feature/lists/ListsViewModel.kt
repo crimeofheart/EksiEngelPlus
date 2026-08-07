@@ -3,17 +3,20 @@ package org.duzgun.eksiengelplus.feature.lists
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.OutputStream
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -22,12 +25,29 @@ import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.model.ListType
 import org.duzgun.eksiengelplus.ops.engine.OperationState
 
+/**
+ * Where a list's sync currently is.
+ *
+ * Queued and Running are distinct because the difference is the user's question:
+ * a sync waiting on a network constraint has not stalled, and a spinner that
+ * cannot tell them apart says nothing.
+ */
+sealed interface SyncStatus {
+    data object Idle : SyncStatus
+    data object Queued : SyncStatus
+    /** [progress] is null until the first page lands. */
+    data class Running(val progress: SyncProgress?) : SyncStatus
+
+    val isActive: Boolean get() = this !is Idle
+}
+
 /** What one list row shows. */
 data class ListRowState(
     val listType: ListType,
     val count: Int,
     val isPartial: Boolean,
     val lastFullRefreshAt: Long?,
+    val sync: SyncStatus = SyncStatus.Idle,
 )
 
 data class ListsUiState(
@@ -65,14 +85,35 @@ class ListsViewModel @Inject constructor(
     private fun rowFlow(listType: ListType) = combine(
         db.relationUsers().countOf(listType),
         db.listSyncState().observe(listType),
-    ) { count, sync ->
+        syncStatusFlow(listType),
+    ) { count, sync, status ->
         ListRowState(
             listType = listType,
             count = count,
             isPartial = sync?.isPartial ?: false,
             lastFullRefreshAt = sync?.lastFullRefreshAt,
+            sync = status,
         )
     }
+
+    /**
+     * Live state of the sync worker, straight from WorkManager.
+     *
+     * WorkManager is the authority on whether the work is running -- it survives
+     * process death and the view model does not -- so asking it is the only answer
+     * that stays true after the screen is reopened mid-sync.
+     */
+    private fun syncStatusFlow(listType: ListType): Flow<SyncStatus> =
+        workManager.getWorkInfosForUniqueWorkFlow(ListSyncWorker.uniqueWorkName(listType))
+            .map { infos ->
+                val live = infos.firstOrNull { !it.state.isFinished }
+                when (live?.state) {
+                    null -> SyncStatus.Idle
+                    WorkInfo.State.RUNNING -> SyncStatus.Running(ListSyncWorker.progressOf(live.progress))
+                    else -> SyncStatus.Queued
+                }
+            }
+            .distinctUntilChanged()
 
     fun refresh(listType: ListType) = ListSyncWorker.enqueue(workManager, listType)
 

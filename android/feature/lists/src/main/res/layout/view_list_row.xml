@@ -9,14 +9,30 @@
     android:layout_width="match_parent" android:layout_height="wrap_content"
     android:padding="16dp">
 
-    <TextView android:id="@+id/rowTitle"
+    <LinearLayout
+        android:orientation="horizontal"
         android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textSize="16sp" android:textStyle="bold"/>
+        android:gravity="center_vertical">
+
+        <TextView android:id="@+id/rowTitle"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textSize="16sp" android:textStyle="bold"/>
+
+        <!-- Indeterminate on purpose: neither endpoint reports a total, so a
+             determinate bar would have to invent one. -->
+        <ProgressBar android:id="@+id/rowSpinner"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:visibility="gone"/>
+    </LinearLayout>
 
     <TextView android:id="@+id/rowCount"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:paddingTop="2dp" android:textSize="14sp"/>
 
+    <!-- Replaces the freshness line while a sync runs: the two answer the same
+         question ("how current is this?") and stacking both just competes. -->
     <TextView android:id="@+id/rowFreshness"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:paddingTop="2dp" android:textSize="12sp" android:alpha="0.7"/>

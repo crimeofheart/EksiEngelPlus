@@ -174,6 +174,46 @@ class ListSyncerTest {
     }
 
     @Test
+    fun `progress is reported per page, after the rows are durable`() = runTest {
+        val store = FakeStore()
+        val reported = mutableListOf<SyncProgress>()
+        val rowsAtEachReport = mutableListOf<Int>()
+
+        syncer(FakeSource(listOf(users(1, 2), users(3), users(4, 5, 6))), store).sync(
+            listType = ListType.BLOCKED,
+            onProgress = {
+                reported += it
+                rowsAtEachReport += store.rows.size
+            },
+        )
+
+        assertThat(reported).containsExactly(
+            SyncProgress(page = 1, seen = 2),
+            SyncProgress(page = 2, seen = 3),
+            SyncProgress(page = 3, seen = 6),
+        ).inOrder()
+
+        // Progress that ran ahead of the write would promise rows a crash on the
+        // next page would take back, so the store is already caught up at each report.
+        assertThat(rowsAtEachReport).containsExactly(2, 3, 6).inOrder()
+    }
+
+    @Test
+    fun `progress stops being reported once stopped`() = runTest {
+        val pages = (1..10).map { users(it.toLong()) }
+        val reported = mutableListOf<SyncProgress>()
+        var pagesSeen = 0
+
+        ListSyncer(FakeSource(pages), FakeStore(), now = { 1_000L }).sync(
+            listType = ListType.BLOCKED,
+            shouldStop = { pagesSeen++ >= 2 },
+            onProgress = { reported += it },
+        )
+
+        assertThat(reported.map { it.page }).containsExactly(1, 2).inOrder()
+    }
+
+    @Test
     fun `a network failure is retryable, not a session loss`() = runTest {
         val source = object : RelationSource {
             override suspend fun ownNick() = "aktor"

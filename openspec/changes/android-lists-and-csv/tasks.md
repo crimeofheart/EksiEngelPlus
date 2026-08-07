@@ -60,10 +60,22 @@
 - [x] 7.4 Confirm a resumed LIST run continues against the set in its serialised request, not a re-read of the table
 - [x] 7.5 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
-## 8. Close out
+## 8. Sync progress UI
 
-- [x] 8.1 Run the full Android check: `cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew test :app:assembleDebug`
-- [x] 8.2 Run the instrumented tests on an emulator
-- [ ] 8.3 End-to-end on device: sync blocked → export CSV → import it as the author list → run a LIST unblock against two controlled accounts, then reverse it — BLOCKED: needs the throwaway accounts from android-spike task 1.1
-- [x] 8.4 Confirm `git diff --stat -- frontend/app/ backend/` is empty
-- [ ] 8.5 Run `openspec validate android-lists-and-csv` clean, then `openspec archive android-lists-and-csv`
+- [x] 8.1 Add `SyncProgress(page, seen)` and an `onProgress` callback to `ListSyncer.sync`, invoked after each page is durable — ordered before `shouldStop` so the trailing lambda keeps its existing meaning
+- [x] 8.2 Publish progress from `ListSyncWorker` via `setProgress`, with `progressData`/`progressOf` owning the two `Data` keys
+- [x] 8.3 Observe `getWorkInfosForUniqueWorkFlow` per list in `ListsViewModel`, mapping to `SyncStatus.Idle` / `Queued` / `Running(progress)`
+- [x] 8.4 Render it: spinner on the row, freshness line doubling as the progress line, Refresh disabled while syncing, Stop enabled only while syncing, partial badge suppressed during a refresh
+- [x] 8.5 Unit-test progress emission: one report per page, reported only after the rows are stored, and none after a stop
+- [x] 8.6 Instrumented-test the `Data` round trip and the per-list work names
+- [x] 8.7 Verify on emulator: idle, queued-without-network, and stop-returns-to-idle all render correctly
+- [ ] 8.8 Verify the `Running` state with live page and user counts — BLOCKED: needs a logged-in session, since a sync without one fails at `ownNick()` before the first page
+- [x] 8.9 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+
+## 9. Close out
+
+- [x] 9.1 Run the full Android check: `cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew test :app:assembleDebug`
+- [x] 9.2 Run the instrumented tests on an emulator
+- [ ] 9.3 End-to-end on device: sync blocked → export CSV → import it as the author list → run a LIST unblock against two controlled accounts, then reverse it — BLOCKED: needs the throwaway accounts from android-spike task 1.1
+- [x] 9.4 Confirm `git diff --stat -- frontend/app/ backend/` is empty
+- [ ] 9.5 Run `openspec validate android-lists-and-csv` clean, then `openspec archive android-lists-and-csv`

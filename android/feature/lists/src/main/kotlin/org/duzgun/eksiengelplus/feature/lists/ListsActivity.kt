@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,6 +56,7 @@ class ListsActivity : AppCompatActivity() {
         val count: TextView = root.findViewById(R.id.rowCount)
         val freshness: TextView = root.findViewById(R.id.rowFreshness)
         val partial: TextView = root.findViewById(R.id.rowPartial)
+        val spinner: ProgressBar = root.findViewById(R.id.rowSpinner)
         val refresh: Button = root.findViewById(R.id.rowRefresh)
         val stop: Button = root.findViewById(R.id.rowStop)
         val export: Button = root.findViewById(R.id.rowExport)
@@ -99,13 +101,33 @@ class ListsActivity : AppCompatActivity() {
 
         for (row in state.rows) {
             val views = rows[row.listType] ?: continue
+            val syncing = row.sync.isActive
+
             views.count.text = resources.getQuantityString(R.plurals.lists_user_count, row.count, row.count)
-            views.freshness.text = row.lastFullRefreshAt?.let(::formatWhen)
-                ?: getString(R.string.lists_never_refreshed)
-            views.partial.visibility = if (row.isPartial) View.VISIBLE else View.GONE
-            views.refresh.isEnabled = !state.operationRunning
+            views.freshness.text = statusLine(row)
+            views.spinner.visibility = if (syncing) View.VISIBLE else View.GONE
+
+            // A half-finished list is still partial while it is being finished, but
+            // saying so next to a live progress line reads as an error rather than
+            // as the state the refresh is busy resolving.
+            views.partial.visibility = if (row.isPartial && !syncing) View.VISIBLE else View.GONE
+
+            // Refresh is pointless while this list is already syncing (KEEP would
+            // drop it silently) and unwise while an operation runs.
+            views.refresh.isEnabled = !state.operationRunning && !syncing
+            views.stop.isEnabled = syncing
             views.export.isEnabled = row.count > 0
         }
+    }
+
+    /** The freshness line doubles as the progress line while a sync is live. */
+    private fun statusLine(row: ListRowState): String = when (val sync = row.sync) {
+        SyncStatus.Idle ->
+            row.lastFullRefreshAt?.let(::formatWhen) ?: getString(R.string.lists_never_refreshed)
+        SyncStatus.Queued -> getString(R.string.lists_sync_queued)
+        is SyncStatus.Running -> sync.progress?.let {
+            getString(R.string.lists_sync_progress, it.page, it.seen)
+        } ?: getString(R.string.lists_syncing)
     }
 
     /** Ekşi's own zone, so a date shown here matches a date shown on the site. */

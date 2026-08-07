@@ -36,6 +36,15 @@ interface ListSyncStore {
     suspend fun pruneStale(listType: ListType, seenBefore: Long): Int
 }
 
+/**
+ * How far a running sync has got.
+ *
+ * [seen] rather than a percentage: neither endpoint reports a total, so there is
+ * nothing honest to compute a percentage against. A rising count of pages and
+ * users is what the screen can truthfully show.
+ */
+data class SyncProgress(val page: Int, val seen: Int)
+
 sealed interface SyncOutcome {
     /** Reached the endpoint's terminator. [pruned] is 0 on a resumed pass -- see below. */
     data class Completed(val seen: Int, val pruned: Int) : SyncOutcome
@@ -66,8 +75,21 @@ class ListSyncer(
     /**
      * Syncs one list. [shouldStop] is polled between pages, so a stop is
      * cooperative and never loses the page in flight.
+     *
+     * [onProgress] is called after each page lands, i.e. after the rows are
+     * durable rather than before they are fetched -- what it reports is what the
+     * user would still have if the sync died on the next page.
+     *
+     * [onProgress] deliberately precedes [shouldStop] in the parameter list, so
+     * the trailing lambda still means "should I stop". Appending it instead would
+     * silently rebind every existing trailing-lambda call site to the new
+     * parameter, turning a stop check into a progress callback with no error.
      */
-    suspend fun sync(listType: ListType, shouldStop: () -> Boolean = { false }): SyncOutcome {
+    suspend fun sync(
+        listType: ListType,
+        onProgress: suspend (SyncProgress) -> Unit = {},
+        shouldStop: () -> Boolean = { false },
+    ): SyncOutcome {
         val startedAt = now()
         val firstPage = store.cursor(listType).coerceAtLeast(FIRST_PAGE)
         val resumed = firstPage > FIRST_PAGE
@@ -87,6 +109,7 @@ class ListSyncer(
                 val result = source.page(listType, nick, page)
                 store.markSeen(listType, result.users, startedAt)
                 seen += result.users.size
+                onProgress(SyncProgress(page = page, seen = seen))
                 page++
 
                 if (result.isLast) break

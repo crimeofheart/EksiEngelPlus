@@ -60,6 +60,14 @@ class BrowserActivity : AppCompatActivity() {
     /** The same run's id, or a plain paused run's, when there is no parked request. */
     private var offeredId: String? = null
 
+    /**
+     * Set when the bar is swiped away.
+     *
+     * Deliberately not persisted: a swipe means "not now", so the offer returns
+     * on the next launch. Only iptal deletes the run.
+     */
+    private var resumeDismissedThisRun = false
+
     /** Result ignored: a denial is survivable, and re-asking is the system's call. */
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -79,6 +87,7 @@ class BrowserActivity : AppCompatActivity() {
         resumeBar = findViewById(R.id.resumeBar)
         findViewById<TextView>(R.id.resumeText).setOnClickListener { resumeOffered() }
         findViewById<TextView>(R.id.resumeCancel).setOnClickListener { cancelOffered() }
+        installResumeBarSwipe()
         findViewById<TextView>(R.id.listsEntry).setOnClickListener {
             startActivity(Intent(this, ListsActivity::class.java))
         }
@@ -173,7 +182,8 @@ class BrowserActivity : AppCompatActivity() {
             // notification used to leave no way back into the run from the app.
             offered = reconciler.pausedForAuth().firstOrNull()
             offeredId = offered?.operationId ?: reconciler.resumable().firstOrNull()
-            resumeBar.visibility = if (offeredId == null) View.GONE else View.VISIBLE
+            val show = offeredId != null && !resumeDismissedThisRun
+            resumeBar.visibility = if (show) View.VISIBLE else View.GONE
         }
     }
 
@@ -181,6 +191,44 @@ class BrowserActivity : AppCompatActivity() {
         offered = null
         offeredId = null
         resumeBar.visibility = View.GONE
+    }
+
+    /**
+     * Swipe the bar aside to silence it for this run of the app.
+     *
+     * A dismissal, not a decision: the run stays parked and the offer comes back
+     * next launch. Horizontal only, so it cannot be triggered while scrolling.
+     */
+    private fun installResumeBarSwipe() {
+        var downX = 0f
+        var downY = 0f
+        resumeBar.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    false
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downX
+                    if (kotlin.math.abs(dx) > SWIPE_MIN_PX &&
+                        kotlin.math.abs(event.rawY - downY) < SWIPE_MAX_DRIFT_PX
+                    ) {
+                        view.animate().translationX(if (dx > 0) view.width.toFloat() else -view.width.toFloat())
+                            .alpha(0f).setDuration(150).withEndAction {
+                                resumeDismissedThisRun = true
+                                view.translationX = 0f
+                                view.alpha = 1f
+                                hideResumeOffer()
+                            }.start()
+                        true
+                    } else {
+                        false
+                    }
+                }
+                else -> false
+            }
+        }
     }
 
     /** Abandons the parked run rather than resuming it. */
@@ -235,6 +283,10 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     companion object {
+        /** Enough movement to be a swipe rather than a tap that wandered. */
+        private const val SWIPE_MIN_PX = 80f
+        private const val SWIPE_MAX_DRIFT_PX = 60f
+
         /**
          * Inlined rather than served.
          *

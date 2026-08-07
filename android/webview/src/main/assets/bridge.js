@@ -260,7 +260,38 @@
 
   var previewCache = {};
 
+  /** The tab strip itself, so it can stay put while the pages move under it. */
+  function tabStripEl() {
+    var anchors = document.querySelectorAll("nav a[href], #top-navigation a[href], #sub-navigation a[href]");
+    for (var i = 0; i < anchors.length; i++) {
+      var label = (anchors[i].textContent || "").trim().toLowerCase();
+      if (TAB_LABELS.indexOf(label) !== -1) {
+        return anchors[i].closest("nav, ul") || anchors[i].parentElement;
+      }
+    }
+    return null;
+  }
+
+  /** Viewport y where the pages begin: the line just under the tabs. */
+  function pagerTop() {
+    var strip = tabStripEl();
+    if (!strip) return 0;
+    var b = strip.getBoundingClientRect().bottom;
+    return b > 0 && b < (window.innerHeight || 0) ? Math.round(b) : 0;
+  }
+
+  /**
+   * What slides.
+   *
+   * The element after the tab strip where there is one, so the strip stays
+   * anchored and only the pages travel -- moving the tabs along with the content
+   * made the whole screen lurch rather than reading as one page replacing
+   * another.
+   */
   function surfaceEl() {
+    var strip = tabStripEl();
+    var after = strip && strip.nextElementSibling;
+    if (after && after.getBoundingClientRect().height > 100) return after;
     return document.getElementById("content") || document.body;
   }
 
@@ -284,6 +315,7 @@
     layer.setAttribute("data-eksiengel-swipe", "true");
     layer.style.cssText = [
       "position:fixed", "top:0", "left:0", "right:0", "bottom:0",
+      // top is set per drag, once the strip's position is known.
       "overflow:hidden", "background:inherit", "z-index:2147483000",
       "pointer-events:none", "display:none"
     ].join(";");
@@ -316,6 +348,9 @@
       '<div style="padding:16px;opacity:0.98;height:100%;overflow:hidden">' +
       (cached || '<div style="padding:24px;font-size:15px;opacity:0.7">' + tab.label + "</div>") +
       "</div>";
+    // Start below the tabs, so the incoming page appears from under the strip
+    // rather than sliding over it.
+    layer.style.top = pagerTop() + "px";
     layer.style.display = "block";
     return layer;
   }

@@ -110,7 +110,12 @@ class OpsNotifier(private val context: Context) {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
-            .setContentIntent(commandIntent(operationId, ACTION_RESUME))
+            // The body opens the app; it does not resume.
+            //
+            // A swipe that registers as a tap would otherwise restart a bulk run
+            // against real accounts, which is far too much to hang on a gesture
+            // the user meant as "go away". Resuming stays an explicit button.
+            .setContentIntent(openAppIntent())
             .addAction(0, "Devam et", commandIntent(operationId, ACTION_RESUME))
             .addAction(0, "Durdur", commandIntent(operationId, ACTION_STOP))
             .build()
@@ -190,6 +195,18 @@ class OpsNotifier(private val context: Context) {
             if (!granted) return false
         }
         return manager.areNotificationsEnabled()
+    }
+
+    /** Brings the app forward, so tapping the notification lands somewhere useful. */
+    private fun openAppIntent(): PendingIntent? {
+        val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?: return null
+        return PendingIntent.getActivity(
+            context,
+            "open-app".hashCode(),
+            launch,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private fun commandIntent(operationId: String, action: String): PendingIntent {

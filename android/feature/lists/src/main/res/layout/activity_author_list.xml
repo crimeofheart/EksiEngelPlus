@@ -5,9 +5,22 @@
     android:fitsSystemWindows="true"
     android:padding="16dp">
 
-    <TextView android:id="@+id/authorCount"
+    <LinearLayout
+        android:orientation="horizontal"
         android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textSize="14sp" android:paddingBottom="8dp"/>
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <TextView android:id="@+id/authorCount"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"/>
+
+        <ProgressBar android:id="@+id/authorSpinner"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:visibility="gone"/>
+    </LinearLayout>
 
     <!-- The paste field is the common case: the extension's page is a textarea and
          users move lists around as plain text far more often than as files. -->

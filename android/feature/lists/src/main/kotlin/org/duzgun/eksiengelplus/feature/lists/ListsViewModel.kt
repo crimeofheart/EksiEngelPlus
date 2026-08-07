@@ -11,6 +11,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -59,6 +60,8 @@ data class ListsUiState(
      * server's ceiling.
      */
     val operationRunning: Boolean = false,
+    /** Which list is mid-export, if any. */
+    val exporting: ListType? = null,
 )
 
 @HiltViewModel
@@ -73,13 +76,23 @@ class ListsViewModel @Inject constructor(
     private val messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val message: SharedFlow<String> = messages.asSharedFlow()
 
+    /**
+     * The list whose export is in flight.
+     *
+     * Held here rather than in the Activity because an export outlives a rotation:
+     * the coroutine is on the view model's scope, so the busy state has to live
+     * where the work does.
+     */
+    private val exportingList = MutableStateFlow<ListType?>(null)
+
     val state: StateFlow<ListsUiState> = combine(
         rowFlow(ListType.BLOCKED),
         rowFlow(ListType.MUTED),
         rowFlow(ListType.FOLLOWED),
         db.checkpoints().countWithState(OperationState.RUNNING.name).map { it > 0 },
-    ) { blocked, muted, followed, running ->
-        ListsUiState(listOf(blocked, muted, followed), running)
+        exportingList,
+    ) { blocked, muted, followed, running, exporting ->
+        ListsUiState(listOf(blocked, muted, followed), running, exporting)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListsUiState())
 
     private fun rowFlow(listType: ListType) = combine(
@@ -127,6 +140,7 @@ class ListsViewModel @Inject constructor(
      */
     fun export(listType: ListType, open: () -> OutputStream?) {
         viewModelScope.launch {
+            exportingList.value = listType
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     val users = db.relationUsers().get(listType)
@@ -139,13 +153,26 @@ class ListsViewModel @Inject constructor(
                     rows.size
                 }
             }
+            // Cleared before the message, and in a finally-shaped position rather
+            // than on the success path: a throw that left the row busy forever
+            // would need the screen reopened to clear.
+            exportingList.value = null
             result.fold(
                 onSuccess = { written ->
                     // null means the user dismissed the picker, which is not an event.
-                    if (written != null) messages.tryEmit("$written kayıt dışa aktarıldı.")
+                    if (written != null) {
+                        messages.tryEmit(string(R.string.lists_exported, written))
+                    }
                 },
-                onFailure = { messages.tryEmit("dışa aktarma başarısız: ${it.message ?: "bilinmeyen hata"}") },
+                onFailure = {
+                    messages.tryEmit(
+                        string(R.string.lists_export_failed, it.message ?: string(R.string.lists_unknown_error)),
+                    )
+                },
             )
         }
     }
+
+    private fun string(id: Int, vararg args: Any) =
+        getApplication<Application>().getString(id, *args)
 }

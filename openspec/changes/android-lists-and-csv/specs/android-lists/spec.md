@@ -135,6 +135,37 @@ progress line reads as an error rather than as work underway.
 - **WHEN** a sync completes a page
 - **THEN** the reported page and user count advance, and they describe rows already stored rather than rows about to be fetched
 
+### Requirement: File work is visible and cannot be double-started
+
+While an export or an import is in flight the screen SHALL show it, and the
+controls that would start another SHALL be disabled.
+
+An import is all-or-nothing, so a second one landing on top of the first is an
+action to refuse rather than a race to survive: two replaces racing leave whichever
+transaction committed last, which is what neither tap asked for.
+
+The busy state SHALL clear however the work ends — success, failure, or a
+dismissed picker. A flag stranded on true disables the screen until it is
+reopened, which is a worse outcome than the failure that stranded it.
+
+Export SHALL additionally be unavailable while that list is syncing, since the
+file would be a snapshot the progress line is actively contradicting.
+
+#### Scenario: A second import is refused, not queued
+
+- **WHEN** an import is already running and another is started
+- **THEN** the second does not run, and the first completes normally
+
+#### Scenario: A failure still releases the screen
+
+- **WHEN** an import or export ends in an error
+- **THEN** the busy state clears and every control returns to its normal state
+
+#### Scenario: A dismissed picker changes nothing
+
+- **WHEN** the user opens the file picker and dismisses it
+- **THEN** no message is reported, the saved list is untouched, and the screen is not left busy
+
 ### Requirement: CSV export is byte-compatible with the extension
 
 Exported CSV SHALL carry the header line `Username,RegistrationDate` and one row

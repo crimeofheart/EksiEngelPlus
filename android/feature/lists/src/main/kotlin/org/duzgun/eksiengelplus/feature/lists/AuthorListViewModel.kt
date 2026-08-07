@@ -11,9 +11,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,6 +34,17 @@ class AuthorListViewModel @Inject constructor(
     private val messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val message: SharedFlow<String> = messages.asSharedFlow()
 
+    /**
+     * True while a read or a write is in flight.
+     *
+     * Every mutation here is all-or-nothing, so a second one landing on top of the
+     * first is not a race to survive but an action to refuse: two replaces racing
+     * would leave whichever transaction committed last, which is not what either
+     * tap asked for.
+     */
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
+
     val count: StateFlow<Int> =
         repository.count.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
@@ -42,11 +55,9 @@ class AuthorListViewModel @Inject constructor(
 
     fun append(text: String) = apply(text, replace = false)
 
-    fun clear() {
-        viewModelScope.launch {
-            repository.clear()
-            messages.tryEmit(getApplication<Application>().getString(R.string.author_list_cleared))
-        }
+    fun clear() = launchBusy {
+        repository.clear()
+        messages.tryEmit(getApplication<Application>().getString(R.string.author_list_cleared))
     }
 
     /**
@@ -57,37 +68,54 @@ class AuthorListViewModel @Inject constructor(
      * authors and no way back.
      */
     fun importFrom(replace: Boolean, open: () -> InputStream?) {
-        viewModelScope.launch {
-            val parsed = runCatching {
+        launchBusy {
+            val text = runCatching {
                 withContext(Dispatchers.IO) {
                     open()?.use { it.readBytes().toString(Charsets.UTF_8) }
                 }
+            }.getOrElse {
+                messages.tryEmit(failure(it))
+                return@launchBusy
             }
-            parsed.fold(
-                onSuccess = { text -> if (text != null) apply(text, replace) },
-                onFailure = { messages.tryEmit(failure(it)) },
-            )
+            // null is a dismissed picker, not a failure.
+            if (text != null) write(text, replace)
         }
     }
 
-    private fun apply(text: String, replace: Boolean) {
+    private fun apply(text: String, replace: Boolean) = launchBusy { write(text, replace) }
+
+    private suspend fun write(text: String, replace: Boolean) {
+        // Parsing is off the main thread with the write: a large pasted list is
+        // enough work to drop frames, and it is the half that runs before anything
+        // is committed.
+        val result = withContext(Dispatchers.IO) { CsvCodec.parseImport(text) }
+        runCatching {
+            if (replace) repository.replaceAll(result.rows) else repository.append(result.rows)
+        }.fold(
+            onSuccess = {
+                messages.tryEmit(
+                    getApplication<Application>().getString(
+                        R.string.author_list_imported,
+                        result.rows.size,
+                        result.skippedLines,
+                        result.datesRecognised,
+                    ),
+                )
+            },
+            onFailure = { messages.tryEmit(failure(it)) },
+        )
+    }
+
+    /** Refuses to start while something else is running, and always clears after. */
+    private fun launchBusy(block: suspend () -> Unit) {
+        if (_busy.value) return
         viewModelScope.launch {
-            val result = CsvCodec.parseImport(text)
-            runCatching {
-                if (replace) repository.replaceAll(result.rows) else repository.append(result.rows)
-            }.fold(
-                onSuccess = {
-                    messages.tryEmit(
-                        getApplication<Application>().getString(
-                            R.string.author_list_imported,
-                            result.rows.size,
-                            result.skippedLines,
-                            result.datesRecognised,
-                        ),
-                    )
-                },
-                onFailure = { messages.tryEmit(failure(it)) },
-            )
+            _busy.value = true
+            try {
+                block()
+            } finally {
+                _busy.value = false
+            }
         }
     }
 

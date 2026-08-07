@@ -71,6 +71,13 @@
 - [x] 8.7 Verify on emulator: idle, queued-without-network, and stop-returns-to-idle all render correctly
 - [ ] 8.8 Verify the `Running` state with live page and user counts — BLOCKED: needs a logged-in session, since a sync without one fails at `ownNick()` before the first page
 - [x] 8.9 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 8.10 Add a busy state to `AuthorListViewModel` via `launchBusy` — refuses a second start, always clears in a `finally`, and moves parsing off the main thread with the write
+- [x] 8.11 Track the exporting list in `ListsViewModel`, so the busy state outlives a rotation the way the coroutine does
+- [x] 8.12 Render both: spinner plus disabled mutators on the author list, spinner plus `dışa aktarılıyor…` on the exporting row, export also barred while that list syncs
+- [x] 8.13 Move the export result strings out of the view model into `strings.xml`, matching the author-list screen
+- [x] 8.14 Instrumented-test the busy contract: the flag rises and clears on success, clears after a throw, and a dismissed picker leaves the list untouched
+- [x] 8.15 Verify on emulator: a save re-enables every control and leaves no spinner behind
+- [ ] 8.16 Verify the export busy state on device — BLOCKED: the export button is gated on a non-empty list, which needs a session
 
 ## 9. Close out
 

@@ -2,8 +2,10 @@ package org.duzgun.eksiengelplus.feature.lists
 
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,6 +33,10 @@ class AuthorListActivity : AppCompatActivity() {
 
     private lateinit var text: EditText
     private lateinit var count: TextView
+    private lateinit var spinner: ProgressBar
+
+    /** Every button that must not be tapped twice into a half-applied list. */
+    private lateinit var mutators: List<Button>
 
     /** True when the picked file should replace the list rather than extend it. */
     private var importReplaces = true
@@ -49,15 +55,23 @@ class AuthorListActivity : AppCompatActivity() {
 
         text = findViewById(R.id.authorText)
         count = findViewById(R.id.authorCount)
+        spinner = findViewById(R.id.authorSpinner)
 
-        findViewById<Button>(R.id.authorSave).setOnClickListener { model.save(text.text.toString()) }
-        findViewById<Button>(R.id.authorAppend).setOnClickListener { model.append(text.text.toString()) }
-        findViewById<Button>(R.id.authorClear).setOnClickListener { model.clear() }
-        findViewById<Button>(R.id.authorImport).setOnClickListener {
+        val save = findViewById<Button>(R.id.authorSave)
+        val append = findViewById<Button>(R.id.authorAppend)
+        val clear = findViewById<Button>(R.id.authorClear)
+        val import = findViewById<Button>(R.id.authorImport)
+        val run = findViewById<Button>(R.id.authorRun)
+        mutators = listOf(save, append, clear, import, run)
+
+        save.setOnClickListener { model.save(text.text.toString()) }
+        append.setOnClickListener { model.append(text.text.toString()) }
+        clear.setOnClickListener { model.clear() }
+        import.setOnClickListener {
             importReplaces = true
             openDocument.launch(IMPORT_MIME_TYPES)
         }
-        findViewById<Button>(R.id.authorRun).setOnClickListener { askMode() }
+        run.setOnClickListener { askMode() }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -73,6 +87,12 @@ class AuthorListActivity : AppCompatActivity() {
                         if (text.text.isEmpty() && nicks.isNotEmpty()) {
                             text.setText(nicks.joinToString("\n"))
                         }
+                    }
+                }
+                launch {
+                    model.busy.collect { busy ->
+                        spinner.visibility = if (busy) View.VISIBLE else View.GONE
+                        mutators.forEach { it.isEnabled = !busy }
                     }
                 }
                 launch {

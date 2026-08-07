@@ -102,10 +102,11 @@ class ListsActivity : AppCompatActivity() {
         for (row in state.rows) {
             val views = rows[row.listType] ?: continue
             val syncing = row.sync.isActive
+            val exporting = state.exporting == row.listType
 
             views.count.text = resources.getQuantityString(R.plurals.lists_user_count, row.count, row.count)
-            views.freshness.text = statusLine(row)
-            views.spinner.visibility = if (syncing) View.VISIBLE else View.GONE
+            views.freshness.text = if (exporting) getString(R.string.lists_exporting) else statusLine(row)
+            views.spinner.visibility = if (syncing || exporting) View.VISIBLE else View.GONE
 
             // A half-finished list is still partial while it is being finished, but
             // saying so next to a live progress line reads as an error rather than
@@ -116,7 +117,10 @@ class ListsActivity : AppCompatActivity() {
             // drop it silently) and unwise while an operation runs.
             views.refresh.isEnabled = !state.operationRunning && !syncing
             views.stop.isEnabled = syncing
-            views.export.isEnabled = row.count > 0
+            // Only one export at a time, and none while this list is still being
+            // written to -- exporting mid-sync would write a snapshot the progress
+            // line is actively contradicting.
+            views.export.isEnabled = row.count > 0 && state.exporting == null && !syncing
         }
     }
 

@@ -111,6 +111,17 @@ class BrowserActivity : AppCompatActivity() {
             bridge.pendingFallbackScript?.let { web.evaluateJavascript(it, null) }
         }
 
+        /*
+         * Reconcile before anything reads operation state.
+         *
+         * A row left RUNNING by a process that died is neither terminal nor
+         * resumable, so it shows as an operation in progress that nothing can act
+         * on -- the lists screen warns about a run that is not happening and the
+         * resume bar has nothing to offer. This is what turns it into INTERRUPTED,
+         * which is resumable, and until now nothing called it.
+         */
+        lifecycleScope.launch { reconciler.reconcile() }
+
         lifecycleScope.launch {
             sessionMonitor.state.collectLatest { render(it) }
         }

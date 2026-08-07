@@ -95,23 +95,17 @@ class OperationReconciler @Inject constructor(
     /**
      * Abandons a parked run for good.
      *
-     * Resume was the only thing offered, so a run the user had lost interest in
-     * sat in the bar forever with nothing to do about it. STOPPED is terminal and
-     * already means "deliberate", which is exactly what this is.
+     * Deletes the checkpoint rather than marking it STOPPED. A terminal state
+     * still leaves a row, and anything that sweeps checkpoints at startup can
+     * bring it back -- which is exactly what happened: cancelling appeared to
+     * work and the offer returned on the next launch. No row, nothing to offer.
      *
-     * The work is cancelled as well as marked, since a checkpoint alone would
-     * leave anything already scheduled free to pick it up again.
+     * The work is cancelled too, since a deleted checkpoint would otherwise let
+     * scheduled work start over from nothing.
      */
     suspend fun cancel(operationId: String) {
         workManager.cancelUniqueWork(OperationWorker.UNIQUE_WORK)
-        db.checkpoints().get(operationId)?.let {
-            db.checkpoints().upsert(
-                it.copy(
-                    state = OperationState.STOPPED.name,
-                    updatedAt = System.currentTimeMillis(),
-                ),
-            )
-        }
+        db.checkpoints().remove(operationId)
     }
 
     fun resume(operation: PausedOperation) {

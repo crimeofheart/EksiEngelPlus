@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.datastore.ConfigRepository
+import org.duzgun.eksiengelplus.feature.lists.ListsActivity
 import org.duzgun.eksiengelplus.datastore.EksiConfig
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.runtime.OperationReconciler
@@ -64,6 +65,9 @@ class BrowserActivity : AppCompatActivity() {
         sessionBar = findViewById(R.id.sessionBar)
         resumeBar = findViewById(R.id.resumeBar)
         resumeBar.setOnClickListener { resumeOffered() }
+        findViewById<TextView>(R.id.listsEntry).setOnClickListener {
+            startActivity(Intent(this, ListsActivity::class.java))
+        }
 
         web.configureForEksi(this)
 

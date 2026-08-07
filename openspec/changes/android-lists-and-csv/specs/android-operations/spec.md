@@ -10,10 +10,13 @@ member through the pacer, checkpointing as it goes. The `ban_source` integers
 SHALL match `enums.js`, because they are keys in a shared database.
 
 LIST's target set SHALL be the saved author list — the rows of `author_list` in
-insertion order — read once when the operation starts. The list is a stored
-document the user edits between runs, so a run SHALL NOT observe edits made
-after it started; a mid-run change to the target set would make the checkpoint
-cursor meaningless.
+insertion order — resolved into the operation request when the run is enqueued,
+and SHALL NOT be re-read by the task.
+
+The request is serialised into the checkpoint and the runner checkpoints by
+index, so a task that re-read the table on resume could pick up at the wrong
+position in a list the user edited in between. Fixing the set at enqueue time
+makes that unrepresentable rather than merely unlikely.
 
 #### Scenario: Block everyone who favourited an entry
 
@@ -30,12 +33,12 @@ cursor meaningless.
 - **WHEN** an UNDOBANALL operation runs
 - **THEN** the blocked list is scraped and each entry is unblocked, checkpointing per unit
 
-#### Scenario: LIST reads the saved author list
+#### Scenario: LIST runs against the saved author list
 
-- **WHEN** a LIST operation starts
-- **THEN** its targets are the `author_list` rows in insertion order, and an empty list ends the operation immediately rather than starting a run with nothing to do
+- **WHEN** a LIST run is enqueued
+- **THEN** its request carries the `author_list` nicks in insertion order, and an empty list is refused at enqueue rather than starting a run with nothing to do
 
 #### Scenario: Editing the list mid-run does not disturb it
 
 - **WHEN** the author list is edited while a LIST operation is running
-- **THEN** the running operation continues against the set it resolved at start, and the edit applies to the next run
+- **THEN** the running operation continues against the set recorded in its request, and the edit applies only to the next run

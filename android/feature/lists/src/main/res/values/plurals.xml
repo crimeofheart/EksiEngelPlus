@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Turkish has one plural form, so `other` covers everything. Declared as a
+        plural anyway rather than a format string, so the count is never
+        concatenated by hand.
+    -->
+    <plurals name="lists_user_count">
+        <item quantity="other">%d yazar</item>
+    </plurals>
+
+    <plurals name="author_list_count">
+        <item quantity="other">listede %d yazar</item>
+    </plurals>
+</resources>

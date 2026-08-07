@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+
+        <TextView android:id="@+id/listsNotice"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:padding="16dp" android:textSize="13sp"
+            android:visibility="gone"
+            android:background="#ffd166" android:textColor="#000000"
+            android:text="@string/lists_operation_running"/>
+
+        <include android:id="@+id/rowBlocked" layout="@layout/view_list_row"/>
+        <include android:id="@+id/rowMuted" layout="@layout/view_list_row"/>
+        <include android:id="@+id/rowFollowed" layout="@layout/view_list_row"/>
+
+        <View
+            android:layout_width="match_parent" android:layout_height="1dp"
+            android:layout_marginTop="8dp" android:alpha="0.2"
+            android:background="?android:attr/textColorPrimary"/>
+
+        <Button android:id="@+id/openAuthorList"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:text="@string/lists_open_author_list"/>
+    </LinearLayout>
+</ScrollView>

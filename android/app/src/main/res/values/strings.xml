@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="resume_paused_operation">duraklatılan işlem devam ettirilebilir — dokunun</string>
+    <string name="open_lists">listeler</string>
 </resources>

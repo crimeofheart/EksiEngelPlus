@@ -153,7 +153,15 @@ class SingleActionTask(private val runner: TargetRunner) : OperationTask {
     }
 }
 
-/** ban_source 4. An explicit list the user pasted or imported. */
+/**
+ * ban_source 4. An explicit list the user pasted or imported.
+ *
+ * The nicks arrive in the request, resolved from `author_list` when the run was
+ * enqueued -- deliberately not read here. The request is serialised into the
+ * checkpoint and TargetRunner checkpoints by index, so a task that re-read the
+ * table on resume could pick up at the wrong position in a list the user had
+ * edited in the meantime.
+ */
 class ListActionTask(private val runner: TargetRunner) : OperationTask {
     override val source = BanSource.LIST
     override suspend fun run(ctx: OperationContext): OperationOutcome =

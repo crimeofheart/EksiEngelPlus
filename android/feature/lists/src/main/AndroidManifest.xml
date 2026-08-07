@@ -1,2 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Declared in the feature module rather than :app so the module stays
+        self-contained: adding it to a build is one dependency line, not two edits.
+
+        No storage permission anywhere here. Export and import go through the
+        Storage Access Framework, which grants access to exactly the file the user
+        picked, which is the whole of what this feature needs.
+    -->
+    <application>
+        <activity
+            android:name=".ListsActivity"
+            android:exported="false"
+            android:label="@string/lists_title"/>
+
+        <activity
+            android:name=".AuthorListActivity"
+            android:exported="false"
+            android:label="@string/author_list_title"/>
+    </application>
+
+</manifest>

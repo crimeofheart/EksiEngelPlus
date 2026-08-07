@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lists_title">listeler</string>
+    <string name="lists_blocked">engellenenler</string>
+    <string name="lists_muted">sessize alınanlar</string>
+    <string name="lists_followed">takip edilenler</string>
+
+    <string name="lists_refresh">yenile</string>
+    <string name="lists_stop">durdur</string>
+    <string name="lists_export">dışa aktar</string>
+
+    <string name="lists_partial_badge">yarım liste</string>
+    <string name="lists_never_refreshed">hiç yenilenmedi</string>
+    <string name="lists_operation_running">bir işlem sürüyor — liste yenileme işlem bitene kadar kapalı</string>
+    <string name="lists_open_author_list">yazar listesi</string>
+
+    <string name="author_list_title">yazar listesi</string>
+    <string name="author_list_hint">her satıra bir yazar adı</string>
+    <string name="author_list_save">kaydet</string>
+    <string name="author_list_append">ekle</string>
+    <string name="author_list_clear">temizle</string>
+    <string name="author_list_import">dosyadan al</string>
+    <string name="author_list_run">bu listeyi çalıştır</string>
+    <string name="author_list_cleared">liste temizlendi.</string>
+    <string name="author_list_empty">liste boş.</string>
+    <string name="author_list_imported">%1$d yazar alındı, %2$d satır atlandı, %3$d tarih tanındı.</string>
+    <string name="author_list_enqueued">%d yazar için işlem sıraya alındı.</string>
+    <string name="author_list_failed">işlem başarısız: %s</string>
+
+    <string name="author_list_mode_block">engelle</string>
+    <string name="author_list_mode_unblock">engeli kaldır</string>
+    <string name="author_list_mode_mute">sessize al</string>
+    <string name="author_list_mode_unmute">sessizi kaldır</string>
+</resources>

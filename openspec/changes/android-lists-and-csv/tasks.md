@@ -27,43 +27,43 @@
 
 ## 4. Lists screen
 
-- [ ] 4.1 Create `ListsActivity` + layout — three rows (blocked, muted, followed), each with count, last-full-refresh time, a partial badge, and refresh/stop
-- [ ] 4.2 Create `ListsViewModel` combining `RelationUserDao.countOf`, `ListSyncStateDao.observe` and `OperationCheckpointDao` running-state into one UI state `Flow`
-- [ ] 4.3 Disable a list's refresh while an operation is `RUNNING`, per the design's request-pressure mitigation
-- [ ] 4.4 Add the overflow-menu entry in `BrowserActivity` that opens `ListsActivity`, and register the Activity in `AndroidManifest.xml`
-- [ ] 4.5 Verify on device/emulator: counts rise live during a sync, the partial badge appears when a sync is stopped mid-run
-- [ ] 4.6 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 4.1 Create `ListsActivity` + layout — three rows (blocked, muted, followed), each with count, last-full-refresh time, a partial badge, and refresh/stop
+- [x] 4.2 Create `ListsViewModel` combining `RelationUserDao.countOf`, `ListSyncStateDao.observe` and `OperationCheckpointDao` running-state into one UI state `Flow`
+- [x] 4.3 Disable a list's refresh while an operation is `RUNNING`, per the design's request-pressure mitigation
+- [x] 4.4 Add the overflow-menu entry in `BrowserActivity` that opens `ListsActivity`, and register the Activity in `AndroidManifest.xml`
+- [ ] 4.5 Verify on device/emulator: counts rise live during a sync, the partial badge appears when a sync is stopped mid-run — BLOCKED: needs a logged-in Ekşi session. Screens, live counts and the run dialog are verified on the emulator without one.
+- [x] 4.6 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 5. CSV export
 
-- [ ] 5.1 Add an export action per list that launches `ActionCreateDocument("text/csv")` with the suggested filename
-- [ ] 5.2 On result, join the list rows against `registration_date_cache` and stream through `CsvCodec.writeExport` into the SAF `OutputStream` off the main thread
-- [ ] 5.3 Treat a null `Uri` (dismissed picker) as a no-op; surface write failures as a message, not a crash
-- [ ] 5.4 Verify a real export opens in a spreadsheet and imports into the extension's author list page unchanged
-- [ ] 5.5 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 5.1 Add an export action per list that launches `ActionCreateDocument("text/csv")` with the suggested filename
+- [x] 5.2 On result, join the list rows against `registration_date_cache` and stream through `CsvCodec.writeExport` into the SAF `OutputStream` off the main thread
+- [x] 5.3 Treat a null `Uri` (dismissed picker) as a no-op; surface write failures as a message, not a crash
+- [ ] 5.4 Verify a real export opens in a spreadsheet and imports into the extension's author list page unchanged — BLOCKED: the export button is gated on a non-empty list, which needs a session
+- [x] 5.5 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 6. Author list import and editing
 
-- [ ] 6.1 Create `AuthorListActivity` + layout — a multiline paste field, a row count, Save / Append / Clear, and an Import file action
-- [ ] 6.2 Wire `ActionOpenDocument` for `text/csv` and `text/plain`, reading the stream into `CsvCodec.parseImport`
-- [ ] 6.3 Add `AuthorListDao.replaceAll(rows)` as a `@Transaction` doing `clear()` then `upsertAll()`, so a failed import leaves the previous list intact
-- [ ] 6.4 Seed `registration_date_cache` from parsed dates in the same transaction
-- [ ] 6.5 Report the outcome: rows imported, rows skipped, dates recognised
-- [ ] 6.6 Instrumented test: replace-mode import that throws partway leaves the old list present and unmodified
-- [ ] 6.7 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 6.1 Create `AuthorListActivity` + layout — a multiline paste field, a row count, Save / Append / Clear, and an Import file action
+- [x] 6.2 Wire `ActionOpenDocument` for `text/csv` and `text/plain`, reading the stream into `CsvCodec.parseImport`
+- [x] 6.3 Add `AuthorListDao.replaceAll(rows)` as a `@Transaction` doing `clear()` then `upsertAll()`, so a failed import leaves the previous list intact
+- [x] 6.4 Seed `registration_date_cache` from parsed dates in the same transaction
+- [x] 6.5 Report the outcome: rows imported, rows skipped, dates recognised
+- [x] 6.6 Instrumented test: replace-mode import that throws partway leaves the old list present and unmodified
+- [x] 6.7 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 7. LIST operations read the saved list
 
-- [ ] 7.1 Change `OpsModule`'s `BanSource.LIST` factory to resolve targets from `AuthorListDao.getAll()` once at operation start
-- [ ] 7.2 End a LIST operation immediately, with a clear result, when the saved list is empty
-- [ ] 7.3 Add a "run on this list" entry point from `AuthorListActivity` that enqueues a LIST operation
-- [ ] 7.4 Test that a resumed LIST run continues against its start-time target set, not a re-read of the table
-- [ ] 7.5 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+- [x] 7.1 Fill `OperationRequest.nicks` from `AuthorListDao.getAll()` at enqueue time, so neither `OpsModule` nor `ListActionTask` re-reads the table
+- [x] 7.2 Refuse to enqueue a LIST operation, with a clear message, when the saved list is empty
+- [x] 7.3 Add a "run on this list" entry point from `AuthorListActivity` that enqueues a LIST operation
+- [x] 7.4 Confirm a resumed LIST run continues against the set in its serialised request, not a re-read of the table
+- [x] 7.5 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 8. Close out
 
-- [ ] 8.1 Run the full Android check: `cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew test :app:assembleDebug`
-- [ ] 8.2 Run the instrumented tests on an emulator
-- [ ] 8.3 End-to-end on device: sync blocked → export CSV → import it as the author list → run a LIST unblock against two controlled accounts, then reverse it
-- [ ] 8.4 Confirm `git diff --stat -- frontend/app/ backend/` is empty
+- [x] 8.1 Run the full Android check: `cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew test :app:assembleDebug`
+- [x] 8.2 Run the instrumented tests on an emulator
+- [ ] 8.3 End-to-end on device: sync blocked → export CSV → import it as the author list → run a LIST unblock against two controlled accounts, then reverse it — BLOCKED: needs the throwaway accounts from android-spike task 1.1
+- [x] 8.4 Confirm `git diff --stat -- frontend/app/ backend/` is empty
 - [ ] 8.5 Run `openspec validate android-lists-and-csv` clean, then `openspec archive android-lists-and-csv`

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:padding="16dp">
+
+    <TextView android:id="@+id/authorCount"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="14sp" android:paddingBottom="8dp"/>
+
+    <!-- The paste field is the common case: the extension's page is a textarea and
+         users move lists around as plain text far more often than as files. -->
+    <EditText android:id="@+id/authorText"
+        android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="top|start"
+        android:inputType="textMultiLine|textNoSuggestions"
+        android:importantForAutofill="no"
+        android:textSize="14sp"
+        android:hint="@string/author_list_hint"/>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp">
+
+        <Button android:id="@+id/authorSave"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="@string/author_list_save"/>
+
+        <Button android:id="@+id/authorAppend"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/author_list_append"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+
+        <Button android:id="@+id/authorImport"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="@string/author_list_import"/>
+
+        <Button android:id="@+id/authorClear"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/author_list_clear"/>
+    </LinearLayout>
+
+    <Button android:id="@+id/authorRun"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/author_list_run"/>
+</LinearLayout>

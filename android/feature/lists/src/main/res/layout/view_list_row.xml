@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One relation list. Included three times by activity_lists.xml rather than driven
+    by an adapter: the set is fixed at three and always visible, so a RecyclerView
+    would be scaffolding around nothing.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <TextView android:id="@+id/rowTitle"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textSize="16sp" android:textStyle="bold"/>
+
+    <TextView android:id="@+id/rowCount"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingTop="2dp" android:textSize="14sp"/>
+
+    <TextView android:id="@+id/rowFreshness"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingTop="2dp" android:textSize="12sp" android:alpha="0.7"/>
+
+    <!-- Visible only when the stored list is a half-finished sync. A truncated list
+         read as complete is the failure this exists to prevent. -->
+    <TextView android:id="@+id/rowPartial"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingStart="8dp" android:paddingEnd="8dp"
+        android:paddingTop="2dp" android:paddingBottom="2dp"
+        android:textSize="12sp" android:textColor="#000000"
+        android:background="#ffd166"
+        android:visibility="gone"
+        android:text="@string/lists_partial_badge"/>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp">
+
+        <Button android:id="@+id/rowRefresh"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/lists_refresh"/>
+
+        <Button android:id="@+id/rowStop"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/lists_stop"/>
+
+        <Button android:id="@+id/rowExport"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/lists_export"/>
+    </LinearLayout>
+</LinearLayout>

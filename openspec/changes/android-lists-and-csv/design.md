@@ -161,14 +161,20 @@ no Android types. The SAF plumbing is a thin caller in the view model. Parser
 parity with `authorListPage.js` is then a table of unit tests in
 `src/test/`, running in CI in seconds like `:core:model`'s and `:eksi:parser`'s.
 
-### LIST resolves targets at start, once
+### LIST resolves targets at enqueue, not in the task
 
-`OpsModule`'s factory for `BanSource.LIST` reads `AuthorListDao` once when the
-operation begins and passes the resolved list to `ListActionTask`. It does not
-observe the `Flow`. `TargetRunner.applyToAll` checkpoints by index
-(`Tasks.kt:28`), so a target set that changed under a resumed run would resume at
-the wrong place — a re-read on resume would be an actual data-loss bug, not a
-freshness feature.
+`OperationRequest` already carries `nicks` (`OperationContext.kt:32`) and
+`ListActionTask` already reads them (`Tasks.kt:157`). The screen fills that field
+from `AuthorListDao.getAll()` when it enqueues; neither `OpsModule` nor the task
+touches the table.
+
+Resolving inside the task was the first design and is wrong. The request is
+serialised into WorkManager's input data and into
+`OperationCheckpointEntity.requestJson`, while `TargetRunner.applyToAll`
+checkpoints by index (`Tasks.kt:28`). A task that re-read the table would, on a
+resume hours later, index into a list the user had edited — silently acting on
+the wrong accounts. Fixing the set at enqueue makes that unrepresentable, and it
+needs no code change in `:ops` at all.
 
 ## Risks / Trade-offs
 

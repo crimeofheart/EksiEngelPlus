@@ -103,6 +103,9 @@ interface ListSyncStateDao {
 interface RegistrationDateCacheDao {
     @Upsert suspend fun upsert(row: RegistrationDateCacheEntity)
 
+    /** `nick` is the primary key here, so a plain upsert is exactly right. */
+    @Upsert suspend fun upsertAll(rows: List<RegistrationDateCacheEntity>)
+
     @Query("SELECT * FROM registration_date_cache WHERE nick = :nick")
     suspend fun get(nick: String): RegistrationDateCacheEntity?
 
@@ -139,6 +142,10 @@ interface OperationCheckpointDao {
     @Query("SELECT * FROM operation_checkpoint WHERE state = :state")
     suspend fun withState(state: String): List<OperationCheckpointEntity>
 
+    /** Observed so a screen can gate an action on "an operation is running" without polling. */
+    @Query("SELECT COUNT(*) FROM operation_checkpoint WHERE state = :state")
+    fun countWithState(state: String): Flow<Int>
+
     @Query("DELETE FROM operation_checkpoint WHERE operationId = :id")
     suspend fun remove(id: String)
 }
@@ -174,6 +181,22 @@ interface AuthorListDao {
 
     @Query("DELETE FROM author_list")
     suspend fun clear()
+
+    /**
+     * IGNORE rather than @Upsert: `nick` is uniquely indexed but `id` is the primary
+     * key, so an upsert of a row with id 0 would conflict on the index and then look
+     * for a primary key that does not exist. A duplicate nick is simply not a new
+     * author.
+     *
+     * `addedAt` is supplied by the caller, which sequences a bulk import so the
+     * insertion order the LIST operation depends on cannot collapse when a hundred
+     * rows land in the same millisecond.
+     */
+    @Query("INSERT OR IGNORE INTO author_list (nick, authorId, addedAt) VALUES (:nick, :authorId, :addedAt)")
+    suspend fun insertIgnoring(nick: String, authorId: Long?, addedAt: Long)
+
+    @Query("SELECT COUNT(*) FROM author_list")
+    fun count(): Flow<Int>
 }
 
 @Dao

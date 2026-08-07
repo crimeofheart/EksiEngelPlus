@@ -87,6 +87,43 @@
     }, 2200);
   }
 
+  /**
+   * Collapses the containers the blocked ad hosts would have filled.
+   *
+   * Blocking the requests leaves the slots behind, and an empty reserved slot is
+   * arguably worse than an ad: it is a hole in the page with no explanation.
+   *
+   * A stylesheet rather than a scan, injected at document start, so the slots
+   * never occupy space at first paint instead of collapsing a moment later.
+   * Every selector below was taken from the markup Ekşi actually ships.
+   */
+  function hideAdSlots() {
+    var css = [
+      ".ads",
+      ".ad-banner",
+      ".ad-double-click",
+      ".ad-double-click-centered",
+      ".bottom-ads",
+      ".sticky-ad",
+      ".under-top-ad",
+      ".yeni-reklam",
+      ".adrazzi-sponsored-entry",
+      ".mobile-sponsored-entry",
+      ".mobile-inread-ad-not-loaded",
+      ".networkad-inread-video-ad",
+      '[class*="nativespot-unit"]',
+      "ins.adsbygoogle"
+    ].join(",") + "{display:none !important;}";
+
+    var style = document.createElement("style");
+    style.setAttribute("data-eksiengel-adstyle", "true");
+    style.textContent = css;
+    // documentElement, not head: at document start there may not be a head yet.
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  hideAdSlots();
+
   function item(label) {
     var li = document.createElement("li");
     li.setAttribute(ITEM_MARK, "true");

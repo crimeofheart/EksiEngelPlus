@@ -18,6 +18,25 @@
         <item name="android:textSize">12sp</item>
     </style>
 
+    <!--
+        For two-up rows where the label is long. "takipten çıkar" is the widest
+        of them and wrapped to a second line, which left that one button a
+        different height from its pair.
+
+        Material's own insets plus the tracking cost most of the width here, so
+        both come down rather than the text size, which would make one row read
+        smaller than the rest.
+    -->
+    <style name="Widget.EksiEngel.Button.Compact" parent="Widget.EksiEngel.Button">
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:letterSpacing">0.04</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
     <!-- The green bar's colours, for the action a screen is actually for. -->
     <style name="Widget.EksiEngel.Button.Primary" parent="Widget.Material3.Button">
         <item name="cornerRadius">0dp</item>

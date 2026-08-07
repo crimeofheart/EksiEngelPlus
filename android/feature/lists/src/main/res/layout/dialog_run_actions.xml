@@ -30,7 +30,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runBlock"
-            style="@style/Widget.EksiEngel.Button"
+            style="@style/Widget.EksiEngel.Button.Compact"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
@@ -40,7 +40,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runUnblock"
-            style="@style/Widget.EksiEngel.Button"
+            style="@style/Widget.EksiEngel.Button.Compact"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             app:strokeColor="@color/action_block"
@@ -60,7 +60,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runMute"
-            style="@style/Widget.EksiEngel.Button"
+            style="@style/Widget.EksiEngel.Button.Compact"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
@@ -70,7 +70,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runUnmute"
-            style="@style/Widget.EksiEngel.Button"
+            style="@style/Widget.EksiEngel.Button.Compact"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             app:strokeColor="@color/action_mute"
@@ -90,7 +90,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runFollow"
-            style="@style/Widget.EksiEngel.Button"
+            style="@style/Widget.EksiEngel.Button.Compact"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
@@ -100,7 +100,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runUnfollow"
-            style="@style/Widget.EksiEngel.Button"
+            style="@style/Widget.EksiEngel.Button.Compact"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             app:strokeColor="@color/action_follow"

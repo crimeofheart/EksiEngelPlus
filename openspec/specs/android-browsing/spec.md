@@ -92,6 +92,36 @@ separately.
 - **WHEN** navigation happens via `pushState` or the back button
 - **THEN** a rescan runs even though no mutation fired
 
+### Requirement: An observer pass costs work proportional to what changed
+
+A scan SHALL examine only nodes it has not already examined. No scan SHALL walk
+the whole document, and no per-element style resolution SHALL be repeated for an
+element already seen.
+
+The observer fires on every XHR page append, so any per-scan work proportional to
+document size is quadratic in the length of the page. Follower and following
+lists are the worst case in the app — several hundred rows, extended as the user
+scrolls — and this is where the cost became visible as pages that loaded far
+slower than the same pages in a plain browser.
+
+The promo fallback is the specific hazard: it calls `getComputedStyle` per
+candidate, which forces a style resolution. Candidates SHALL therefore be limited
+to elements shallow enough to be an overlay, and SHALL be marked as examined
+before any style is read, not after a filter has already rejected them.
+
+Marks SHALL be cleared on navigation, so an element restyled for a new page state
+gets one fresh look without reintroducing per-mutation cost.
+
+#### Scenario: Appending a page of rows
+
+- **WHEN** a page of results is appended to a list of several hundred rows
+- **THEN** the resulting scan resolves style for the new nodes only, and not for the rows already present
+
+#### Scenario: Repeated pagination does not compound
+
+- **WHEN** the user pages five times through a long list
+- **THEN** total style resolutions grow with the rows added, not with rows already on the page multiplied by the number of scans
+
 ### Requirement: Injected nodes are marked with a lowercase attribute
 
 Processed nodes SHALL be marked with `data-eksiengel-processed`, and guards SHALL

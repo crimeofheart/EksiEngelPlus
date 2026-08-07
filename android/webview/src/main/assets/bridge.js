@@ -273,6 +273,21 @@
     return mentionsApp && offersContinue;
   }
 
+  /**
+   * Shallow on purpose.
+   *
+   * An interstitial that covers the page is attached at or near the body; a
+   * position:fixed element nested six levels inside a list row is not a thing the
+   * site does. Querying "div,section,aside" instead meant every row of a
+   * follower list was a candidate, and each candidate cost a getComputedStyle --
+   * a style resolution per row, on every mutation, on the longest pages in the
+   * app.
+   */
+  var PROMO_CANDIDATE_SELECTOR = [
+    "body > div", "body > section", "body > aside",
+    "body > div > div", "body > div > section", "body > div > aside"
+  ].join(",");
+
   function hideAppPromo() {
     if (CONFIG.hideAppPromo === false) return;
 
@@ -283,24 +298,34 @@
 
     // Content-anchored fallback, restricted to overlays so normal page content
     // can never be caught by it.
-    var candidates = document.querySelectorAll("div,section,aside");
+    var candidates = document.querySelectorAll(PROMO_CANDIDATE_SELECTOR);
     for (var k = 0; k < candidates.length; k++) {
       var el = candidates[k];
       if (el.dataset.eksiengelPromoChecked) continue;
+      // Marked before the position test, not after it. Marking only the
+      // fixed/sticky ones left every ordinary element unmarked and therefore
+      // re-examined on every single pass -- the whole document, forever.
+      el.dataset.eksiengelPromoChecked = "1";
       var pos = "";
       try { pos = window.getComputedStyle(el).position; } catch (e) { continue; }
       if (pos !== "fixed" && pos !== "sticky") continue;
-      el.dataset.eksiengelPromoChecked = "1";
       if (looksLikeAppPromo(el)) el.style.display = "none";
     }
   }
 
   /** Premium badge hiding, script.js:107-178. */
+  var BADGE_MARK = "data-eksiengel-badge";
+
   function hideBadges() {
     if (!CONFIG.banPremiumIcons) return;
-    var sel = ".eksico.subscriber-badge, .eksico.verified-badge";
+    // :not([mark]) so a badge is hidden once rather than re-hidden on every pass.
+    // Re-writing style.display on an already-hidden node is a style invalidation
+    // per badge per mutation, which on a long list is most of the page.
+    var sel = ".eksico.subscriber-badge:not([" + BADGE_MARK + "])," +
+      ".eksico.verified-badge:not([" + BADGE_MARK + "])";
     var nodes = document.querySelectorAll(sel);
     for (var i = 0; i < nodes.length; i++) {
+      nodes[i].setAttribute(BADGE_MARK, "true");
       if (nodes[i].parentNode) nodes[i].parentNode.style.display = "none";
     }
   }
@@ -387,17 +412,37 @@
     subtree: true
   });
 
+  /**
+   * Forgets which elements have been promo-checked.
+   *
+   * Checking each element once is what made the scan cheap, but it means an
+   * element that was static when first seen and is restyled to fixed later would
+   * be skipped forever. Clearing on navigation bounds that: a promo shown for a
+   * new page state gets one fresh look. The cost is a shallow query per
+   * navigation, not per mutation, which is the distinction that mattered.
+   */
+  function resetPromoMarks() {
+    var checked = document.querySelectorAll("[data-eksiengel-promo-checked]");
+    for (var i = 0; i < checked.length; i++) {
+      checked[i].removeAttribute("data-eksiengel-promo-checked");
+    }
+  }
+
   // pushState and replaceState mutate nothing, so the observer never sees
   // Ekşi's in-page navigation without this.
   ["pushState", "replaceState"].forEach(function (name) {
     var original = history[name];
     history[name] = function () {
+      resetPromoMarks();
       var r = original.apply(this, arguments);
       schedule();
       return r;
     };
   });
-  window.addEventListener("popstate", schedule);
+  window.addEventListener("popstate", function () {
+    resetPromoMarks();
+    schedule();
+  });
 
   // Host -> page.
   window.__eksiEngelOnMessage = function (raw) {

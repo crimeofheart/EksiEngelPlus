@@ -41,7 +41,14 @@ class EksiWebViewClient(
         }
 
         val host = url.host ?: return true
-        if (isEksiHost(host) || allowedHosts.any { host == it || host.endsWith(".$it") }) return false
+        val ours = isEksiHost(host) || allowedHosts.any { host == it || host.endsWith(".$it") }
+
+        if (ours && request.isForMainFrame && isXhrOnlyPartial(url.path)) {
+            fetchPartialInPage(view, url.toString())
+            return true
+        }
+
+        if (ours) return false
 
         return try {
             context.startActivity(Intent(Intent.ACTION_VIEW, url).apply {
@@ -53,6 +60,36 @@ class EksiWebViewClient(
             // better a dead tap than an arbitrary page inside the bridge origin.
             true
         }
+    }
+
+    /**
+     * Loads an XHR-only fragment the way the site would have.
+     *
+     * A safety net, not a reimplementation: when the site's own tab handler runs,
+     * no navigation happens and this is never reached. It exists for when the
+     * click falls through to the anchor's href, which is a plain navigation and
+     * always fails.
+     *
+     * credentials are same-origin so the session travels; the header is the whole
+     * point, since without it these paths answer 500.
+     */
+    private fun fetchPartialInPage(view: WebView, url: String) {
+        val js = """
+        (function () {
+          var target = document.getElementById('content') || document.body;
+          fetch('$url', {
+            headers: { 'x-requested-with': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+          })
+            .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+            .then(function (html) {
+              target.innerHTML = html;
+              window.scrollTo(0, 0);
+            })
+            .catch(function (e) { console.error('eksiengel: partial load failed', e); });
+        })();
+        """.trimIndent()
+        view.evaluateJavascript(js, null)
     }
 
     /**
@@ -110,7 +147,59 @@ class EksiWebViewClient(
         CookieManager.getInstance().flush()
         onNavigated(url)
     }
+
+    /**
+     * Surfaces failing sub-requests.
+     *
+     * Without this a page that half-renders looks identical to a slow one: the
+     * WebView reports nothing, and the only evidence is on the wire.
+     */
+    override fun onReceivedHttpError(
+        view: WebView,
+        request: android.webkit.WebResourceRequest,
+        errorResponse: android.webkit.WebResourceResponse,
+    ) {
+        android.util.Log.w(
+            "EksiWebView",
+            "HTTP ${errorResponse.statusCode} for ${request.url} " +
+                "(mainFrame=${request.isForMainFrame})",
+        )
+    }
 }
+
+/** Page-side console output, which is otherwise dropped on the floor. */
+class EksiChromeClient : android.webkit.WebChromeClient() {
+    override fun onConsoleMessage(msg: android.webkit.ConsoleMessage): Boolean {
+        android.util.Log.d(
+            "EksiConsole",
+            "${msg.messageLevel()} ${msg.message()} @${msg.sourceId()}:${msg.lineNumber()}",
+        )
+        return true
+    }
+}
+
+/**
+ * Paths that only ever answer to an XHR.
+ *
+ * Ekşi serves these as bare fragments and returns HTTP 500 to a plain
+ * navigation, whatever headers a browser sends -- only
+ * `x-requested-with: XMLHttpRequest` gets a 200. The profile tabs link to them
+ * directly (`<a class="tab-trigger" href="/son-entryleri?nick=...">`), so any
+ * click that reaches the href instead of the site's handler lands on an error
+ * page. That is the "entry'ler is slow and sometimes 500s" report.
+ *
+ * Every entry here was checked against the live site: these three answer 500 to a
+ * navigation and 200 to an XHR. /istatistik looks like a sibling and is not --
+ * it is an ordinary page, and intercepting it would break it.
+ */
+private val XHR_ONLY_PATHS = setOf(
+    "/son-entryleri",
+    "/favori-entryleri",
+    "/en-cok-favorilenen-entryleri",
+)
+
+internal fun isXhrOnlyPartial(path: String?): Boolean =
+    path != null && XHR_ONLY_PATHS.contains(path.trimEnd('/').lowercase())
 
 /** Applies the settings the browsing surface needs, and none it does not. */
 @SuppressLint("SetJavaScriptEnabled")
@@ -129,6 +218,7 @@ fun WebView.configureForEksi(context: Context) {
         javaScriptCanOpenWindowsAutomatically = false
         mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
     }
+    webChromeClient = EksiChromeClient()
     if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
         WebSettingsCompat.setSafeBrowsingEnabled(settings, true)
     }

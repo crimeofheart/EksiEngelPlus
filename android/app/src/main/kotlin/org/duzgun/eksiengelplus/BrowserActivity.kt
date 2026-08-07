@@ -1,11 +1,16 @@
 package org.duzgun.eksiengelplus
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebView
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkManager
@@ -51,6 +56,10 @@ class BrowserActivity : AppCompatActivity() {
     /** The run the resume bar is currently offering, if any. */
     private var offered: PausedOperation? = null
 
+    /** Result ignored: a denial is survivable, and re-asking is the system's call. */
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     private val base = EksiConfig.DEFAULT_BASE_URL
 
     override fun onNewIntent(intent: Intent) {
@@ -68,6 +77,7 @@ class BrowserActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.listsEntry).setOnClickListener {
             startActivity(Intent(this, ListsActivity::class.java))
         }
+        askForNotificationsOnce()
 
         web.configureForEksi(this)
 
@@ -118,6 +128,21 @@ class BrowserActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Asks for POST_NOTIFICATIONS, which from API 33 must be granted at run time.
+     *
+     * Asked here because this is the first screen, and asked once: the system
+     * stops showing the dialog after a denial, and an operation's notification is
+     * a convenience rather than a precondition -- OpsNotifier already degrades
+     * without it.
+     */
+    private fun askForNotificationsOnce() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun render(state: SessionState) {

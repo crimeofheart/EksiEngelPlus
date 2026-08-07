@@ -41,6 +41,14 @@ class AuthorListActivity : AppCompatActivity() {
     /** True when the picked file should replace the list rather than extend it. */
     private var importReplaces = true
 
+    /**
+     * Set by the Clear button so an empty list wipes the draft too.
+     *
+     * Without it, an empty list on first open would blank whatever the user had
+     * begun typing before the flow's first emission arrived.
+     */
+    private var clearedByUser = false
+
     private val openDocument = registerForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
@@ -66,7 +74,10 @@ class AuthorListActivity : AppCompatActivity() {
 
         save.setOnClickListener { model.save(text.text.toString()) }
         append.setOnClickListener { model.append(text.text.toString()) }
-        clear.setOnClickListener { model.clear() }
+        clear.setOnClickListener {
+            clearedByUser = true
+            model.clear()
+        }
         import.setOnClickListener {
             importReplaces = true
             openDocument.launch(IMPORT_MIME_TYPES)
@@ -83,9 +94,14 @@ class AuthorListActivity : AppCompatActivity() {
                 launch {
                     // Seeded once: after that the field is the user's draft, and
                     // overwriting it on every emission would fight their typing.
+                    //
+                    // The exception is the list going empty, which only happens
+                    // because the user asked it to. Leaving their names on screen
+                    // after Clear made a working clear look broken.
                     model.nicks.collect { nicks ->
-                        if (text.text.isEmpty() && nicks.isNotEmpty()) {
-                            text.setText(nicks.joinToString("\n"))
+                        when {
+                            nicks.isEmpty() -> if (clearedByUser) text.setText("")
+                            text.text.isEmpty() -> text.setText(nicks.joinToString("\n"))
                         }
                     }
                 }

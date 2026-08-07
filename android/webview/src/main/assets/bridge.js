@@ -205,9 +205,24 @@
   /** Profile buttons, mirroring script.js:425-573. */
   function injectProfile(container) {
     if (location.pathname.indexOf("/biri/") !== 0) return;
+
+    /*
+     * Only where the site itself offers a relation.
+     *
+     * Ekşi renders no .relation-link on your own profile, because there is
+     * nothing to block or follow there -- so keying off its buttons is what keeps
+     * "engelle" and "takipçilerini engelle" off your own page. Keying off the
+     * /biri/ path alone offered the user the chance to block themselves.
+     *
+     * This is the gate script.js:467 relies on, and it self-maintains: any page
+     * state where the site withdraws the relation buttons withdraws ours too,
+     * without us having to know who is logged in.
+     */
+    if (container.querySelectorAll(".relation-link").length === 0) return false;
+
     var nickHolder = document.querySelector("[data-nick]");
     var who = document.getElementById("who");
-    if (!nickHolder) return;
+    if (!nickHolder) return false;
     var nick = nickHolder.getAttribute("data-nick");
     var id = who ? Number(who.getAttribute("value")) : null;
     var targetType = CONFIG.enableMute ? TargetType.MUTE : TargetType.USER;
@@ -384,7 +399,11 @@
         // forever on every mutation.
         node.setAttribute(mark, "true");
         try {
-          inj.apply(node);
+          // An injector returns false for "not ready yet" -- the container is
+          // present but the part it keys off has not rendered. Unmark so a later
+          // mutation retries it. A throw still leaves the mark, so a broken
+          // injector cannot loop.
+          if (inj.apply(node) === false) node.removeAttribute(mark);
         } catch (e) {
           send("log", { level: "warn", tag: "bridge", msg: String(e) });
         }

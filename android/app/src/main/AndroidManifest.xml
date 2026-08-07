@@ -4,15 +4,51 @@
     code: this module exists so `v*` tags provably produce an AAB and APK before the
     real port (android-foundations) starts. See openspec/changes/unified-release-pipeline.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        An operation runs as a foreground service so a multi-hour block run is not
+        killed the moment the app is backgrounded. Without FOREGROUND_SERVICE the
+        setForeground call in OperationWorker throws and the run dies before its
+        first action; DATA_SYNC is the type Android 14 requires to be declared
+        separately, and it matches what the work actually is.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!--
+        The notification is the only progress surface an operation has. Denial is
+        survivable, since OpsNotifier degrades rather than crashing, but
+        undeclared it can never be granted at all, so a run would be invisible by
+        construction.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".EksiEngelPlusApp"
         android:allowBackup="false"
         android:label="EksiEngelPlus"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+
+        <!--
+            Removes WorkManager's automatic initialiser so the Application's
+            Configuration.Provider is what builds it. The default initialiser runs
+            before Hilt can supply HiltWorkerFactory, and every @HiltWorker then
+            fails to construct at run time with nothing on screen to explain it.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
         <activity android:name=".BrowserActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

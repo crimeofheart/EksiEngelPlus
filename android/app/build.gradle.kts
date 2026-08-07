@@ -123,6 +123,11 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    // HiltWorkerFactory lives here because the Application installs it. Without
+    // it every @HiltWorker in the other modules fails to construct, and the
+    // failure is silent -- WorkManager just never runs the job.
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
 }
 
 /** Lets CI assert the derivation without parsing build output. */

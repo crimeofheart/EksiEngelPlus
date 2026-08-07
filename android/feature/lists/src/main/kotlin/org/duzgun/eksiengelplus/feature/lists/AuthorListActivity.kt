@@ -126,15 +126,22 @@ class AuthorListActivity : AppCompatActivity() {
             getString(R.string.author_list_mode_unblock),
             getString(R.string.author_list_mode_mute),
             getString(R.string.author_list_mode_unmute),
+            getString(R.string.author_list_mode_follow),
+            getString(R.string.author_list_mode_unfollow),
         )
         AlertDialog.Builder(this)
             .setTitle(R.string.author_list_run)
             .setItems(labels) { _, which ->
+                // TargetType is the r= code Ekşi expects; BanMode picks
+                // addrelation vs removerelation. Following is the same pair of
+                // endpoints as blocking, with r=b.
                 when (which) {
                     0 -> model.run(BanMode.BAN, TargetType.USER)
                     1 -> model.run(BanMode.UNDOBAN, TargetType.USER)
                     2 -> model.run(BanMode.BAN, TargetType.MUTE)
-                    else -> model.run(BanMode.UNDOBAN, TargetType.MUTE)
+                    3 -> model.run(BanMode.UNDOBAN, TargetType.MUTE)
+                    4 -> model.run(BanMode.BAN, TargetType.FOLLOW)
+                    else -> model.run(BanMode.UNDOBAN, TargetType.FOLLOW)
                 }
             }
             .show()

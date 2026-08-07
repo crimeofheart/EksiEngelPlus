@@ -38,4 +38,6 @@
     <string name="author_list_mode_unblock">engeli kaldır</string>
     <string name="author_list_mode_mute">sessize al</string>
     <string name="author_list_mode_unmute">sessizi kaldır</string>
+    <string name="author_list_mode_follow">takibe al</string>
+    <string name="author_list_mode_unfollow">takipten çıkar</string>
 </resources>

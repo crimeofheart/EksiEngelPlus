@@ -153,6 +153,87 @@
     }
   }
 
+  /**
+   * Horizontal swipe cycles the main tabs.
+   *
+   * The site's own tab strip is a row of ordinary links; this drives those same
+   * links rather than inventing navigation, so whatever the site does on tap is
+   * what a swipe does too.
+   *
+   * Anchored on the links present in the page instead of a fixed list of paths,
+   * because the ones Ekşi serves differ between its layouts -- /basliklar/gundem
+   * on one, /basliklar/m/populer on another.
+   */
+  var TAB_LABELS = ["bugün", "gündem", "debe", "takip"];
+
+  function mainTabs() {
+    var anchors = document.querySelectorAll("nav a[href], #top-navigation a[href], #sub-navigation a[href]");
+    var found = [];
+    var seen = {};
+    for (var i = 0; i < anchors.length; i++) {
+      var a = anchors[i];
+      var label = (a.textContent || "").trim().toLowerCase();
+      if (TAB_LABELS.indexOf(label) === -1) continue;
+      if (seen[label]) continue;
+      seen[label] = true;
+      found.push({ label: label, href: a.href });
+    }
+    // Keep the site's own order, not the order they happened to be found in.
+    found.sort(function (x, y) {
+      return TAB_LABELS.indexOf(x.label) - TAB_LABELS.indexOf(y.label);
+    });
+    return found;
+  }
+
+  function currentTabIndex(tabs) {
+    var here = location.pathname;
+    for (var i = 0; i < tabs.length; i++) {
+      var path = tabs[i].href.replace(/^https?:\/\/[^/]+/, "");
+      if (path === here) return i;
+    }
+    // The homepage is bugün without saying so, and it is where a user is most
+    // likely to swipe first.
+    if (here === "/" || here === "") return 0;
+    return -1;
+  }
+
+  function cycleTab(direction) {
+    var tabs = mainTabs();
+    if (tabs.length < 2) return;
+    var at = currentTabIndex(tabs);
+    // Not on a tab page: a swipe should not teleport somewhere unrelated.
+    if (at === -1) return;
+    var next = at + direction;
+    if (next < 0) next = tabs.length - 1;
+    if (next >= tabs.length) next = 0;
+    location.href = tabs[next].href;
+  }
+
+  (function installSwipe() {
+    var x0 = 0, y0 = 0, tracking = false;
+    var MIN_X = 70;      // enough to be deliberate
+    var MAX_Y = 50;      // a scroll that drifts sideways is still a scroll
+
+    document.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      x0 = e.touches[0].clientX;
+      y0 = e.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+
+    document.addEventListener("touchend", function (e) {
+      if (!tracking) return;
+      tracking = false;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - x0;
+      var dy = t.clientY - y0;
+      if (Math.abs(dy) > MAX_Y || Math.abs(dx) < MIN_X) return;
+      // Swiping left moves forward through the strip, matching the direction
+      // the content appears to travel.
+      cycleTab(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  })();
+
   function item(label) {
     var li = document.createElement("li");
     li.setAttribute(ITEM_MARK, "true");

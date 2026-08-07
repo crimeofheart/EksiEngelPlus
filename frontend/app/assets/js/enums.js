@@ -106,7 +106,8 @@ export const DateBulkAction = {
   SESSIZDEN_CIKAR: "SESSIZDEN_CIKAR", // Unmute users
   TAKIP_ET: "TAKIP_ET",         // Follow users
   ENGEL_KALDIR_VE_TAKIP_ET: "ENGEL_KALDIR_VE_TAKIP_ET", // Unblock and follow
-  SESSIZDEN_CIKAR_VE_TAKIP_ET: "SESSIZDEN_CIKAR_VE_TAKIP_ET" // Unmute and follow
+  SESSIZDEN_CIKAR_VE_TAKIP_ET: "SESSIZDEN_CIKAR_VE_TAKIP_ET", // Unmute and follow
+  TAKIPTEN_CIKAR: "TAKIPTEN_CIKAR" // Unfollow users
 };
 
 export const DateBulkSource = {

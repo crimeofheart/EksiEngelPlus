@@ -408,6 +408,9 @@ class ProgramController {
           case 'TAKIP_ET':
             result = await this._performActionWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
             break;
+          case 'TAKIPTEN_CIKAR':
+            result = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, false, true);
+            break;
           case 'ENGEL_KALDIR_VE_TAKIP_ET':
             // First unblock, then follow
             result = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
@@ -2952,6 +2955,9 @@ notificationHandler.notify(`${totalCount} adet başlıkları engellenen kullanı
             break;
           case 'TAKIP_ET':
             result = await this._performActionWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
+            break;
+          case 'TAKIPTEN_CIKAR':
+            result = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, false, true);
             break;
           case 'ENGEL_KALDIR_VE_TAKIP_ET':
             // First unblock, then follow

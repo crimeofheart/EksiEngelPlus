@@ -79,7 +79,8 @@ export function generateUnifiedDescription(banSource, metadata = {}) {
   const listActionLabels = {
     [enums.DateBulkAction.TAKIP_ET]: "Takip Et",
     [enums.DateBulkAction.ENGEL_KALDIR_VE_TAKIP_ET]: "Engel Kaldır ve Takip Et",
-    [enums.DateBulkAction.SESSIZDEN_CIKAR_VE_TAKIP_ET]: "Sessizden Çıkar ve Takip Et"
+    [enums.DateBulkAction.SESSIZDEN_CIKAR_VE_TAKIP_ET]: "Sessizden Çıkar ve Takip Et",
+    [enums.DateBulkAction.TAKIPTEN_CIKAR]: "Takipten Çıkar"
   };
   
   switch (banSource) {

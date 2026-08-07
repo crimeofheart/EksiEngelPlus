@@ -75,6 +75,18 @@ document.getElementById("startFollow").addEventListener("click", () => {
   });
 });
 
+// Unfollow users
+document.getElementById("startUnfollow").addEventListener("click", () => {
+  saveAuthorListToStorage();
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.AUTHOR_LIST_ACTION });
+  chrome.runtime.sendMessage(null, {"banSource":enums.BanSource.LIST, "action":"TAKIPTEN_CIKAR"}, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error("authorListPage.js: Error sending startUnfollow message:", chrome.runtime.lastError.message);
+      alert("Error starting unfollow process: " + chrome.runtime.lastError.message);
+    }
+  });
+});
+
 // Unblock and Follow
 document.getElementById("startUnblockFollow").addEventListener("click", () => {
   saveAuthorListToStorage();

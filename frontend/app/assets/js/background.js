@@ -685,6 +685,8 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
 
       if (action === "TAKIP_ET") {
         res = await performWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
+      } else if (action === "TAKIPTEN_CIKAR") {
+        res = await performWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, false, true);
       } else if (action === "ENGEL_KALDIR_VE_TAKIP_ET") {
         res = await performWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false, false);
         if (res.successfulAction > 0) {

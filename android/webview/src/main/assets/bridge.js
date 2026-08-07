@@ -384,8 +384,17 @@
     if (commit) {
       SWIPE.surface.style.transform = "translateX(" + (dir > 0 ? -w : w) + "px)";
       if (SWIPE.layer) SWIPE.layer.style.transform = "translateX(0px)";
-      var href = neighbour(dir).href;
-      setTimeout(function () { location.href = href; }, 170);
+      var target = neighbour(dir);
+      // Tell the host where we are going. A navigation tears this document down,
+      // so nothing here can paint during the load -- only a native view can, and
+      // the alternative is the blank frame the user sees instead.
+      // Same cutoff the drag uses, in device pixels, so the host's cover starts
+      // exactly where the page does and the chrome above it stays visible.
+      send("navigating", {
+        label: target.label,
+        top: Math.round(pagerTop() * (window.devicePixelRatio || 1))
+      });
+      setTimeout(function () { location.href = target.href; }, 170);
       return;
     }
 

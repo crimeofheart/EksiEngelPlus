@@ -62,7 +62,24 @@
             android:text="@string/resume_cancel"/>
     </LinearLayout>
 
-    <WebView android:id="@+id/web"
+    <!--
+        The WebView paints white while a document loads, so a swipe that commits
+        showed a blank frame. This sits over it with the destination's name until
+        the page is up: JS cannot paint through a navigation, only a native view
+        can.
+    -->
+    <FrameLayout
         android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="1">
+
+        <WebView android:id="@+id/web"
+            android:layout_width="match_parent" android:layout_height="match_parent"/>
+
+        <TextView android:id="@+id/loadingCover"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:visibility="gone"
+            android:background="?android:attr/colorBackground"/>
+    </FrameLayout>
 </LinearLayout>

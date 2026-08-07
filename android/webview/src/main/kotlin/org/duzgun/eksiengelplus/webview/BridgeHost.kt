@@ -95,6 +95,8 @@ class BridgeHost(
     private val allowedOrigins: Set<String>,
     private val onEnqueue: (OperationRequest) -> Unit,
     private val onShare: (url: String, title: String) -> Unit = { _, _ -> },
+    /** Where a swipe is heading, so the host can cover the load with something. */
+    private val onNavigating: (label: String, topPx: Int) -> Unit = { _, _ -> },
     private val onLog: (String) -> Unit = {},
 ) {
     companion object {
@@ -185,6 +187,17 @@ class BridgeHost(
      * enqueue one, and widening EnqueuePayload to cover both would let a
      * malformed share silently look like a valid operation.
      */
+    /** The destination a swipe announced, and where the page area begins. */
+    private fun navigatingFrom(raw: String) {
+        val obj = runCatching {
+            BridgeJson.parseToJsonElement(raw) as? kotlinx.serialization.json.JsonObject
+        }.getOrNull() ?: return
+        val payload = obj["payload"] as? kotlinx.serialization.json.JsonObject ?: return
+        val label = (payload["label"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+        val top = (payload["top"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() ?: 0
+        onNavigating(label, top)
+    }
+
     private fun shareFrom(raw: String) {
         val obj = runCatching {
             BridgeJson.parseToJsonElement(raw).let { el ->
@@ -210,6 +223,7 @@ class BridgeHost(
                 ?: onLog("bridge: unmappable enqueue payload")
 
             "share" -> shareFrom(body)
+            "navigating" -> navigatingFrom(body)
 
             "log" -> onLog("page: ${envelope.payload}")
         }

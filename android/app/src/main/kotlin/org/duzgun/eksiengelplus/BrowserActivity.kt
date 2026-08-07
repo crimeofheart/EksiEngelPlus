@@ -53,6 +53,7 @@ class BrowserActivity : AppCompatActivity() {
     private lateinit var sessionBar: TextView
     private lateinit var resumeBar: android.view.ViewGroup
     private lateinit var bridge: BridgeHost
+    private lateinit var loadingCover: TextView
 
     /** The run the resume bar is currently offering, if any. */
     private var offered: PausedOperation? = null
@@ -84,6 +85,7 @@ class BrowserActivity : AppCompatActivity() {
         setContentView(R.layout.activity_browser)
         web = findViewById(R.id.web)
         sessionBar = findViewById(R.id.sessionBar)
+        loadingCover = findViewById(R.id.loadingCover)
         resumeBar = findViewById(R.id.resumeBar)
         findViewById<TextView>(R.id.resumeResume).setOnClickListener { resumeOffered() }
         findViewById<TextView>(R.id.resumeCancel).setOnClickListener { cancelOffered() }
@@ -100,6 +102,7 @@ class BrowserActivity : AppCompatActivity() {
             allowedOrigins = allowedOriginsFor(base),
             onEnqueue = ::enqueue,
             onShare = ::share,
+            onNavigating = ::coverLoad,
         )
 
         web.webViewClient = EksiWebViewClient(this, allowedHostsFor(base)) { url ->
@@ -109,6 +112,7 @@ class BrowserActivity : AppCompatActivity() {
                 lifecycleScope.launch { sessionMonitor.refreshNow() }
             }
             bridge.pendingFallbackScript?.let { web.evaluateJavascript(it, null) }
+            loadingCover.visibility = View.GONE
         }
 
         /*
@@ -168,6 +172,24 @@ class BrowserActivity : AppCompatActivity() {
         val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    /**
+     * Covers the load with the destination's name.
+     *
+     * Hidden again on the next onPageFinished. A timeout also clears it, so a
+     * navigation that never completes cannot leave the browser behind a panel.
+     */
+    private fun coverLoad(label: String, topPx: Int) {
+        // Start where the page starts, so the tab strip and the bar under it stay
+        // visible while the load happens -- the same line the drag stops at.
+        (loadingCover.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let {
+            it.topMargin = topPx.coerceAtLeast(0)
+            loadingCover.layoutParams = it
+        }
+        loadingCover.text = label
+        loadingCover.visibility = View.VISIBLE
+        loadingCover.postDelayed({ loadingCover.visibility = View.GONE }, COVER_TIMEOUT_MS)
     }
 
     private fun render(state: SessionState) {
@@ -304,6 +326,9 @@ class BrowserActivity : AppCompatActivity() {
          * Either direction dismisses: the bar is being pushed out of the way, and
          * which way it leaves is not a decision the user should have to make.
          */
+        /** Long enough for a slow page, short enough not to strand the browser. */
+        private const val COVER_TIMEOUT_MS = 6_000L
+
         private const val SWIPE_MIN_PX = 48f
         private const val SWIPE_MAX_DRIFT_PX = 56f
 

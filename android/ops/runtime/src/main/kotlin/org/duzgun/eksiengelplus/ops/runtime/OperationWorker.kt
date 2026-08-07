@@ -261,15 +261,26 @@ class OperationWorker @AssistedInject constructor(
         return when (outcome) {
             OperationOutcome.COMPLETED -> {
                 recordState(OperationState.COMPLETED)
+                notifier.clearProgress()
                 notifier.alert("İşlem tamamlandı", "Tüm hedefler işlendi.")
                 Result.success()
             }
             OperationOutcome.PAUSED -> {
                 recordState(OperationState.PAUSED)
+                // The foreground service ends here and takes its notification with
+                // it, so without this the run vanishes with no way back to it.
+                val cp = db.checkpoints().get(operationId)
+                notifier.showPaused(
+                    operationId,
+                    processed = cp?.processed ?: 0,
+                    total = cp?.total ?: 0,
+                )
                 Result.success()
             }
             OperationOutcome.STOPPED -> {
                 recordState(OperationState.STOPPED)
+                // Stopped is terminal, so nothing should be left offering a resume.
+                notifier.clearProgress()
                 Result.success()
             }
             OperationOutcome.PAUSED_AUTH -> {

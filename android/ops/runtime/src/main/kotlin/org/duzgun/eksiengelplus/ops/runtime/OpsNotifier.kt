@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.Manifest
 import android.app.PendingIntent
+import androidx.work.WorkManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -37,6 +38,7 @@ class OpsNotifier(private val context: Context) {
 
         const val ACTION_PAUSE = "org.duzgun.eksiengelplus.PAUSE"
         const val ACTION_STOP = "org.duzgun.eksiengelplus.STOP"
+        const val ACTION_RESUME = "org.duzgun.eksiengelplus.RESUME"
         const val EXTRA_OPERATION_ID = "operationId"
     }
 
@@ -87,6 +89,37 @@ class OpsNotifier(private val context: Context) {
             .addAction(0, "Durdur", commandIntent(operationId, ACTION_STOP))
             .build()
     }
+
+    /**
+     * The run is paused and waiting for the user.
+     *
+     * Deliberately on NOTIFICATION_ID_PROGRESS: pausing ends the foreground
+     * service and takes its notification with it, so without this the run
+     * disappeared with no way back to it. Reusing the id means resuming replaces
+     * this notification with the live one rather than stacking a second.
+     *
+     * Ongoing, because a paused run is unfinished business -- swiping it away
+     * would strand work the user explicitly chose to keep.
+     */
+    fun paused(operationId: String, processed: Int, total: Int): Notification =
+        NotificationCompat.Builder(context, CHANNEL_PROGRESS)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle("İşlem duraklatıldı")
+            .setContentText("$processed / $total işlendi · devam etmek için dokunun")
+            .setProgress(total.coerceAtLeast(1), processed, false)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setContentIntent(commandIntent(operationId, ACTION_RESUME))
+            .addAction(0, "Devam et", commandIntent(operationId, ACTION_RESUME))
+            .addAction(0, "Durdur", commandIntent(operationId, ACTION_STOP))
+            .build()
+
+    fun showPaused(operationId: String, processed: Int, total: Int) {
+        manager.notify(NOTIFICATION_ID_PROGRESS, paused(operationId, processed, total))
+    }
+
+    fun clearProgress() = manager.cancel(NOTIFICATION_ID_PROGRESS)
 
     fun alert(title: String, text: String) {
         val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
@@ -202,6 +235,11 @@ class OperationCommandReceiver : BroadcastReceiver() {
         when (intent.action) {
             OpsNotifier.ACTION_PAUSE -> commands.post(id, OperationCommand.PAUSE)
             OpsNotifier.ACTION_STOP -> commands.post(id, OperationCommand.STOP)
+            // Resume is not a command for a running worker to pick up -- there is
+            // no worker any more. It schedules a fresh one, which reads the stored
+            // checkpoint and carries on from the cursor.
+            OpsNotifier.ACTION_RESUME ->
+                OperationWorker.enqueueExisting(WorkManager.getInstance(context), id)
         }
     }
 }

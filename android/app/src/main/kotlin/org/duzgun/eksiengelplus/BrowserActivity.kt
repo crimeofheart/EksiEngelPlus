@@ -57,6 +57,9 @@ class BrowserActivity : AppCompatActivity() {
     /** The run the resume bar is currently offering, if any. */
     private var offered: PausedOperation? = null
 
+    /** The same run's id, or a plain paused run's, when there is no parked request. */
+    private var offeredId: String? = null
+
     /** Result ignored: a denial is survivable, and re-asking is the system's call. */
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -152,7 +155,7 @@ class BrowserActivity : AppCompatActivity() {
             SessionState.LoggedOut -> "giriş yapılmadı — devam etmek için giriş yapın"
             SessionState.Unknown -> "…"
         }
-        if (state is SessionState.LoggedIn) offerAuthResume() else hideResumeOffer()
+        if (state is SessionState.LoggedIn) offerResume() else hideResumeOffer()
     }
 
     /**
@@ -162,21 +165,30 @@ class BrowserActivity : AppCompatActivity() {
      * Offered rather than resumed: the user may have logged in to read, not to
      * restart a run they walked away from hours ago.
      */
-    private fun offerAuthResume() {
+    private fun offerResume() {
         lifecycleScope.launch {
-            val parked = reconciler.pausedForAuth().firstOrNull()
-            offered = parked
-            resumeBar.visibility = if (parked == null) View.GONE else View.VISIBLE
+            // Auth-parked runs first, since those are the ones the login just
+            // unblocked. Any other paused run is offered too: pausing from the
+            // notification used to leave no way back into the run from the app.
+            offered = reconciler.pausedForAuth().firstOrNull()
+            offeredId = offered?.operationId ?: reconciler.resumable().firstOrNull()
+            resumeBar.visibility = if (offeredId == null) View.GONE else View.VISIBLE
         }
     }
 
     private fun hideResumeOffer() {
         offered = null
+        offeredId = null
         resumeBar.visibility = View.GONE
     }
 
     private fun resumeOffered() {
-        offered?.let { reconciler.resume(it) }
+        val parked = offered
+        val id = offeredId
+        when {
+            parked != null -> reconciler.resume(parked)
+            id != null -> OperationWorker.enqueueExisting(WorkManager.getInstance(applicationContext), id)
+        }
         hideResumeOffer()
     }
 

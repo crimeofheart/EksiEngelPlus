@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Three action groups, one row each, two pills per row.
+    Three action groups, one row each, two buttons per row.
 
     The pairing is the point: every action here has an inverse, and putting the
     two side by side in one colour says "these are the same lever" far better
     than six identical rows in a list, where engelle and engeli kaldir sat
     adjacent and looked interchangeable.
 
-    Outlined rather than filled so the group colour reads the same in light and
-    dark without a second palette.
+    Square and outlined, matching the extension's own buttons; the group colour
+    is carried by the stroke and label so one value works on both the light and
+    dark dialog surfaces.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -29,21 +30,19 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runBlock"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
-            app:cornerRadius="22dp"
             app:strokeColor="@color/action_block"
             android:textColor="@color/action_block"
             android:text="@string/author_list_mode_block"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runUnblock"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
-            app:cornerRadius="22dp"
             app:strokeColor="@color/action_block"
             android:textColor="@color/action_block"
             android:text="@string/author_list_mode_unblock"/>
@@ -61,21 +60,19 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runMute"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
-            app:cornerRadius="22dp"
             app:strokeColor="@color/action_mute"
             android:textColor="@color/action_mute"
             android:text="@string/author_list_mode_mute"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runUnmute"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
-            app:cornerRadius="22dp"
             app:strokeColor="@color/action_mute"
             android:textColor="@color/action_mute"
             android:text="@string/author_list_mode_unmute"/>
@@ -93,21 +90,19 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runFollow"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
-            app:cornerRadius="22dp"
             app:strokeColor="@color/action_follow"
             android:textColor="@color/action_follow"
             android:text="@string/author_list_mode_follow"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/runUnfollow"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content"
-            app:cornerRadius="22dp"
             app:strokeColor="@color/action_follow"
             android:textColor="@color/action_follow"
             android:text="@string/author_list_mode_unfollow"/>

@@ -54,19 +54,19 @@
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="8dp">
 
-        <Button android:id="@+id/rowRefresh"
-            style="?attr/materialButtonOutlinedStyle"
+        <com.google.android.material.button.MaterialButton android:id="@+id/rowRefresh"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="@string/lists_refresh"/>
 
-        <Button android:id="@+id/rowStop"
-            style="?attr/materialButtonOutlinedStyle"
+        <com.google.android.material.button.MaterialButton android:id="@+id/rowStop"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:text="@string/lists_stop"/>
 
-        <Button android:id="@+id/rowExport"
-            style="?attr/materialButtonOutlinedStyle"
+        <com.google.android.material.button.MaterialButton android:id="@+id/rowExport"
+            style="@style/Widget.EksiEngel.Button"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:text="@string/lists_export"/>

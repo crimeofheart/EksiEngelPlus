@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Approximates the extension's button language: square, outlined in 2dp,
+    uppercase with wide tracking (buttons.css uses border-radius 0, a 2px solid
+    border, text-transform uppercase and 3px letter-spacing).
+
+    Material's rounded pills read as a different product next to the extension,
+    which is the thing these two are supposed to feel like halves of.
+-->
+<resources>
+    <style name="Widget.EksiEngel.Button" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">0dp</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="strokeColor">@color/eksi_accent</item>
+        <item name="android:textColor">@color/eksi_accent</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <!-- The green bar's colours, for the action a screen is actually for. -->
+    <style name="Widget.EksiEngel.Button.Primary" parent="Widget.Material3.Button">
+        <item name="cornerRadius">0dp</item>
+        <item name="backgroundTint">@color/eksi_accent</item>
+        <item name="android:textColor">@color/eksi_on_accent</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+</resources>

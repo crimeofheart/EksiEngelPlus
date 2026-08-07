@@ -23,7 +23,8 @@
             android:layout_marginTop="8dp" android:alpha="0.2"
             android:background="?android:attr/textColorPrimary"/>
 
-        <Button android:id="@+id/openAuthorList"
+        <com.google.android.material.button.MaterialButton android:id="@+id/openAuthorList"
+            style="@style/Widget.EksiEngel.Button.Primary"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_margin="16dp"
             android:text="@string/lists_open_author_list"/>

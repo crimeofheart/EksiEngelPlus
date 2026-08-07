@@ -176,7 +176,11 @@
       if (TAB_LABELS.indexOf(label) === -1) continue;
       if (seen[label]) continue;
       seen[label] = true;
-      found.push({ label: label, href: a.href });
+      var marker = a.closest("li,div") || a;
+      var active = /(^|\s)(active|selected|current)(\s|$)/.test(
+        (a.className || "") + " " + (marker.className || "")
+      );
+      found.push({ label: label, href: a.href, active: active });
     }
     // Keep the site's own order, not the order they happened to be found in.
     found.sort(function (x, y) {
@@ -185,15 +189,38 @@
     return found;
   }
 
+  /**
+   * Which tab the current page belongs to.
+   *
+   * Not path equality: the site does not land on the path its own link points
+   * at. The takip tab links to /basliklar/m/takip and arrives at
+   * /basliklar/takipentrymobile, so an exact match found nothing and the swipe
+   * refused to start there.
+   *
+   * The site's own active marker is tried first, since that is its answer rather
+   * than our guess; a keyword in the path is the fallback.
+   */
+  var TAB_KEYWORDS = {
+    "bugün": ["bugun"],
+    "gündem": ["populer", "gundem"],
+    "debe": ["debe"],
+    "takip": ["takip"]
+  };
+
   function currentTabIndex(tabs) {
-    var here = location.pathname;
     for (var i = 0; i < tabs.length; i++) {
-      var path = tabs[i].href.replace(/^https?:\/\/[^/]+/, "");
-      if (path === here) return i;
+      if (tabs[i].active) return i;
     }
-    // The homepage is bugün without saying so, and it is where a user is most
-    // likely to swipe first.
+
+    var here = location.pathname.toLowerCase();
     if (here === "/" || here === "") return 0;
+
+    for (var j = 0; j < tabs.length; j++) {
+      var words = TAB_KEYWORDS[tabs[j].label] || [];
+      for (var k = 0; k < words.length; k++) {
+        if (here.indexOf(words[k]) !== -1) return j;
+      }
+    }
     return -1;
   }
 

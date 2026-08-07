@@ -64,16 +64,8 @@ class EksiWebViewClient(
 
         if (ours) return false
 
-        return try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, url).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-            true
-        } catch (e: ActivityNotFoundException) {
-            // No browser to hand off to. Refusing to load is still correct --
-            // better a dead tap than an arbitrary page inside the bridge origin.
-            true
-        }
+        // A browser, never another app: see openOutside.
+        return openOutside(url)
     }
 
     /**
@@ -164,6 +156,16 @@ class EksiWebViewClient(
             return true
         }
 
+        // An intent whose data is an Ekşi page, with no package naming the app.
+        // Starting it hands the URL to whichever app has verified the domain --
+        // which on a device with the official client installed is the official
+        // client, and the user is silently thrown out of this app.
+        val intentData = parsed?.data
+        if (intentData?.host?.let(::isEksiHost) == true) {
+            view.loadUrl(intentData.toString())
+            return true
+        }
+
         if (scheme == "intent") {
             // A non-Ekşi app intent. Let the system decide, but never crash if
             // nothing handles it.
@@ -174,13 +176,34 @@ class EksiWebViewClient(
             }.getOrDefault(true)
         }
 
-        return runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(raw)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-            true
-        }.getOrDefault(true)
+        return openOutside(Uri.parse(raw))
     }
+
+    /**
+     * Hands a URL to a browser, never to an app.
+     *
+     * A plain ACTION_VIEW is resolved by app-link verification, so any app that
+     * has verified the domain wins with no chooser. On a device with the official
+     * Ekşi client installed that means an off-site hop can silently replace this
+     * app with that one, taking the user's session and our injected controls with
+     * it.
+     *
+     * The browser-only selector asks for something that handles bare http, which
+     * apps claiming a specific domain do not.
+     */
+    private fun openOutside(url: Uri): Boolean = runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, url).apply {
+                addCategory(Intent.CATEGORY_BROWSABLE)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                selector = Intent(Intent.ACTION_VIEW).apply {
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                    data = Uri.fromParts("https", "", null)
+                }
+            },
+        )
+        true
+    }.getOrDefault(true)
 
     override fun onPageFinished(view: WebView, url: String?) {
         CookieManager.getInstance().flush()

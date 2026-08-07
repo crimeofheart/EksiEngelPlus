@@ -124,6 +124,35 @@
 
   hideAdSlots();
 
+
+  /**
+   * Collapses containers that the blocked hosts would have filled.
+   *
+   * The stylesheet handles slots the site marks as ads. This handles the ones it
+   * does not: #aside reserves seventy pixels for a sidebar unit and, with the
+   * request dropped, stays on the page as a hole.
+   *
+   * Collapsed only while genuinely empty, and un-collapsed if content appears, so
+   * a container the site later uses for something real is not lost. Re-checked on
+   * every pass because these fill in late, which is why the gaps came back after
+   * scrolling.
+   */
+  var EMPTY_WHEN_BLOCKED = "#aside, .ads, .sticky-ad, .bottom-ads, .under-top-ad";
+
+  function collapseEmptyAdContainers() {
+    var nodes = document.querySelectorAll(EMPTY_WHEN_BLOCKED);
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var hasText = (el.textContent || "").trim().length > 0;
+      var hasMedia = !!el.querySelector("img,svg,video,canvas,picture,iframe");
+      if (!hasText && !hasMedia) {
+        el.style.setProperty("display", "none", "important");
+      } else if (el.style.getPropertyValue("display") === "none") {
+        el.style.removeProperty("display");
+      }
+    }
+  }
+
   function item(label) {
     var li = document.createElement("li");
     li.setAttribute(ITEM_MARK, "true");
@@ -448,6 +477,7 @@
     }
     hideBadges();
     hideAppPromo();
+    collapseEmptyAdContainers();
   }
 
   /**

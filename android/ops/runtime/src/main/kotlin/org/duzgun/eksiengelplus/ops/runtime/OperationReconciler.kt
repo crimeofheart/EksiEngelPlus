@@ -92,6 +92,28 @@ class OperationReconciler @Inject constructor(
      * on its own, and a login is not consent to resume a run the user may have
      * abandoned on purpose.
      */
+    /**
+     * Abandons a parked run for good.
+     *
+     * Resume was the only thing offered, so a run the user had lost interest in
+     * sat in the bar forever with nothing to do about it. STOPPED is terminal and
+     * already means "deliberate", which is exactly what this is.
+     *
+     * The work is cancelled as well as marked, since a checkpoint alone would
+     * leave anything already scheduled free to pick it up again.
+     */
+    suspend fun cancel(operationId: String) {
+        workManager.cancelUniqueWork(OperationWorker.UNIQUE_WORK)
+        db.checkpoints().get(operationId)?.let {
+            db.checkpoints().upsert(
+                it.copy(
+                    state = OperationState.STOPPED.name,
+                    updatedAt = System.currentTimeMillis(),
+                ),
+            )
+        }
+    }
+
     fun resume(operation: PausedOperation) {
         OperationWorker.enqueueExisting(workManager, operation.operationId)
     }

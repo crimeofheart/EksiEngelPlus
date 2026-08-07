@@ -51,7 +51,7 @@ class BrowserActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
     private lateinit var sessionBar: TextView
-    private lateinit var resumeBar: TextView
+    private lateinit var resumeBar: android.view.ViewGroup
     private lateinit var bridge: BridgeHost
 
     /** The run the resume bar is currently offering, if any. */
@@ -77,7 +77,8 @@ class BrowserActivity : AppCompatActivity() {
         web = findViewById(R.id.web)
         sessionBar = findViewById(R.id.sessionBar)
         resumeBar = findViewById(R.id.resumeBar)
-        resumeBar.setOnClickListener { resumeOffered() }
+        findViewById<TextView>(R.id.resumeText).setOnClickListener { resumeOffered() }
+        findViewById<TextView>(R.id.resumeCancel).setOnClickListener { cancelOffered() }
         findViewById<TextView>(R.id.listsEntry).setOnClickListener {
             startActivity(Intent(this, ListsActivity::class.java))
         }
@@ -180,6 +181,20 @@ class BrowserActivity : AppCompatActivity() {
         offered = null
         offeredId = null
         resumeBar.visibility = View.GONE
+    }
+
+    /** Abandons the parked run rather than resuming it. */
+    private fun cancelOffered() {
+        val id = offeredId ?: return
+        lifecycleScope.launch {
+            reconciler.cancel(id)
+            android.widget.Toast.makeText(
+                this@BrowserActivity,
+                getString(R.string.resume_cancelled),
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+            hideResumeOffer()
+        }
     }
 
     private fun resumeOffered() {

@@ -2,4 +2,6 @@
 <resources>
     <string name="resume_paused_operation">duraklatılmış işlem var — devam etmek için dokunun</string>
     <string name="open_lists">listeler</string>
+    <string name="resume_cancel">iptal</string>
+    <string name="resume_cancelled">duraklatılmış işlem iptal edildi.</string>
 </resources>

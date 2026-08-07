@@ -218,7 +218,11 @@ class BrowserActivity : AppCompatActivity() {
                 android.view.MotionEvent.ACTION_DOWN -> {
                     downX = event.rawX
                     downY = event.rawY
-                    false
+                    // Claim the gesture. Returning false here says "not
+                    // interested", and Android then delivers no MOVE at all, so
+                    // the swipe could never be seen. The buttons are separate
+                    // views and consume their own touches before this runs.
+                    true
                 }
                 android.view.MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - downX

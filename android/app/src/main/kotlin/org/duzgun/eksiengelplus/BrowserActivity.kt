@@ -283,9 +283,14 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     companion object {
-        /** Enough movement to be a swipe rather than a tap that wandered. */
-        private const val SWIPE_MIN_PX = 80f
-        private const val SWIPE_MAX_DRIFT_PX = 60f
+        /**
+         * Enough movement to be a swipe rather than a tap that wandered.
+         *
+         * Either direction dismisses: the bar is being pushed out of the way, and
+         * which way it leaves is not a decision the user should have to make.
+         */
+        private const val SWIPE_MIN_PX = 48f
+        private const val SWIPE_MAX_DRIFT_PX = 56f
 
         /**
          * Inlined rather than served.

@@ -278,6 +278,9 @@ class OperationWorker @AssistedInject constructor(
                 Result.success()
             }
             OperationOutcome.STOPPED -> {
+                // recordState only writes if the row is still there, so a run
+                // stopped by cancellation stays deleted rather than coming back
+                // as a stopped one.
                 recordState(OperationState.STOPPED)
                 // Stopped is terminal, so nothing should be left offering a resume.
                 notifier.clearProgress()

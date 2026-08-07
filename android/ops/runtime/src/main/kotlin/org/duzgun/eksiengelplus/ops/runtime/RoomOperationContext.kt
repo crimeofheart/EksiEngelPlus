@@ -130,6 +130,16 @@ class RoomOperationContext(
 
     override suspend fun checkpoint(cursor: OperationCursor, effects: suspend () -> Unit) {
         db.withTransaction {
+            /*
+             * A missing row means the run was cancelled while it was working.
+             *
+             * The upsert below would otherwise recreate it as RUNNING, which is
+             * exactly what happened: cancelling deleted the checkpoint, the live
+             * worker rebuilt it on its next pass, and the app was left reporting
+             * an operation in progress that nothing could pause, stop or resume,
+             * because RUNNING is neither terminal nor resumable.
+             */
+            if (db.checkpoints().get(operationId) == null) throw StopSignal()
             effects()
             db.checkpoints().upsert(
                 OperationCheckpointEntity(

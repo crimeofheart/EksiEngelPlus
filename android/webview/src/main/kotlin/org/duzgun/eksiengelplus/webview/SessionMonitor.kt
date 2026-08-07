@@ -33,14 +33,33 @@ class SessionMonitor @Inject constructor(
 
     private var lastProbeAt = 0L
 
-    /** Paths whose load means the session may have changed. */
-    fun shouldReprobe(url: String?): Boolean {
+    /**
+     * Paths whose load means the session may have changed.
+     *
+     * While logged out, any navigation qualifies. Ekşi does not reliably land on
+     * one of the named paths after a successful login, so keying only off them
+     * left the bar reading "giriş yapılmadı" for the rest of the session -- until
+     * the app was restarted and the startup probe found the session that had been
+     * there all along.
+     *
+     * The extra probes are bounded by refresh()'s own interval, and they stop
+     * entirely once a session is found, so a logged-in user pays nothing.
+     */
+    fun shouldReprobe(url: String?): Boolean = shouldReprobe(url, _state.value)
+
+    /** Split out so the rule is testable without reaching into the monitor's state. */
+    internal fun shouldReprobe(url: String?, state: SessionState): Boolean {
         val path = url?.substringAfter("://")?.substringAfter('/')?.substringBefore('?') ?: return false
+        if (state !is SessionState.LoggedIn) return true
         return path.isEmpty() || path.startsWith("giris") || path.startsWith("cikis")
     }
 
     suspend fun refresh(now: Long = System.currentTimeMillis(), minIntervalMs: Long = 60_000) {
-        if (now - lastProbeAt < minIntervalMs && _state.value !is SessionState.Unknown) return
+        // A minute is the right spacing for confirming a session still exists, and
+        // far too long for noticing one appear: a fresh login would sit unnoticed
+        // while the user wondered why the bar still said logged out.
+        val interval = if (_state.value is SessionState.LoggedIn) minIntervalMs else LOGGED_OUT_INTERVAL_MS
+        if (now - lastProbeAt < interval && _state.value !is SessionState.Unknown) return
         lastProbeAt = now
         val nick = runCatching { scrape.ownNick() }.getOrNull()
         _state.value = if (nick.isNullOrBlank()) SessionState.LoggedOut else SessionState.LoggedIn(nick)
@@ -50,5 +69,10 @@ class SessionMonitor @Inject constructor(
     suspend fun refreshNow() {
         lastProbeAt = 0
         refresh()
+    }
+
+    private companion object {
+        /** Short enough that a login is noticed on the next page, not the next minute. */
+        const val LOGGED_OUT_INTERVAL_MS = 3_000L
     }
 }

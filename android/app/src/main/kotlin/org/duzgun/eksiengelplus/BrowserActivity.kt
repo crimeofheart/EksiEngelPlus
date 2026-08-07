@@ -190,7 +190,12 @@ class BrowserActivity : AppCompatActivity() {
         // Under the tab it names, rather than centred: the label is telling the
         // user which tab is arriving, so it belongs where that tab is.
         loadingCover.gravity = android.view.Gravity.TOP or android.view.Gravity.START
-        loadingCover.setPadding(leftPx.coerceAtLeast(0), COVER_TEXT_TOP_PAD_PX, 0, 0)
+        loadingCover.setPadding(
+            (leftPx + COVER_TEXT_LEFT_NUDGE_PX).coerceAtLeast(0),
+            COVER_TEXT_TOP_PAD_PX,
+            0,
+            0,
+        )
         loadingCover.text = label
         loadingCover.visibility = View.VISIBLE
         loadingCover.postDelayed({ loadingCover.visibility = View.GONE }, COVER_TIMEOUT_MS)
@@ -330,6 +335,13 @@ class BrowserActivity : AppCompatActivity() {
          * Either direction dismisses: the bar is being pushed out of the way, and
          * which way it leaves is not a decision the user should have to make.
          */
+        /**
+         * The anchor's left edge is the edge of its tap target, not of its text,
+         * so aligning to it alone sat every label slightly left of the tab it
+         * names. This is the inner padding the site puts inside the anchor.
+         */
+        private const val COVER_TEXT_LEFT_NUDGE_PX = 22
+
         /** A little breathing room under the line the cover starts at. */
         private const val COVER_TEXT_TOP_PAD_PX = 24
 

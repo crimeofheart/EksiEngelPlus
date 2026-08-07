@@ -180,13 +180,17 @@ class BrowserActivity : AppCompatActivity() {
      * Hidden again on the next onPageFinished. A timeout also clears it, so a
      * navigation that never completes cannot leave the browser behind a panel.
      */
-    private fun coverLoad(label: String, topPx: Int) {
+    private fun coverLoad(label: String, topPx: Int, leftPx: Int) {
         // Start where the page starts, so the tab strip and the bar under it stay
         // visible while the load happens -- the same line the drag stops at.
         (loadingCover.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let {
             it.topMargin = topPx.coerceAtLeast(0)
             loadingCover.layoutParams = it
         }
+        // Under the tab it names, rather than centred: the label is telling the
+        // user which tab is arriving, so it belongs where that tab is.
+        loadingCover.gravity = android.view.Gravity.TOP or android.view.Gravity.START
+        loadingCover.setPadding(leftPx.coerceAtLeast(0), COVER_TEXT_TOP_PAD_PX, 0, 0)
         loadingCover.text = label
         loadingCover.visibility = View.VISIBLE
         loadingCover.postDelayed({ loadingCover.visibility = View.GONE }, COVER_TIMEOUT_MS)
@@ -326,6 +330,9 @@ class BrowserActivity : AppCompatActivity() {
          * Either direction dismisses: the bar is being pushed out of the way, and
          * which way it leaves is not a decision the user should have to make.
          */
+        /** A little breathing room under the line the cover starts at. */
+        private const val COVER_TEXT_TOP_PAD_PX = 24
+
         /** Long enough for a slow page, short enough not to strand the browser. */
         private const val COVER_TIMEOUT_MS = 6_000L
 

@@ -180,7 +180,8 @@
       var active = /(^|\s)(active|selected|current)(\s|$)/.test(
         (a.className || "") + " " + (marker.className || "")
       );
-      found.push({ label: label, href: a.href, active: active });
+      // Kept so the host can put its label under the tab it belongs to.
+      found.push({ label: label, href: a.href, active: active, el: a });
     }
     // Keep the site's own order, not the order they happened to be found in.
     found.sort(function (x, y) {
@@ -390,9 +391,12 @@
       // the alternative is the blank frame the user sees instead.
       // Same cutoff the drag uses, in device pixels, so the host's cover starts
       // exactly where the page does and the chrome above it stays visible.
+      var dpr = window.devicePixelRatio || 1;
+      var tabLeft = target.el ? target.el.getBoundingClientRect().left : 0;
       send("navigating", {
         label: target.label,
-        top: Math.round(pagerTop() * (window.devicePixelRatio || 1))
+        top: Math.round(pagerTop() * dpr),
+        left: Math.round(tabLeft * dpr)
       });
       setTimeout(function () { location.href = target.href; }, 170);
       return;

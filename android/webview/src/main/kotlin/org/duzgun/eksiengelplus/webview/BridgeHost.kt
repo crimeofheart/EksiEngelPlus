@@ -96,7 +96,7 @@ class BridgeHost(
     private val onEnqueue: (OperationRequest) -> Unit,
     private val onShare: (url: String, title: String) -> Unit = { _, _ -> },
     /** Where a swipe is heading, so the host can cover the load with something. */
-    private val onNavigating: (label: String, topPx: Int) -> Unit = { _, _ -> },
+    private val onNavigating: (label: String, topPx: Int, leftPx: Int) -> Unit = { _, _, _ -> },
     private val onLog: (String) -> Unit = {},
 ) {
     companion object {
@@ -195,7 +195,8 @@ class BridgeHost(
         val payload = obj["payload"] as? kotlinx.serialization.json.JsonObject ?: return
         val label = (payload["label"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
         val top = (payload["top"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() ?: 0
-        onNavigating(label, top)
+        val left = (payload["left"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() ?: 0
+        onNavigating(label, top, left)
     }
 
     private fun shareFrom(raw: String) {

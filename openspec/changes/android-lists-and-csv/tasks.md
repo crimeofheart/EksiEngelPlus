@@ -31,7 +31,7 @@
 - [x] 4.2 Create `ListsViewModel` combining `RelationUserDao.countOf`, `ListSyncStateDao.observe` and `OperationCheckpointDao` running-state into one UI state `Flow`
 - [x] 4.3 Disable a list's refresh while an operation is `RUNNING`, per the design's request-pressure mitigation
 - [x] 4.4 Add the overflow-menu entry in `BrowserActivity` that opens `ListsActivity`, and register the Activity in `AndroidManifest.xml`
-- [ ] 4.5 Verify on device/emulator: counts rise live during a sync, the partial badge appears when a sync is stopped mid-run — BLOCKED: needs a logged-in Ekşi session. Screens, live counts and the run dialog are verified on the emulator without one.
+- [ ] 4.5 Verify on device: counts rise live during a sync, the partial badge appears when a sync is stopped mid-run — UNBLOCKED, not yet run: a logged-in device is now available and a sync is read-only, so this is ready to do
 - [x] 4.6 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 5. CSV export
@@ -39,7 +39,7 @@
 - [x] 5.1 Add an export action per list that launches `ActionCreateDocument("text/csv")` with the suggested filename
 - [x] 5.2 On result, join the list rows against `registration_date_cache` and stream through `CsvCodec.writeExport` into the SAF `OutputStream` off the main thread
 - [x] 5.3 Treat a null `Uri` (dismissed picker) as a no-op; surface write failures as a message, not a crash
-- [ ] 5.4 Verify a real export opens in a spreadsheet and imports into the extension's author list page unchanged — BLOCKED: the export button is gated on a non-empty list, which needs a session
+- [ ] 5.4 Verify a real export opens in a spreadsheet and imports into the extension's author list page unchanged — UNBLOCKED, not yet run: needs a synced list first (task 4.5)
 - [x] 5.5 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 6. Author list import and editing
@@ -69,7 +69,7 @@
 - [x] 8.5 Unit-test progress emission: one report per page, reported only after the rows are stored, and none after a stop
 - [x] 8.6 Instrumented-test the `Data` round trip and the per-list work names
 - [x] 8.7 Verify on emulator: idle, queued-without-network, and stop-returns-to-idle all render correctly
-- [ ] 8.8 Verify the `Running` state with live page and user counts — BLOCKED: needs a logged-in session, since a sync without one fails at `ownNick()` before the first page
+- [ ] 8.8 Verify the `Running` state with live page and user counts — UNBLOCKED, not yet run: follows from task 4.5
 - [x] 8.9 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 - [x] 8.10 Add a busy state to `AuthorListViewModel` via `launchBusy` — refuses a second start, always clears in a `finally`, and moves parsing off the main thread with the write
 - [x] 8.11 Track the exporting list in `ListsViewModel`, so the busy state outlives a rotation the way the coroutine does
@@ -79,10 +79,19 @@
 - [x] 8.15 Verify on emulator: a save re-enables every control and leaves no spinner behind
 - [ ] 8.16 Verify the export busy state on device — BLOCKED: the export button is gated on a non-empty list, which needs a session
 
-## 9. Close out
+## 9. Actions and presentation
 
-- [x] 9.1 Run the full Android check: `cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew test :app:assembleDebug`
-- [x] 9.2 Run the instrumented tests on an emulator
-- [ ] 9.3 End-to-end on device: sync blocked → export CSV → import it as the author list → run a LIST unblock against two controlled accounts, then reverse it — BLOCKED: needs the throwaway accounts from android-spike task 1.1
-- [x] 9.4 Confirm `git diff --stat -- frontend/app/ backend/` is empty
-- [ ] 9.5 Run `openspec validate android-lists-and-csv` clean, then `openspec archive android-lists-and-csv`
+- [x] 9.1 Add `takibe al` and `takipten çıkar` to the run chooser, reusing `TargetType.FOLLOW` with both ban modes
+- [x] 9.2 Rebuild the chooser as three coloured groups of two, so each action sits beside its inverse
+- [x] 9.3 Match the extension's button language across the lists screens: square, 2dp stroke, uppercase, wide tracking, resume-bar green as the accent
+- [x] 9.4 Take the group colours from the extension's own notification palette rather than picking them by eye
+- [x] 9.5 Keep the longest label on one line; verified on device that all six buttons share a height
+- [x] 9.6 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+
+## 10. Close out
+
+- [x] 10.1 Run the full Android check: `cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew test :app:assembleDebug`
+- [x] 10.2 Run the instrumented tests on an emulator
+- [ ] 10.3 End-to-end on device: sync blocked → export CSV → import it as the author list → run a LIST unblock against two controlled accounts, then reverse it — NOT RUN: the only step that mutates a real account, so it waits on throwaway accounts rather than the owner's
+- [x] 10.4 Confirm `git diff --stat -- frontend/app/ backend/` is empty
+- [ ] 10.5 Run `openspec validate android-lists-and-csv` clean, then `openspec archive android-lists-and-csv`

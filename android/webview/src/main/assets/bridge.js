@@ -209,28 +209,174 @@
     location.href = tabs[next].href;
   }
 
+  /**
+   * Drag-to-switch, with the page following the finger.
+   *
+   * The outgoing page is the real DOM, translated; the incoming one is a preview
+   * layer holding that tab's #content, fetched once and cached. A preview rather
+   * than a live document because a tab page is a whole document -- running its
+   * scripts in a layer beside the current one would be a second site inside the
+   * first.
+   *
+   * Committing navigates for real, so what settles is always the site's own page
+   * and never the preview.
+   */
+  var SWIPE = {
+    surface: null,   // the element that moves
+    layer: null,     // the incoming preview
+    x0: 0, y0: 0, dx: 0,
+    axis: null,      // null until the gesture commits to horizontal or vertical
+    dir: 0,
+    tabs: null,
+    at: -1
+  };
+
+  var previewCache = {};
+
+  function surfaceEl() {
+    return document.getElementById("content") || document.body;
+  }
+
+  /** Fetches a tab and keeps only its #content, so no foreign script runs. */
+  function preloadTab(href) {
+    if (previewCache[href] !== undefined) return;
+    previewCache[href] = null;
+    fetch(href, { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        var content = doc.getElementById("content");
+        previewCache[href] = content ? content.innerHTML : null;
+      })
+      .catch(function () { previewCache[href] = null; });
+  }
+
+  function ensureLayer() {
+    if (SWIPE.layer && SWIPE.layer.isConnected) return SWIPE.layer;
+    var layer = document.createElement("div");
+    layer.setAttribute("data-eksiengel-swipe", "true");
+    layer.style.cssText = [
+      "position:fixed", "top:0", "left:0", "right:0", "bottom:0",
+      "overflow:hidden", "background:inherit", "z-index:2147483000",
+      "pointer-events:none", "display:none"
+    ].join(";");
+    document.body.appendChild(layer);
+    SWIPE.layer = layer;
+    return layer;
+  }
+
+  function beginDrag() {
+    SWIPE.tabs = mainTabs();
+    SWIPE.at = currentTabIndex(SWIPE.tabs);
+    if (SWIPE.at === -1 || SWIPE.tabs.length < 2) return false;
+    SWIPE.surface = surfaceEl();
+    SWIPE.surface.style.willChange = "transform";
+    return true;
+  }
+
+  function neighbour(dir) {
+    var n = SWIPE.at + dir;
+    if (n < 0) n = SWIPE.tabs.length - 1;
+    if (n >= SWIPE.tabs.length) n = 0;
+    return SWIPE.tabs[n];
+  }
+
+  function showPreview(dir) {
+    var tab = neighbour(dir);
+    var layer = ensureLayer();
+    var cached = previewCache[tab.href];
+    layer.innerHTML =
+      '<div style="padding:16px;opacity:0.98;height:100%;overflow:hidden">' +
+      (cached || '<div style="padding:24px;font-size:15px;opacity:0.7">' + tab.label + "</div>") +
+      "</div>";
+    layer.style.display = "block";
+    return layer;
+  }
+
+  function move(dx, dir) {
+    var w = window.innerWidth || 1;
+    SWIPE.surface.style.transition = "none";
+    SWIPE.surface.style.transform = "translateX(" + dx + "px)";
+    if (SWIPE.layer) {
+      SWIPE.layer.style.transition = "none";
+      // The incoming page sits just off the edge the finger is pulling from.
+      var from = dir > 0 ? w : -w;
+      SWIPE.layer.style.transform = "translateX(" + (from + dx) + "px)";
+    }
+  }
+
+  function settle(commit, dir) {
+    var w = window.innerWidth || 1;
+    var ease = "transform 180ms ease-out";
+    SWIPE.surface.style.transition = ease;
+    if (SWIPE.layer) SWIPE.layer.style.transition = ease;
+
+    if (commit) {
+      SWIPE.surface.style.transform = "translateX(" + (dir > 0 ? -w : w) + "px)";
+      if (SWIPE.layer) SWIPE.layer.style.transform = "translateX(0px)";
+      var href = neighbour(dir).href;
+      setTimeout(function () { location.href = href; }, 170);
+      return;
+    }
+
+    SWIPE.surface.style.transform = "translateX(0px)";
+    if (SWIPE.layer) SWIPE.layer.style.transform = "translateX(" + (dir > 0 ? w : -w) + "px)";
+    setTimeout(function () {
+      if (SWIPE.layer) { SWIPE.layer.style.display = "none"; SWIPE.layer.innerHTML = ""; }
+      SWIPE.surface.style.transition = "";
+      SWIPE.surface.style.transform = "";
+      SWIPE.surface.style.willChange = "";
+    }, 200);
+  }
+
   (function installSwipe() {
-    var x0 = 0, y0 = 0, tracking = false;
-    var MIN_X = 70;      // enough to be deliberate
-    var MAX_Y = 50;      // a scroll that drifts sideways is still a scroll
+    var MIN_X = 12;        // before this the gesture has not chosen an axis
+    var MAX_Y = 24;        // past this vertically it is a scroll, not a swipe
+    var COMMIT = 0.28;     // fraction of the screen that counts as "go"
 
     document.addEventListener("touchstart", function (e) {
-      if (e.touches.length !== 1) { tracking = false; return; }
-      x0 = e.touches[0].clientX;
-      y0 = e.touches[0].clientY;
-      tracking = true;
+      SWIPE.axis = null;
+      SWIPE.dx = 0;
+      if (e.touches.length !== 1) return;
+      SWIPE.x0 = e.touches[0].clientX;
+      SWIPE.y0 = e.touches[0].clientY;
+      // Warm the neighbours so the first drag has something to show.
+      var tabs = mainTabs();
+      var at = currentTabIndex(tabs);
+      if (at !== -1 && tabs.length > 1) {
+        preloadTab(tabs[(at + 1) % tabs.length].href);
+        preloadTab(tabs[(at - 1 + tabs.length) % tabs.length].href);
+      }
     }, { passive: true });
 
-    document.addEventListener("touchend", function (e) {
-      if (!tracking) return;
-      tracking = false;
-      var t = e.changedTouches[0];
-      var dx = t.clientX - x0;
-      var dy = t.clientY - y0;
-      if (Math.abs(dy) > MAX_Y || Math.abs(dx) < MIN_X) return;
-      // Swiping left moves forward through the strip, matching the direction
-      // the content appears to travel.
-      cycleTab(dx < 0 ? 1 : -1);
+    document.addEventListener("touchmove", function (e) {
+      if (e.touches.length !== 1) return;
+      var dx = e.touches[0].clientX - SWIPE.x0;
+      var dy = e.touches[0].clientY - SWIPE.y0;
+
+      if (SWIPE.axis === null) {
+        if (Math.abs(dy) > MAX_Y) { SWIPE.axis = "y"; return; }
+        if (Math.abs(dx) < MIN_X) return;
+        SWIPE.axis = "x";
+        if (!beginDrag()) { SWIPE.axis = "y"; return; }
+        SWIPE.dir = dx < 0 ? 1 : -1;
+        showPreview(SWIPE.dir);
+      }
+      if (SWIPE.axis !== "x") return;
+
+      // Only now, once the gesture is definitely horizontal, is it ours to keep.
+      if (e.cancelable) e.preventDefault();
+      SWIPE.dx = dx;
+      move(dx, SWIPE.dir);
+    }, { passive: false });
+
+    document.addEventListener("touchend", function () {
+      if (SWIPE.axis !== "x" || !SWIPE.surface) { SWIPE.axis = null; return; }
+      SWIPE.axis = null;
+      var w = window.innerWidth || 1;
+      var far = Math.abs(SWIPE.dx) > w * COMMIT;
+      var sameWay = (SWIPE.dx < 0 ? 1 : -1) === SWIPE.dir;
+      settle(far && sameWay, SWIPE.dir);
     }, { passive: true });
   })();
 

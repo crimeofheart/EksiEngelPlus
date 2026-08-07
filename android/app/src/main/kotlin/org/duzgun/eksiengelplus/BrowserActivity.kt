@@ -85,7 +85,7 @@ class BrowserActivity : AppCompatActivity() {
         web = findViewById(R.id.web)
         sessionBar = findViewById(R.id.sessionBar)
         resumeBar = findViewById(R.id.resumeBar)
-        findViewById<TextView>(R.id.resumeText).setOnClickListener { resumeOffered() }
+        findViewById<TextView>(R.id.resumeResume).setOnClickListener { resumeOffered() }
         findViewById<TextView>(R.id.resumeCancel).setOnClickListener { cancelOffered() }
         installResumeBarSwipe()
         findViewById<TextView>(R.id.listsEntry).setOnClickListener {

@@ -39,6 +39,17 @@
             android:textColor="#000000"
             android:text="@string/resume_paused_operation"/>
 
+        <!-- Explicit, rather than tapping the message: resuming restarts a bulk
+             run, which is too much to hang on a stray touch of the bar. -->
+        <TextView android:id="@+id/resumeResume"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:paddingStart="12dp" android:paddingEnd="12dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="13sp" android:textStyle="bold"
+            android:textColor="#000000"
+            android:background="?android:attr/selectableItemBackground"
+            android:text="@string/resume_action"/>
+
         <!-- Right end, so the destructive option is never the one a thumb finds
              by accident when reaching for the bar itself. -->
         <TextView android:id="@+id/resumeCancel"

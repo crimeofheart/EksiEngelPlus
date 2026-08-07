@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="resume_paused_operation">duraklatılmış işlem var — devam etmek için dokunun</string>
+    <string name="resume_paused_operation">duraklatılmış işlem var</string>
+    <string name="resume_action">devam et</string>
     <string name="open_lists">listeler</string>
     <string name="resume_cancel">iptal</string>
     <string name="resume_cancelled">duraklatılmış işlem iptal edildi.</string>

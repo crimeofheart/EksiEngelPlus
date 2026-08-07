@@ -273,80 +273,37 @@
   }
 
   /**
-   * Viewport y where the pages begin.
+   * The block that actually holds the page.
    *
-   * Not simply the tab strip's lower edge: Ekşi puts a second, short bar under
-   * it, and that bar belongs to the chrome rather than to the page. Sliding it
-   * looked wrong, since it stays put when the site navigates normally.
+   * Everything above it is chrome and must not move: the tab strip, and the
+   * short bar Ekşi puts beneath it. That bar lives inside #content rather than
+   * beside the strip, so transforming #content carried it along -- which is why
+   * anchoring on the strip's siblings did nothing.
    *
-   * Short siblings are absorbed into the static area, tall ones are the page.
+   * The first tall child is the list; height is the test rather than a selector,
+   * because the chrome differs between Ekşi's layouts and a list of ids would
+   * rot.
    */
   var CHROME_BAR_MAX_HEIGHT = 90;
 
+  function pagerEl() {
+    var content = document.getElementById("content") || document.body;
+    var kids = content.children;
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i].getBoundingClientRect().height > CHROME_BAR_MAX_HEIGHT) return kids[i];
+    }
+    return content;
+  }
+
+  /** Viewport y where the pages begin: the top of that block. */
   function pagerTop() {
-    var strip = tabStripEl();
-    if (!strip) return 0;
-
-    var bottom = strip.getBoundingClientRect().bottom;
-    var next = strip.nextElementSibling;
-    while (next) {
-      var r = next.getBoundingClientRect();
-      if (r.height <= 0 || r.height > CHROME_BAR_MAX_HEIGHT) break;
-      bottom = r.bottom;
-      next = next.nextElementSibling;
-    }
-
-    return bottom > 0 && bottom < (window.innerHeight || 0) ? Math.round(bottom) : 0;
+    var t = pagerEl().getBoundingClientRect().top;
+    return t > 0 && t < (window.innerHeight || 0) ? Math.round(t) : 0;
   }
 
-  /**
-   * What slides.
-   *
-   * The element after the tab strip where there is one, so the strip stays
-   * anchored and only the pages travel -- moving the tabs along with the content
-   * made the whole screen lurch rather than reading as one page replacing
-   * another.
-   */
+  /** What slides. The chrome above it stays anchored. */
   function surfaceEl() {
-    var strip = tabStripEl();
-    var after = strip && strip.nextElementSibling;
-    // Walk past the chrome bars pagerTop absorbed, so what slides is the first
-    // thing that is actually page content.
-    while (after) {
-      var h = after.getBoundingClientRect().height;
-      if (h > CHROME_BAR_MAX_HEIGHT) return after;
-      after = after.nextElementSibling;
-    }
-    return document.getElementById("content") || document.body;
-  }
-
-  /** Fetches a tab and keeps only its #content, so no foreign script runs. */
-  function preloadTab(href) {
-    if (previewCache[href] !== undefined) return;
-    previewCache[href] = null;
-    fetch(href, { credentials: "same-origin" })
-      .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
-      .then(function (html) {
-        var doc = new DOMParser().parseFromString(html, "text/html");
-        var content = doc.getElementById("content");
-        previewCache[href] = content ? content.innerHTML : null;
-      })
-      .catch(function () { previewCache[href] = null; });
-  }
-
-  function ensureLayer() {
-    if (SWIPE.layer && SWIPE.layer.isConnected) return SWIPE.layer;
-    var layer = document.createElement("div");
-    layer.setAttribute("data-eksiengel-swipe", "true");
-    layer.style.cssText = [
-      "position:fixed", "top:0", "left:0", "right:0", "bottom:0",
-      // top is set per drag, once the strip's position is known.
-      "overflow:hidden", "background:inherit", "z-index:2147483000",
-      "pointer-events:none", "display:none"
-    ].join(";");
-    document.body.appendChild(layer);
-    SWIPE.layer = layer;
-    return layer;
+    return pagerEl();
   }
 
   function beginDrag() {

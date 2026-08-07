@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Three action groups, one row each, two pills per row.
+
+    The pairing is the point: every action here has an inverse, and putting the
+    two side by side in one colour says "these are the same lever" far better
+    than six identical rows in a list, where engelle and engeli kaldir sat
+    adjacent and looked interchangeable.
+
+    Outlined rather than filled so the group colour reads the same in light and
+    dark without a second palette.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:paddingStart="20dp" android:paddingEnd="20dp"
+    android:paddingTop="8dp" android:paddingBottom="8dp">
+
+    <TextView
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/author_list_group_block"
+        android:textSize="12sp" android:alpha="0.7"
+        android:paddingBottom="4dp"/>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runBlock"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            app:cornerRadius="22dp"
+            app:strokeColor="@color/action_block"
+            android:textColor="@color/action_block"
+            android:text="@string/author_list_mode_block"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runUnblock"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            app:cornerRadius="22dp"
+            app:strokeColor="@color/action_block"
+            android:textColor="@color/action_block"
+            android:text="@string/author_list_mode_unblock"/>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/author_list_group_mute"
+        android:textSize="12sp" android:alpha="0.7"
+        android:paddingTop="12dp" android:paddingBottom="4dp"/>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runMute"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            app:cornerRadius="22dp"
+            app:strokeColor="@color/action_mute"
+            android:textColor="@color/action_mute"
+            android:text="@string/author_list_mode_mute"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runUnmute"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            app:cornerRadius="22dp"
+            app:strokeColor="@color/action_mute"
+            android:textColor="@color/action_mute"
+            android:text="@string/author_list_mode_unmute"/>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/author_list_group_follow"
+        android:textSize="12sp" android:alpha="0.7"
+        android:paddingTop="12dp" android:paddingBottom="4dp"/>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runFollow"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            app:cornerRadius="22dp"
+            app:strokeColor="@color/action_follow"
+            android:textColor="@color/action_follow"
+            android:text="@string/author_list_mode_follow"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runUnfollow"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            app:cornerRadius="22dp"
+            app:strokeColor="@color/action_follow"
+            android:textColor="@color/action_follow"
+            android:text="@string/author_list_mode_unfollow"/>
+    </LinearLayout>
+</LinearLayout>

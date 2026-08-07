@@ -40,4 +40,8 @@
     <string name="author_list_mode_unmute">sessizi kaldır</string>
     <string name="author_list_mode_follow">takibe al</string>
     <string name="author_list_mode_unfollow">takipten çıkar</string>
+    <string name="author_list_group_block">engelleme</string>
+    <string name="author_list_group_mute">sessize alma</string>
+    <string name="author_list_group_follow">takip</string>
+    <string name="author_list_cancel">vazgeç</string>
 </resources>

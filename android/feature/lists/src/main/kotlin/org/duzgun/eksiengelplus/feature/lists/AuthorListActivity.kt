@@ -120,31 +120,40 @@ class AuthorListActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * The run chooser.
+     *
+     * A custom view rather than setItems: every action here has an inverse, and
+     * pairing the two in one colour on one row says "same lever, opposite
+     * direction". As a flat list, engelle and engeli kaldir sat adjacent and
+     * looked interchangeable, which is a bad property for a pair of bulk actions
+     * that are tedious to undo.
+     */
     private fun askMode() {
-        val labels = arrayOf(
-            getString(R.string.author_list_mode_block),
-            getString(R.string.author_list_mode_unblock),
-            getString(R.string.author_list_mode_mute),
-            getString(R.string.author_list_mode_unmute),
-            getString(R.string.author_list_mode_follow),
-            getString(R.string.author_list_mode_unfollow),
-        )
-        AlertDialog.Builder(this)
+        val view = layoutInflater.inflate(R.layout.dialog_run_actions, null)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.author_list_run)
-            .setItems(labels) { _, which ->
-                // TargetType is the r= code Ekşi expects; BanMode picks
-                // addrelation vs removerelation. Following is the same pair of
-                // endpoints as blocking, with r=b.
-                when (which) {
-                    0 -> model.run(BanMode.BAN, TargetType.USER)
-                    1 -> model.run(BanMode.UNDOBAN, TargetType.USER)
-                    2 -> model.run(BanMode.BAN, TargetType.MUTE)
-                    3 -> model.run(BanMode.UNDOBAN, TargetType.MUTE)
-                    4 -> model.run(BanMode.BAN, TargetType.FOLLOW)
-                    else -> model.run(BanMode.UNDOBAN, TargetType.FOLLOW)
-                }
+            .setView(view)
+            .setNegativeButton(R.string.author_list_cancel, null)
+            .create()
+
+        // TargetType is the r= code Eksi expects; BanMode picks addrelation vs
+        // removerelation. All three groups go through that same pair.
+        mapOf(
+            R.id.runBlock to (BanMode.BAN to TargetType.USER),
+            R.id.runUnblock to (BanMode.UNDOBAN to TargetType.USER),
+            R.id.runMute to (BanMode.BAN to TargetType.MUTE),
+            R.id.runUnmute to (BanMode.UNDOBAN to TargetType.MUTE),
+            R.id.runFollow to (BanMode.BAN to TargetType.FOLLOW),
+            R.id.runUnfollow to (BanMode.UNDOBAN to TargetType.FOLLOW),
+        ).forEach { (id, action) ->
+            view.findViewById<View>(id).setOnClickListener {
+                model.run(action.first, action.second)
+                dialog.dismiss()
             }
-            .show()
+        }
+
+        dialog.show()
     }
 
     private companion object {

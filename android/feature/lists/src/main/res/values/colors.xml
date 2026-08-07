@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One colour per action group, chosen to stay legible against both the light
+    and dark Material3 dialog surfaces. Used as stroke and label on outlined
+    pills rather than as a fill, which is what lets a single value work for both.
+-->
+<resources>
+    <color name="action_block">#D05353</color>
+    <color name="action_mute">#C08A2E</color>
+    <color name="action_follow">#3F8F5F</color>
+</resources>

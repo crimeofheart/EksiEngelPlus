@@ -8,6 +8,17 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <application>
+        <!--
+            The notification's Duraklat and Durdur actions broadcast to this.
+            Undeclared, an explicit broadcast is simply dropped, so both buttons
+            did nothing and the only way to end a run was to uninstall.
+
+            Not exported: the only sender is our own notification.
+        -->
+        <receiver
+            android:name="org.duzgun.eksiengelplus.ops.runtime.OperationCommandReceiver"
+            android:exported="false"/>
+
         <!-- WorkManager promotes the worker to a foreground service; the type has
              to be declared here or Android 14+ refuses to start it. -->
         <service

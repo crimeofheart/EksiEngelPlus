@@ -12,7 +12,7 @@
     <string name="lists_partial_badge">yarım liste</string>
     <string name="lists_never_refreshed">hiç yenilenmedi</string>
     <string name="lists_syncing">yenileniyor…</string>
-    <string name="lists_sync_queued">sırada — bağlantı bekleniyor</string>
+    <string name="lists_sync_queued">sırada — birazdan sürecek</string>
     <string name="lists_sync_progress">yenileniyor — sayfa %1$d, %2$d yazar</string>
     <string name="lists_exporting">dışa aktarılıyor…</string>
     <string name="lists_exported">%d kayıt dışa aktarıldı.</string>

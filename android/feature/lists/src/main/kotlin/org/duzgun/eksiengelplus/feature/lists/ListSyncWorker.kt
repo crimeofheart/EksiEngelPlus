@@ -2,6 +2,7 @@ package org.duzgun.eksiengelplus.feature.lists
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -10,6 +11,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import java.util.concurrent.TimeUnit
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import org.duzgun.eksiengelplus.model.BanSource
@@ -25,8 +27,10 @@ import org.duzgun.eksiengelplus.model.ListType
  * ForegroundBudget rations for multi-day blocking runs. Spending an hour of a
  * six-hour daily allowance on a forty-second read would be a real regression.
  *
- * No foreground service and no notification for the same reason -- a sync is short
- * enough to live inside a normal background execution window.
+ * No foreground service and no notification for the same reason. The cost is that
+ * the system may reclaim the worker when the app is backgrounded; the answer is
+ * resumption rather than a foreground promotion, since the cursor already makes a
+ * resumed pass cheap and correct.
  */
 @HiltWorker
 class ListSyncWorker @AssistedInject constructor(
@@ -55,7 +59,21 @@ class ListSyncWorker @AssistedInject constructor(
 
         return when (outcome) {
             is SyncOutcome.Completed -> Result.success()
-            is SyncOutcome.Stopped -> Result.success()
+
+            /*
+             * retry, not success.
+             *
+             * isStopped means either the user pressed Durdur or the system
+             * reclaimed the worker -- and backgrounding the app is the common way
+             * the second happens. Reporting success told WorkManager the job was
+             * finished, so a sync interrupted that way was simply abandoned
+             * half-done, which is what left the list showing "yarım liste".
+             *
+             * Retry is right for both cases: work the user cancelled is already
+             * CANCELLED and WorkManager ignores the result, while work the system
+             * stopped is rescheduled and picks up from the stored cursor.
+             */
+            is SyncOutcome.Stopped -> Result.retry()
             // Retrying a session loss would just fail the same way until the user
             // logs in, and the Lists screen already shows the list as partial.
             SyncOutcome.SessionLost -> Result.failure()
@@ -108,6 +126,10 @@ class ListSyncWorker @AssistedInject constructor(
                     .setConstraints(
                         Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
                     )
+                    // A sync resumes from its cursor, so a retry is cheap and the
+                    // default 30s exponential backoff is just dead time in front of
+                    // a user watching a half-finished list. 10s is the floor.
+                    .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
                     .build(),
             )
         }

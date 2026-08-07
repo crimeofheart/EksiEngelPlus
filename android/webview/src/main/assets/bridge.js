@@ -322,18 +322,44 @@
     return SWIPE.tabs[n];
   }
 
-  function showPreview(dir) {
-    var tab = neighbour(dir);
-    var layer = ensureLayer();
+  function renderPreview(layer, tab) {
     var cached = previewCache[tab.href];
     layer.innerHTML =
       '<div style="padding:16px;opacity:0.98;height:100%;overflow:hidden">' +
       (cached || '<div style="padding:24px;font-size:15px;opacity:0.7">' + tab.label + "</div>") +
       "</div>";
+  }
+
+  function showPreview(dir) {
+    var tab = neighbour(dir);
+    var layer = ensureLayer();
+    renderPreview(layer, tab);
     // Start below the tabs, so the incoming page appears from under the strip
     // rather than sliding over it.
     layer.style.top = pagerTop() + "px";
+    layer.style.background = getComputedStyle(document.body).backgroundColor || "#fff";
     layer.style.display = "block";
+
+    /*
+     * Not fetched yet: show the label now and fill the page in when it arrives.
+     *
+     * Warming happens after load, but a drag can still beat it on a slow
+     * connection, and a blank panel says nothing about where the user is going,
+     * which is the whole reason the preview exists.
+     */
+    if (!previewCache[tab.href]) {
+      preloadTab(tab.href);
+      var tries = 0;
+      var poll = setInterval(function () {
+        tries++;
+        if (previewCache[tab.href]) {
+          if (SWIPE.layer === layer && layer.style.display === "block") renderPreview(layer, tab);
+          clearInterval(poll);
+        } else if (tries > 40) {
+          clearInterval(poll);
+        }
+      }, 100);
+    }
     return layer;
   }
 
@@ -851,4 +877,6 @@
   };
 
   scan();
+  // After first paint, so warming never competes with the page coming up.
+  setTimeout(warmNeighbours, 1500);
 })();

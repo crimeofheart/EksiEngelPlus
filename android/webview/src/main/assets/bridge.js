@@ -413,6 +413,23 @@
     hideAppPromo();
   }
 
+  /**
+   * A canary on injection cost.
+   *
+   * The observer fires on every XHR append, so a scan that grows with page size
+   * is the failure mode to watch for. Silent unless a pass is slow enough to be
+   * felt, which keeps it useful rather than noisy.
+   */
+  function timedScan() {
+    var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+    scan();
+    var t1 = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (t1 - t0 > 30) {
+      console.warn("eksiengel: scan took " + Math.round(t1 - t0) + "ms, dropdowns=" +
+        document.querySelectorAll(".dropdown-menu").length);
+    }
+  }
+
   var scheduled = false;
   function schedule() {
     if (scheduled) return;
@@ -421,7 +438,7 @@
       // Trailing debounce so a 200-node insert triggers one pass, not 200.
       setTimeout(function () {
         scheduled = false;
-        scan();
+        timedScan();
       }, 50);
     });
   }

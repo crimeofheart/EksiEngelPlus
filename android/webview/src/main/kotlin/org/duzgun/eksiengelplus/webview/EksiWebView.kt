@@ -32,6 +32,18 @@ class EksiWebViewClient(
         val url = request.url
         val scheme = url.scheme?.lowercase()
 
+        /*
+         * Sub-frames are the page's business, not ours.
+         *
+         * This policy exists to stop the user being carried off-site by a link
+         * they tapped. An iframe is not a tap: the profile page embeds
+         * eksiseyler.com, and treating that embed as an off-site navigation meant
+         * trying to hand a widget to an external browser, then sitting on the
+         * frame for thirty seconds before it failed. Cross-origin framing is
+         * already governed by the embedded site's own headers.
+         */
+        if (!request.isForMainFrame) return false
+
         // Anything that is not plain web content gets inspected before it is
         // handed anywhere. This is where users were being lost: the page fires an
         // app-open URL, and blindly ACTION_VIEWing it launches the official Ekşi

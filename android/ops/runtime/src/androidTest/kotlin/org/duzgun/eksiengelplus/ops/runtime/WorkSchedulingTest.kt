@@ -25,6 +25,7 @@ import org.junit.runner.RunWith
 class WorkSchedulingTest {
 
     private lateinit var wm: WorkManager
+    private lateinit var db: org.duzgun.eksiengelplus.database.EksiDatabase
 
     @Before fun setUp() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -36,17 +37,42 @@ class WorkSchedulingTest {
                 .build(),
         )
         wm = WorkManager.getInstance(context)
+        db = androidx.room.Room.inMemoryDatabaseBuilder(
+            context,
+            org.duzgun.eksiengelplus.database.EksiDatabase::class.java,
+        ).build()
     }
+
+    @org.junit.After fun closeDb() = db.close()
 
     private val request = OperationRequest(BanSource.LIST, BanMode.BAN, nicks = listOf("a", "b"))
 
-    @Test fun enqueueingTwiceKeepsTheFirstRun() {
-        OperationWorker.enqueue(wm, "op1", request)
-        OperationWorker.enqueue(wm, "op2", request)
+    @Test fun enqueueingTwiceKeepsTheFirstRun() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "op1", request)
+        OperationWorker.enqueue(wm, db, "op2", request)
 
         val infos = wm.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
         // KEEP, not REPLACE: a second request must never cancel a run hours deep.
         assertThat(infos.count { it.state != WorkInfo.State.CANCELLED }).isEqualTo(1)
+    }
+
+    /**
+     * The request goes to the database, never into input data. WorkManager caps
+     * Data at 10 KB, and a LIST run imported from a CSV carries far more nicks
+     * than that -- the cap threw on the caller and took the app down.
+     */
+    @Test fun aLongTargetListDoesNotBreachTheInputDataCap() = kotlinx.coroutines.runBlocking {
+        val many = OperationRequest(
+            BanSource.LIST,
+            BanMode.UNDOBAN,
+            nicks = (1..5_000).map { "yazar-nick-number-$it" },
+        )
+
+        OperationWorker.enqueue(wm, db, "big", many)
+
+        val infos = wm.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
+        assertThat(infos).isNotEmpty()
+        assertThat(db.checkpoints().get("big")?.requestJson).isNotNull()
     }
 
     @Test fun aContinuationIsScheduledWithADelay() {
@@ -65,11 +91,12 @@ class WorkSchedulingTest {
         assertThat(infos).hasSize(1)
     }
 
-    @Test fun aContinuationReplacesRatherThanQueuesBehind() {
-        OperationWorker.enqueue(wm, "op1", request)
+    @Test fun aContinuationReplacesRatherThanQueuesBehind() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "op1", request)
         OperationWorker.enqueueContinuation(wm, "op1", request, delayMs = 1_000)
         val live = wm.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
             .filter { it.state != WorkInfo.State.CANCELLED }
         assertThat(live).hasSize(1)
+        Unit
     }
 }

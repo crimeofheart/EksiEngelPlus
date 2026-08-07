@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.model.TargetType
@@ -29,6 +30,7 @@ import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
 class AuthorListViewModel @Inject constructor(
     application: Application,
     private val repository: AuthorListRepository,
+    private val db: EksiDatabase,
 ) : AndroidViewModel(application) {
 
     private val messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
@@ -137,6 +139,7 @@ class AuthorListViewModel @Inject constructor(
             }
             OperationWorker.enqueue(
                 WorkManager.getInstance(getApplication()),
+                db = db,
                 operationId = UUID.randomUUID().toString(),
                 request = OperationRequest(
                     source = BanSource.LIST,

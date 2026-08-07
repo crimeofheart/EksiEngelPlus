@@ -93,7 +93,7 @@ class OperationReconciler @Inject constructor(
      * abandoned on purpose.
      */
     fun resume(operation: PausedOperation) {
-        OperationWorker.enqueue(workManager, operation.operationId, operation.request)
+        OperationWorker.enqueueExisting(workManager, operation.operationId)
     }
 }
 

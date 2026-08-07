@@ -17,6 +17,7 @@ import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.database.EksiDatabase
+import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
 import org.duzgun.eksiengelplus.ops.engine.ActionPacer
 import org.duzgun.eksiengelplus.ops.engine.OperationCursor
 import org.duzgun.eksiengelplus.ops.engine.OperationOutcome
@@ -51,10 +52,43 @@ class OperationWorker @AssistedInject constructor(
         const val KEY_OPERATION_ID = "operationId"
         const val KEY_REQUEST_JSON = "requestJson"
 
-        fun enqueue(wm: WorkManager, operationId: String, request: OperationRequest) {
+        /**
+         * Records the request, then schedules the work.
+         *
+         * The request goes to the database rather than into WorkManager's input
+         * data, which is capped at 10 KB: a LIST run carries every nick it
+         * targets, and a list imported from a CSV blows that cap, throwing on the
+         * caller before anything is scheduled.
+         *
+         * Suspending because the write has to land first -- the worker reads the
+         * request back from the checkpoint, so enqueueing ahead of the row would
+         * race a worker that starts immediately.
+         */
+        suspend fun enqueue(
+            wm: WorkManager,
+            db: EksiDatabase,
+            operationId: String,
+            request: OperationRequest,
+        ) {
+            db.checkpoints().upsert(
+                OperationCheckpointEntity(
+                    operationId = operationId,
+                    type = request.source.name,
+                    state = OperationState.IDLE.name,
+                    cursorJson = Json.encodeToString(OperationCursor.serializer(), OperationCursor()),
+                    processed = 0,
+                    total = 0,
+                    successful = 0,
+                    failed = 0,
+                    startedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    workRequestId = null,
+                    requestJson = Json.encodeToString(OperationRequest.serializer(), request),
+                ),
+            )
+
             val data = Data.Builder()
                 .putString(KEY_OPERATION_ID, operationId)
-                .putString(KEY_REQUEST_JSON, Json.encodeToString(OperationRequest.serializer(), request))
                 .build()
 
             // KEEP, not REPLACE: a second request must never cancel a run that is
@@ -74,6 +108,27 @@ class OperationWorker @AssistedInject constructor(
             )
         }
 
+        /**
+         * Reschedules a run whose checkpoint already exists.
+         *
+         * The row holds the request, so nothing needs writing and this stays
+         * non-suspending for callers like the reconciler's resume offer.
+         */
+        fun enqueueExisting(wm: WorkManager, operationId: String) {
+            wm.enqueueUniqueWork(
+                UNIQUE_WORK,
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<OperationWorker>()
+                    .setInputData(Data.Builder().putString(KEY_OPERATION_ID, operationId).build())
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build(),
+                    )
+                    .build(),
+            )
+        }
+
         /** Schedules the next slice of a run parked on the foreground budget. */
         fun enqueueContinuation(
             wm: WorkManager,
@@ -81,9 +136,11 @@ class OperationWorker @AssistedInject constructor(
             request: OperationRequest,
             delayMs: Long,
         ) {
+            // No request in the data here either: the checkpoint this continuation
+            // resumes from already carries it, and a long list would breach the
+            // 10 KB cap on the way to its second slice.
             val data = Data.Builder()
                 .putString(KEY_OPERATION_ID, operationId)
-                .putString(KEY_REQUEST_JSON, Json.encodeToString(OperationRequest.serializer(), request))
                 .build()
 
             wm.enqueueUniqueWork(
@@ -118,7 +175,20 @@ class OperationWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
-        val requestJson = inputData.getString(KEY_REQUEST_JSON) ?: return Result.failure()
+        /*
+         * The request comes from the checkpoint, not from input data.
+         *
+         * WorkManager caps Data at 10 KB and throws when a request exceeds it. A
+         * LIST run carries every nick it targets, so three typed names fit and a
+         * few hundred imported from a CSV do not -- the throw landed on the caller
+         * and took the app down before the run ever started.
+         *
+         * Input data is still read first, so work enqueued by an older build
+         * finishes rather than failing on upgrade.
+         */
+        val requestJson = inputData.getString(KEY_REQUEST_JSON)
+            ?: db.checkpoints().get(operationId)?.requestJson
+            ?: return Result.failure()
         val request = runCatching {
             Json.decodeFromString(OperationRequest.serializer(), requestJson)
         }.getOrNull() ?: return Result.failure()

@@ -47,6 +47,7 @@ class BrowserActivity : AppCompatActivity() {
     @Inject lateinit var sessionMonitor: SessionMonitor
     @Inject lateinit var configRepository: ConfigRepository
     @Inject lateinit var reconciler: OperationReconciler
+    @Inject lateinit var db: org.duzgun.eksiengelplus.database.EksiDatabase
 
     private lateinit var web: WebView
     private lateinit var sessionBar: TextView
@@ -194,11 +195,16 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     private fun enqueue(request: OperationRequest) {
-        OperationWorker.enqueue(
-            WorkManager.getInstance(applicationContext),
-            operationId = UUID.randomUUID().toString(),
-            request = request,
-        )
+        // Suspending now: the request is recorded before the work is scheduled,
+        // because WorkManager's 10 KB input-data cap cannot hold a long target list.
+        lifecycleScope.launch {
+            OperationWorker.enqueue(
+                WorkManager.getInstance(applicationContext),
+                db = db,
+                operationId = UUID.randomUUID().toString(),
+                request = request,
+            )
+        }
     }
 
     companion object {

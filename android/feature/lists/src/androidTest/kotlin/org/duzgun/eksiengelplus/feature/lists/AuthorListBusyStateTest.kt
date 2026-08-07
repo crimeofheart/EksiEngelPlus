@@ -41,7 +41,7 @@ class AuthorListBusyStateTest {
     @Before fun setUp() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         db = Room.inMemoryDatabaseBuilder(app, EksiDatabase::class.java).build()
-        model = AuthorListViewModel(app, AuthorListRepository(db))
+        model = AuthorListViewModel(app, AuthorListRepository(db), db)
     }
 
     @After fun tearDown() = db.close()

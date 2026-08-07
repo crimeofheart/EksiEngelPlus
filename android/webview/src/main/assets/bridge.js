@@ -272,12 +272,31 @@
     return null;
   }
 
-  /** Viewport y where the pages begin: the line just under the tabs. */
+  /**
+   * Viewport y where the pages begin.
+   *
+   * Not simply the tab strip's lower edge: Ekşi puts a second, short bar under
+   * it, and that bar belongs to the chrome rather than to the page. Sliding it
+   * looked wrong, since it stays put when the site navigates normally.
+   *
+   * Short siblings are absorbed into the static area, tall ones are the page.
+   */
+  var CHROME_BAR_MAX_HEIGHT = 90;
+
   function pagerTop() {
     var strip = tabStripEl();
     if (!strip) return 0;
-    var b = strip.getBoundingClientRect().bottom;
-    return b > 0 && b < (window.innerHeight || 0) ? Math.round(b) : 0;
+
+    var bottom = strip.getBoundingClientRect().bottom;
+    var next = strip.nextElementSibling;
+    while (next) {
+      var r = next.getBoundingClientRect();
+      if (r.height <= 0 || r.height > CHROME_BAR_MAX_HEIGHT) break;
+      bottom = r.bottom;
+      next = next.nextElementSibling;
+    }
+
+    return bottom > 0 && bottom < (window.innerHeight || 0) ? Math.round(bottom) : 0;
   }
 
   /**
@@ -291,7 +310,13 @@
   function surfaceEl() {
     var strip = tabStripEl();
     var after = strip && strip.nextElementSibling;
-    if (after && after.getBoundingClientRect().height > 100) return after;
+    // Walk past the chrome bars pagerTop absorbed, so what slides is the first
+    // thing that is actually page content.
+    while (after) {
+      var h = after.getBoundingClientRect().height;
+      if (h > CHROME_BAR_MAX_HEIGHT) return after;
+      after = after.nextElementSibling;
+    }
     return document.getElementById("content") || document.body;
   }
 

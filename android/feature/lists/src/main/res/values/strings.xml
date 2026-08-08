@@ -120,4 +120,5 @@
     <string name="author_list_group_follow">takip</string>
     <string name="author_list_cancel">vazgeç</string>
     <string name="ops_show">göster</string>
+    <string name="ops_rate_wait">API limiti bekleniyor %1$d sn</string>
 </resources>

@@ -25,6 +25,7 @@ import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.ops.engine.OperationState
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommand
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommandBus
+import org.duzgun.eksiengelplus.ops.runtime.OperationWaits
 import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
 
 /**
@@ -43,6 +44,7 @@ class OperationsActivity : AppCompatActivity() {
 
     @Inject lateinit var db: EksiDatabase
     @Inject lateinit var commands: OperationCommandBus
+    @Inject lateinit var waits: OperationWaits
 
     private lateinit var running: ViewGroup
     private lateinit var runningEmpty: TextView
@@ -66,7 +68,14 @@ class OperationsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    db.checkpoints().observeAll().collect { renderRunning(it) }
+                    // Combined, not two collectors: the wait ticks once a second
+                    // while the checkpoints sit still, and rendering the row from
+                    // whichever arrived last would drop the other's state.
+                    kotlinx.coroutines.flow.combine(
+                        db.checkpoints().observeAll(),
+                        waits.remaining,
+                    ) { checkpoints, waiting -> checkpoints to waiting }
+                        .collect { (checkpoints, waiting) -> renderRunning(checkpoints, waiting) }
                 }
                 launch {
                     db.queuedTasks().observeAll().collect { renderQueued(it) }
@@ -81,7 +90,10 @@ class OperationsActivity : AppCompatActivity() {
     private var queuedTasks: List<org.duzgun.eksiengelplus.database.QueuedTaskEntity> = emptyList()
     private var pendingCheckpoints: List<OperationCheckpointEntity> = emptyList()
 
-    private fun renderRunning(all: List<OperationCheckpointEntity>) {
+    private fun renderRunning(
+        all: List<OperationCheckpointEntity>,
+        waiting: Map<String, Long>,
+    ) {
         pendingCheckpoints = all
             .filter { runCatching { OperationState.valueOf(it.state) }.getOrNull() == OperationState.IDLE }
             .distinctBy { it.operationId }
@@ -113,12 +125,18 @@ class OperationsActivity : AppCompatActivity() {
             )
             // Two runs of the same source are otherwise indistinguishable.
             row.addView(label(whenText(cp.startedAt), small = true))
-            row.addView(
-                label(
-                    getString(R.string.ops_progress, cp.processed, cp.total, cp.successful, cp.failed),
-                    small = true,
-                ),
-            )
+            // The API-limit wait, the same number the notification counts down.
+            // Without it a run in a cooldown reads as stalled here while the
+            // notification is visibly moving.
+            val waitMs = waiting[cp.operationId] ?: 0L
+            val progressText =
+                getString(R.string.ops_progress, cp.processed, cp.total, cp.successful, cp.failed) +
+                    if (waitMs > 0L) {
+                        " · " + getString(R.string.ops_rate_wait, (waitMs + 999) / 1000)
+                    } else {
+                        ""
+                    }
+            row.addView(label(progressText, small = true))
 
             val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             if (state == OperationState.RUNNING) {

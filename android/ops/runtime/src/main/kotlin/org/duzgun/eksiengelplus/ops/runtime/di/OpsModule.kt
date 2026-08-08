@@ -28,6 +28,7 @@ import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.model.TargetType
 import org.duzgun.eksiengelplus.ops.runtime.InMemoryCommandBus
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommandBus
+import org.duzgun.eksiengelplus.ops.runtime.OperationWaits
 import org.duzgun.eksiengelplus.ops.runtime.OperationTaskFactory
 import org.duzgun.eksiengelplus.ops.runtime.OpsNotifier
 import org.duzgun.eksiengelplus.ops.runtime.PacerStateStore
@@ -46,6 +47,9 @@ object OpsModule {
 
     @Provides @Singleton
     fun commandBus(): OperationCommandBus = InMemoryCommandBus()
+
+    @Provides @Singleton
+    fun operationWaits(): OperationWaits = OperationWaits()
 
     @Provides @Singleton
     fun notifier(@ApplicationContext context: Context): OpsNotifier = OpsNotifier(context)

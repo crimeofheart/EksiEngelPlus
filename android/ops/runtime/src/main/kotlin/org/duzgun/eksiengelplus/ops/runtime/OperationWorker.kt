@@ -45,6 +45,7 @@ class OperationWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val db: EksiDatabase,
     private val commands: OperationCommandBus,
+    private val waits: OperationWaits,
     private val notifier: OpsNotifier,
     private val taskFactory: OperationTaskFactory,
     private val pacerState: PacerStateStore,
@@ -300,6 +301,7 @@ class OperationWorker @AssistedInject constructor(
             // the system rate-limits anyway, and the text only changes on the
             // second.
             var shownSecond = -1L
+            try {
             while (remaining > 0) {
                 when (commands.peek(operationId)) {
                     OperationCommand.PAUSE -> throw PauseSignal()
@@ -314,6 +316,10 @@ class OperationWorker @AssistedInject constructor(
                 val second = (remaining + 999) / 1000
                 if (totalMs >= COUNTDOWN_MIN_MS && second != shownSecond) {
                     shownSecond = second
+                    // The same number the notification shows, for any screen
+                    // watching. Published before the notification so the two
+                    // never disagree by a tick.
+                    waits.set(operationId, remaining)
                     setForeground(
                         ForegroundInfo(
                             OpsNotifier.NOTIFICATION_ID_PROGRESS,
@@ -331,6 +337,11 @@ class OperationWorker @AssistedInject constructor(
                 val slice = minOf(remaining, COMMAND_POLL_MS)
                 kotlinx.coroutines.delay(slice)
                 remaining -= slice
+            }
+            } finally {
+                // Also on the way out through a signal: a Durdur mid-wait would
+                // otherwise leave the screen counting down a run that has ended.
+                waits.clear(operationId)
             }
         }
 

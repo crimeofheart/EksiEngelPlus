@@ -152,6 +152,10 @@ class OpsNotifier(private val context: Context) {
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            // "İşlem tamamlandı" is the moment the user most wants the detail:
+            // what ran, what failed, and what is next in the queue.
+            .setContentIntent(showOperationsIntent())
+            .setAutoCancel(true)
             .setAutoCancel(true)
             .build()
         // POST_NOTIFICATIONS is a runtime permission from API 33. Denial degrades

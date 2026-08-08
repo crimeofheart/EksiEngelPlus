@@ -16,7 +16,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlin.math.roundToLong
 
 /**
  * Two channels, because progress and outcomes want opposite treatment.
@@ -68,32 +67,27 @@ class OpsNotifier(private val context: Context) {
         title: String,
         processed: Int,
         total: Int,
-        actionsPerMinute: Int,
         /**
-         * Milliseconds left on a server-imposed cooldown, or 0 otherwise.
+         * Milliseconds left before the next action may go out, or 0 when running.
          *
-         * A 429 only, never the pacer's ordinary turn-taking: at 12 actions a
-         * minute the bucket makes every action wait ~5s, and counting that down
-         * would show a permanent "bekleniyor" that is really just the rate
-         * limit. This is the wait the user cannot predict, which is the one
-         * worth showing.
+         * This replaced a whole-run ETA. The estimate was derived from the same
+         * rate limit the run is waiting on, so it only ever restated the API
+         * ceiling, and it sat there unchanged for minutes -- a static number
+         * where the user was looking for a sign of life. The wait is the thing
+         * actually ticking, so the wait is what the notification shows.
          */
-        cooldownMs: Long = 0L,
+        waitMs: Long = 0L,
     ): Notification {
-        val remaining = (total - processed).coerceAtLeast(0)
-        val etaText = if (actionsPerMinute > 0 && remaining > 0) {
-            " · ~${humanDuration((remaining.toDouble() / actionsPerMinute * 60_000).roundToLong())} kaldı"
+        val waitText = if (waitMs > 0L) {
+            " · API limiti bekleniyor ${(waitMs + 999) / 1000} sn"
         } else {
             ""
         }
-        // Appended, not substituted: the ETA is the answer to "how long is this
-        // run", and a cooldown is a detour within it, not a replacement for it.
-        val waitText = if (cooldownMs > 0L) " · ${(cooldownMs + 999) / 1000} sn bekleniyor" else ""
 
         return NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(title)
-            .setContentText("$processed / $total işlendi$etaText$waitText")
+            .setContentText("$processed / $total işlendi$waitText")
             .setProgress(total.coerceAtLeast(1), processed, total == 0)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -233,18 +227,6 @@ class OpsNotifier(private val context: Context) {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-    }
-
-    /** "4s 12dk", the shape the extension's UI uses. */
-    private fun humanDuration(ms: Long): String {
-        val totalMinutes = ms / 60_000
-        val h = totalMinutes / 60
-        val m = totalMinutes % 60
-        return when {
-            h > 0 -> "${h}s ${m}dk"
-            m > 0 -> "${m}dk"
-            else -> "1dk"
-        }
     }
 }
 

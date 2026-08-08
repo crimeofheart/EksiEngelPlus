@@ -201,10 +201,10 @@ class HarnessActivity : AppCompatActivity() {
             }
 
             val pacer = org.duzgun.eksiengelplus.ops.engine.ActionPacer(
-                sleep = { ms, why -> out("  pacer: waiting ${ms}ms ($why)"); kotlinx.coroutines.delay(ms) },
+                sleep = { ms -> out("  pacer: waiting ${ms}ms"); kotlinx.coroutines.delay(ms) },
             )
             val readPacer = org.duzgun.eksiengelplus.ops.engine.ReadPacer(
-                sleep = { ms, _ -> kotlinx.coroutines.delay(ms) },
+                sleep = { kotlinx.coroutines.delay(it) },
             )
             out("pacer configured at ${org.duzgun.eksiengelplus.ops.engine.ActionPacer.DEFAULT_PERMITS_PER_MINUTE}/min")
 

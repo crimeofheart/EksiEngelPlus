@@ -27,7 +27,6 @@ import org.duzgun.eksiengelplus.ops.engine.OperationOutcome
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.OperationState
 import org.duzgun.eksiengelplus.ops.engine.ReadPacer
-import org.duzgun.eksiengelplus.ops.engine.WaitReason
 
 private val Json = Json { ignoreUnknownKeys = true }
 
@@ -68,6 +67,9 @@ class OperationWorker @AssistedInject constructor(
          * loop worth worrying about.
          */
         private const val COMMAND_POLL_MS = 250L
+
+        /** Below this there is no countdown worth rendering. */
+        private const val COUNTDOWN_MIN_MS = 1_000L
 
         const val UNIQUE_WORK = "eksiengel-operation"
         const val KEY_OPERATION_ID = "operationId"
@@ -244,7 +246,7 @@ class OperationWorker @AssistedInject constructor(
         notifier.ensureChannels()
         return ForegroundInfo(
             OpsNotifier.NOTIFICATION_ID_PROGRESS,
-            notifier.progress(operationId, "EksiEngelPlus", 0, 0, ActionPacer.DEFAULT_PERMITS_PER_MINUTE),
+            notifier.progress(operationId, "EksiEngelPlus", 0, 0),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
         )
     }
@@ -291,7 +293,7 @@ class OperationWorker @AssistedInject constructor(
          * already handles both. Safe to abandon a wait: acquire() takes its
          * token after sleeping, never before, so nothing is consumed here.
          */
-        suspend fun responsiveSleep(totalMs: Long, reason: WaitReason) {
+        suspend fun responsiveSleep(totalMs: Long) {
             var remaining = totalMs
             // The bus is polled four times a second; the notification is not.
             // Posting every slice would be ~120 updates on a 30s cooldown, which
@@ -304,12 +306,13 @@ class OperationWorker @AssistedInject constructor(
                     OperationCommand.STOP -> throw StopSignal()
                     null -> Unit
                 }
-                // Only a penalty is counted down. The bucket's own gap is 5s at
-                // the default 12/min, so counting that down too would have put
-                // "bekleniyor" on screen for most of a healthy run -- a rate
-                // limit dressed up as a cooldown.
+                // Every rate-limit wait is counted down, whether it is the
+                // bucket's ordinary turn (~5s at 12/min) or a 429 penalty. They
+                // are the same thing to the user -- the API not letting the next
+                // action through yet -- and the number ticking is the point.
+                // Sub-second waits are skipped: nothing to watch.
                 val second = (remaining + 999) / 1000
-                if (reason == WaitReason.PENALTY && second != shownSecond) {
+                if (totalMs >= COUNTDOWN_MIN_MS && second != shownSecond) {
                     shownSecond = second
                     setForeground(
                         ForegroundInfo(
@@ -319,8 +322,7 @@ class OperationWorker @AssistedInject constructor(
                                 request.source.name,
                                 lastProcessed,
                                 lastTotal,
-                                ActionPacer.DEFAULT_PERMITS_PER_MINUTE,
-                                cooldownMs = remaining,
+                                waitMs = remaining,
                             ),
                             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
                         ),
@@ -390,7 +392,6 @@ class OperationWorker @AssistedInject constructor(
                             request.source.name,
                             p.processed,
                             p.total,
-                            ActionPacer.DEFAULT_PERMITS_PER_MINUTE,
                         ),
                         ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
                     ),

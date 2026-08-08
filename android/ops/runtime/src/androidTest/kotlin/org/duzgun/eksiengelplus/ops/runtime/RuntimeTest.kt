@@ -73,8 +73,8 @@ class RuntimeTest {
         db = db,
         commands = commands,
         budget = budget,
-        actionPacer = ActionPacer(sleep = { _, _ -> }, clock = { now }),
-        readPacer = ReadPacer(sleep = { _, _ -> }, clock = { now }),
+        actionPacer = ActionPacer(sleep = {}, clock = { now }),
+        readPacer = ReadPacer(sleep = {}, clock = { now }),
         clock = { now },
     )
 
@@ -200,8 +200,8 @@ class RuntimeTest {
             db = db,
             commands = commands,
             budget = budget,
-            actionPacer = ActionPacer(sleep = { _, _ -> }, clock = { now }),
-            readPacer = ReadPacer(sleep = { _, _ -> }, clock = { now }),
+            actionPacer = ActionPacer(sleep = {}, clock = { now }),
+            readPacer = ReadPacer(sleep = {}, clock = { now }),
             onBudgetWarning = { warnings++ },
             clock = { now },
         )

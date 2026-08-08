@@ -11,20 +11,6 @@ data class PacerSnapshot(
     val blockedUntil: Long,
 )
 
-/**
- * Why a caller is being made to wait.
- *
- * The two are minutes apart in meaning. PACE is the bucket handing out its
- * ordinary turn -- at the default 12/min that is a ~5s gap before most actions,
- * i.e. the normal state of a healthy run. PENALTY is the server having said no.
- *
- * The distinction exists because a caller cannot infer it from the duration: a
- * 5s pacing gap and the 5s tail of a penalty look identical, and treating the
- * first as a cooldown put a permanent "bekleniyor" on the notification that was
- * really just the rate limit, in place of the ETA.
- */
-enum class WaitReason { PACE, PENALTY }
-
 interface PacerState {
     fun load(): PacerSnapshot?
     fun save(snapshot: PacerSnapshot)
@@ -58,7 +44,7 @@ class ActionPacer(
     private val permitsPerMinute: Int = DEFAULT_PERMITS_PER_MINUTE,
     private val capacity: Int = DEFAULT_PERMITS_PER_MINUTE,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val sleep: suspend (Long, WaitReason) -> Unit,
+    private val sleep: suspend (Long) -> Unit,
     private val state: PacerState = InMemoryPacerState(),
 ) {
     companion object {
@@ -97,26 +83,24 @@ class ActionPacer(
     /** Suspends until this caller may perform one action. */
     suspend fun acquire() {
         while (true) {
-            val (wait, reason) = mutex.withLock {
+            val wait = mutex.withLock {
                 val now = clock()
 
                 // A penalty outranks the bucket: every caller waits it out, including
                 // ones that never saw the 429.
-                if (now < blockedUntil) {
-                    return@withLock (blockedUntil - now) to WaitReason.PENALTY
-                }
+                if (now < blockedUntil) return@withLock blockedUntil - now
 
                 refill(now)
                 if (tokens >= 1.0) {
                     tokens -= 1.0
                     persist()
-                    return@withLock 0L to WaitReason.PACE
+                    return@withLock 0L
                 }
                 // Time until the next whole token.
-                (((1.0 - tokens) * intervalMs).toLong()).coerceAtLeast(1L) to WaitReason.PACE
+                (((1.0 - tokens) * intervalMs).toLong()).coerceAtLeast(1L)
             }
             if (wait <= 0L) return
-            sleep(wait, reason)
+            sleep(wait)
         }
     }
 
@@ -165,7 +149,7 @@ class ActionPacer(
 class ReadPacer(
     private val minGapMs: Long = 250L,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val sleep: suspend (Long, WaitReason) -> Unit,
+    private val sleep: suspend (Long) -> Unit,
 ) {
     private val mutex = Mutex()
     private var lastAt = 0L
@@ -182,7 +166,6 @@ class ReadPacer(
                 0L
             }
         }
-        // Never a penalty: this bucket only spaces reads out.
-        if (wait > 0) sleep(wait, WaitReason.PACE)
+        if (wait > 0) sleep(wait)
     }
 }

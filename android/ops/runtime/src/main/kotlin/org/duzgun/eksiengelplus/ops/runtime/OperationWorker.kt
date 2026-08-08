@@ -90,6 +90,8 @@ class OperationWorker @AssistedInject constructor(
              * did nothing at all. The queue is what makes that message true.
              */
             if (db.checkpoints().liveCount() > 0) {
+                // Queued, not lost. Drained when the live run reaches a terminal
+                // state; see startNextQueued.
                 db.queuedTasks().enqueue(
                     org.duzgun.eksiengelplus.database.QueuedTaskEntity(
                         seq = db.queuedTasks().maxSeq() + 1,
@@ -105,6 +107,16 @@ class OperationWorker @AssistedInject constructor(
                 return
             }
 
+            startNow(wm, db, operationId, request)
+        }
+
+        /** Writes the run's row and schedules it, with no queue check. */
+        suspend fun startNow(
+            wm: WorkManager,
+            db: EksiDatabase,
+            operationId: String,
+            request: OperationRequest,
+        ) {
             db.checkpoints().upsert(
                 OperationCheckpointEntity(
                     operationId = operationId,
@@ -486,7 +498,11 @@ class OperationWorker @AssistedInject constructor(
         val request = runCatching {
             Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
         }.getOrNull() ?: return
-        enqueue(
+
+        // Started directly rather than through enqueue(), which would consult the
+        // live check and could put this straight back on the queue it just came
+        // from. Nothing is running at this point: this is the run that finished.
+        startNow(
             WorkManager.getInstance(applicationContext),
             db,
             java.util.UUID.randomUUID().toString(),

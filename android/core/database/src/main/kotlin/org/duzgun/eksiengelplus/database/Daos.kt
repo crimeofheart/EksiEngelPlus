@@ -152,8 +152,18 @@ interface OperationCheckpointDao {
     @Query("SELECT * FROM operation_checkpoint WHERE state = :state")
     suspend fun withState(state: String): List<OperationCheckpointEntity>
 
-    /** Anything not finished, which is what "is a run live" means. */
-    @Query("SELECT COUNT(*) FROM operation_checkpoint WHERE state NOT IN ('STOPPED', 'COMPLETED')")
+    /**
+     * Runs that are actually under way.
+     *
+     * IDLE is excluded deliberately. It means scheduled, not started, and a row
+     * left that way by work that never ran would otherwise report a live run
+     * forever: every new request would queue behind it, and the drain would put
+     * each one straight back on the queue.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM operation_checkpoint " +
+            "WHERE state NOT IN ('STOPPED', 'COMPLETED', 'IDLE')",
+    )
     suspend fun liveCount(): Int
 
     /** Every checkpoint, for the screen that shows what is running. */

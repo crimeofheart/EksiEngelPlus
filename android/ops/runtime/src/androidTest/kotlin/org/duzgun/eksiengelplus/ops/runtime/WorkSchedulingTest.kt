@@ -57,6 +57,14 @@ class WorkSchedulingTest {
      */
     @Test fun aSecondRequestIsQueuedRatherThanLost() = kotlinx.coroutines.runBlocking {
         OperationWorker.enqueue(wm, db, "op1", request)
+        // Actually under way, not merely scheduled: IDLE is not a live run, or a
+        // request whose work never ran would block everything after it.
+        db.checkpoints().get("op1")!!.let {
+            db.checkpoints().upsert(
+                it.copy(state = org.duzgun.eksiengelplus.ops.engine.OperationState.RUNNING.name),
+            )
+        }
+
         OperationWorker.enqueue(wm, db, "op2", request)
 
         val live = wm.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
@@ -65,6 +73,26 @@ class WorkSchedulingTest {
 
         // The second survives as work to do, rather than being discarded.
         assertThat(db.queuedTasks().next()).isNotNull()
+    }
+
+    /**
+     * A run that never started must not block every run after it.
+     *
+     * IDLE is written when work is enqueued, so a request whose work never ran
+     * leaves one behind. Counting it as live meant the app believed something
+     * was in progress forever: every later request queued behind it, and the
+     * drain handed each one straight back to the queue it came from.
+     */
+    @Test fun aScheduledButUnstartedRunDoesNotBlockTheNext() = kotlinx.coroutines.runBlocking {
+        // Exactly what enqueue leaves behind when its work never runs.
+        OperationWorker.enqueue(wm, db, "never-ran", request)
+        assertThat(db.checkpoints().get("never-ran")).isNotNull()
+
+        OperationWorker.enqueue(wm, db, "next", request)
+
+        // The second starts rather than joining a queue behind a ghost.
+        assertThat(db.checkpoints().get("next")).isNotNull()
+        assertThat(db.queuedTasks().next()).isNull()
     }
 
     /**

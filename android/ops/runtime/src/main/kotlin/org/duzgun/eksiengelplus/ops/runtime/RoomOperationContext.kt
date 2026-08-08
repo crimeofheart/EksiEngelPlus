@@ -135,6 +135,16 @@ class RoomOperationContext(
         if (budget.shouldWarn()) onBudgetWarning(budget.remainingMs())
     }
 
+    /**
+     * The run's size and start, which the cursor does not carry.
+     *
+     * checkpoint() was writing total = 0 and startedAt = 0 on every pass, so the
+     * screen read "15 / 0" while the notification read "3 / 28", and every run
+     * claimed to have begun in 1970. The notification had them because
+     * publishProgress is given the total; the row simply never kept it.
+     */
+    @Volatile private var lastTotal: Int = 0
+
     override suspend fun checkpoint(cursor: OperationCursor, effects: suspend () -> Unit) {
         db.withTransaction {
             /*
@@ -146,7 +156,7 @@ class RoomOperationContext(
              * an operation in progress that nothing could pause, stop or resume,
              * because RUNNING is neither terminal nor resumable.
              */
-            if (db.checkpoints().get(operationId) == null) throw StopSignal()
+            val existing = db.checkpoints().get(operationId) ?: throw StopSignal()
             effects()
             db.checkpoints().upsert(
                 OperationCheckpointEntity(
@@ -155,10 +165,12 @@ class RoomOperationContext(
                     state = OperationState.RUNNING.name,
                     cursorJson = Json.encodeToString(OperationCursor.serializer(), cursor),
                     processed = cursor.processed,
-                    total = 0,
+                    total = maxOf(lastTotal, cursor.processed),
                     successful = cursor.successful,
                     failed = cursor.failed,
-                    startedAt = 0,
+                    // Preserved: enqueue set it, and overwriting it each pass is
+                    // what dated every run to the epoch.
+                    startedAt = existing.startedAt,
                     updatedAt = clock(),
                     workRequestId = null,
                     fgsMillisUsed = budget.consumedMs(),
@@ -172,7 +184,11 @@ class RoomOperationContext(
 
     override suspend fun allows(nick: String): Boolean = allowTarget(nick)
 
-    override suspend fun publishProgress(progress: OperationProgress) = onProgress(progress)
+    override suspend fun publishProgress(progress: OperationProgress) {
+        // The only place the run's size is known, so the checkpoint borrows it.
+        lastTotal = progress.total
+        onProgress(progress)
+    }
 
     override suspend fun awaitActionPermit() = actionPacer.acquire()
 

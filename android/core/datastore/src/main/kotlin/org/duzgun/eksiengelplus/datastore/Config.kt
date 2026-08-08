@@ -88,6 +88,36 @@ enum class DateCriteria {
     val usesDays: Boolean get() = this == NEWER_THAN || this == OLDER_THAN
 }
 
+/**
+ * Whether a registration date passes the user's rules.
+ *
+ * Pure, so the decision is testable without a device, a store or a network.
+ *
+ * An unknown date does NOT pass. A filter exists to keep accounts out of a bulk
+ * run, so acting on one whose date could not be established would defeat the
+ * only reason it was switched on. Dates arrive from the CSV import and the list
+ * sync, both of which fill the cache.
+ */
+object DateFilter {
+
+    fun allows(rules: List<DateFilterRule>, registrationEpochDay: Long?, todayEpochDay: Long): Boolean {
+        val active = rules.filter { it.enabled }
+        if (active.isEmpty()) return true
+        if (registrationEpochDay == null) return false
+        return active.all { it.allows(registrationEpochDay, todayEpochDay) }
+    }
+
+    private fun DateFilterRule.allows(regDay: Long, today: Long): Boolean {
+        val age = today - regDay
+        return when (criteria) {
+            DateCriteria.NEWER_THAN -> days?.let { age <= it } ?: true
+            DateCriteria.OLDER_THAN -> days?.let { age >= it } ?: true
+            DateCriteria.BEFORE_DATE -> epochDay?.let { regDay < it } ?: true
+            DateCriteria.AFTER_DATE -> epochDay?.let { regDay > it } ?: true
+        }
+    }
+}
+
 /** Install identity. Separate store: different lifetime and different sensitivity. */
 @Serializable
 data class Identity(

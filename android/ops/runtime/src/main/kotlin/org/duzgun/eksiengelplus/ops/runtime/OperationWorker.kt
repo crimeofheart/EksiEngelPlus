@@ -15,6 +15,7 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
@@ -45,6 +46,7 @@ class OperationWorker @AssistedInject constructor(
     private val notifier: OpsNotifier,
     private val taskFactory: OperationTaskFactory,
     private val pacerState: PacerStateStore,
+    private val configRepository: org.duzgun.eksiengelplus.datastore.ConfigRepository,
 ) : CoroutineWorker(appContext, params) {
 
     companion object {
@@ -205,7 +207,26 @@ class OperationWorker @AssistedInject constructor(
         val actionPacer = ActionPacer(sleep = { kotlinx.coroutines.delay(it) }, state = pacerState)
         val readPacer = ReadPacer(sleep = { kotlinx.coroutines.delay(it) })
 
+        /*
+         * The date filter, resolved once for the run.
+         *
+         * Read once rather than per target: a rule changed mid-run would apply to
+         * part of a list and not the rest, which is not a filter anyone asked
+         * for. Dates come from the cache the CSV import and the list sync fill.
+         */
+        val config = configRepository.config.first()
+        val activeRules = if (config.enableDateFilter) config.dateFilterRules else emptyList()
+        val today = java.time.LocalDate.now(org.duzgun.eksiengelplus.model.TurkishDateParser.ZONE).toEpochDay()
+
         val ctx = RoomOperationContext(
+            allowTarget = { nick ->
+                if (activeRules.none { it.enabled }) {
+                    true
+                } else {
+                    val cached = db.registrationDates().get(nick)?.registrationEpochDay
+                    org.duzgun.eksiengelplus.datastore.DateFilter.allows(activeRules, cached, today)
+                }
+            },
             operationId = operationId,
             request = request,
             startCursor = startCursor,

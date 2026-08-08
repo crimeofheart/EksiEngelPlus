@@ -107,6 +107,13 @@ class RoomOperationContext(
     private val readPacer: ReadPacer,
     private val onProgress: suspend (OperationProgress) -> Unit = {},
     /**
+     * The user's date filter, already resolved to a predicate.
+     *
+     * A lambda rather than the rules themselves, so ops:runtime does not have to
+     * decide what a rule means and the engine never learns that rules exist.
+     */
+    private val allowTarget: suspend (String) -> Boolean = { true },
+    /**
      * Invoked once when the budget is nearly spent. A callback rather than the
      * notifier itself, so ops:engine never learns about Android.
      */
@@ -162,6 +169,8 @@ class RoomOperationContext(
             )
         }
     }
+
+    override suspend fun allows(nick: String): Boolean = allowTarget(nick)
 
     override suspend fun publishProgress(progress: OperationProgress) = onProgress(progress)
 

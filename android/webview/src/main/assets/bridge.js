@@ -463,9 +463,13 @@
     }, { passive: true });
   })();
 
-  function item(label) {
+  function item(label, compact) {
     var li = document.createElement("li");
     li.setAttribute(ITEM_MARK, "true");
+    // Title items sit inside the site's own menu, which is sized for its own
+    // labels; ours are longer, so they get tighter metrics rather than wrapping
+    // and pushing the menu taller than the screen.
+    if (compact) li.style.cssText = "white-space:nowrap;font-size:12px;line-height:1.5";
     li.innerHTML =
       '<a href="javascript:void(0);"><img src="' + ICON +
       '" style="width:16px;height:16px;vertical-align:middle;margin-right:5px;"> ' +
@@ -479,16 +483,42 @@
 
   // ------------------------------------------------------------- injectors
 
-  /** Title menu: two items, mirroring script.js:184-265. */
+  /**
+   * The title's own dropdown, identified by an item only it carries.
+   *
+   * "başlığı açan" appears in the title menu and nowhere else, which is what
+   * separates it from the per-entry menus that share the .dropdown-menu class.
+   */
+  function isTitleMenu(menu) {
+    return (menu.textContent || "").toLowerCase().indexOf("başlığı açan") !== -1;
+  }
+
+  /** The item our two sit above, so they land inside the existing group. */
+  function titleAnchorItem(menu) {
+    var items = menu.querySelectorAll("li");
+    for (var i = 0; i < items.length; i++) {
+      if ((items[i].textContent || "").toLowerCase().indexOf("başlığı açan") !== -1) return items[i];
+    }
+    return null;
+  }
+
+  /**
+   * Title actions, mirroring script.js:184-265.
+   *
+   * Placed in the site's own menu between "takip et" and "başlığı açan" rather
+   * than in a strip of their own: they are title actions, and the menu is where
+   * a user already looks for those.
+   */
   function injectTitleMenu(menu) {
+    if (!isTitleMenu(menu)) return;
     var title = document.getElementById("title");
-    if (!title) return;
+    if (!title) return false;
     var slug = title.getAttribute("data-slug");
     var id = title.getAttribute("data-id");
     if (!slug || !id) return;
 
-    var last24 = item("başlıktakileri engelle (son 24 saatte)");
-    var all = item("başlıktakileri engelle (tümü)");
+    var last24 = item(muteWord("başlıktakiler (son 24s)", "başlıktakiler sessiz (24s)"), true);
+    var all = item(muteWord("başlıktakiler (tümü)", "başlıktakiler sessiz (tümü)"), true);
 
     last24.onclick = function () {
       enqueue({
@@ -509,9 +539,10 @@
       });
     };
 
-    if (menu.childElementCount > 1) {
-      menu.insertBefore(last24, menu.children[menu.childElementCount - 1]);
-      menu.insertBefore(all, menu.children[menu.childElementCount - 1]);
+    var anchor = titleAnchorItem(menu);
+    if (anchor) {
+      menu.insertBefore(last24, anchor);
+      menu.insertBefore(all, anchor);
     } else {
       menu.appendChild(last24);
       menu.appendChild(all);
@@ -756,7 +787,7 @@
   }
 
   var injectors = [
-    { selector: "#in-topic-search-options", apply: injectTitleMenu },
+    { selector: ".dropdown-menu", apply: injectTitleMenu },
     { selector: ".dropdown-menu", apply: injectEntryMenu },
     { selector: ".dropdown-menu", apply: injectShareMenu },
     { selector: ".profile-buttons", apply: injectProfile }

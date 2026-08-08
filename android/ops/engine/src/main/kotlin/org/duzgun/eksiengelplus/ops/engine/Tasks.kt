@@ -50,6 +50,14 @@ class TargetRunner(
             }
 
             val target = targets[i]
+
+            // Filtered out: counted as processed so the cursor advances and a
+            // resume does not re-examine it, but never acted on.
+            if (!ctx.allows(target.nick)) {
+                cursor = cursor.copy(index = i + 1, processed = cursor.processed + 1)
+                i++
+                continue
+            }
             val id = target.id ?: resolveId(ctx, target.nick)
             if (id == null) {
                 cursor = cursor.copy(processed = cursor.processed + 1, failed = cursor.failed + 1)

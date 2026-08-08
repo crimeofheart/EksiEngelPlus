@@ -74,6 +74,15 @@ interface OperationContext {
     suspend fun ensureActive()
 
     /**
+     * Whether this target passes the user's date filter.
+     *
+     * Defaults to allowing everything, so a context that knows nothing about
+     * filtering behaves exactly as before. The engine deliberately does not
+     * learn what a rule is -- it only asks.
+     */
+    suspend fun allows(nick: String): Boolean = true
+
+    /**
      * Persists the cursor together with whatever rows the unit produced, in one
      * transaction. Split writes are the one place a crash corrupts user-visible
      * state: a cursor ahead of its rows silently skips users, behind it

@@ -584,7 +584,7 @@
 
     var menu = titleSubmenu(muteWord("engelle", "sessize al"), [
       {
-        label: muteWord("başlıktakileri engelle (24s)", "başlıktakileri sessize al (24s)"),
+        label: muteWord("başlıktakileri engelle (son 24 saat)", "başlıktakileri sessize al (son 24 saat)"),
         run: function () { enqueueTitle(TimeSpecifier.LAST_24_H); }
       },
       {

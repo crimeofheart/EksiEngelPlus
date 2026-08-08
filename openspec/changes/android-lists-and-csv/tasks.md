@@ -88,6 +88,32 @@
 - [x] 9.5 Keep the longest label on one line; verified on device that all six buttons share a height
 - [x] 9.6 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
+## 11. Extension parity
+
+- [x] 11.1 Settings screen carrying every option in `config.js`, with defaults checked against it line by line
+- [x] 11.2 Date filter rules: editor, and enforcement in target resolution with an unknown date failing closed
+- [x] 11.3 The six remaining ban sources, and the author list's combined unblock-and-follow actions
+- [x] 11.4 Bulk operations read the account's own lists at run time rather than our synced copy
+- [x] 11.5 Removing title bans reads the title-ban list (`r=i`), not the blocked-user list
+- [x] 11.6 The date-filtered run asks its direction and refuses without an enabled rule
+- [x] 11.7 Operations are queued rather than discarded when one is already running
+- [x] 11.8 Finished runs are recorded, so history has something to show
+- [x] 11.9 An operations screen: running, queued and finished, with pause, resume and stop
+- [x] 11.10 Verified on a real device: sync resumes from its cursor (page 177 of a 9,624-user list) with live page and count
+- [ ] 11.11 Telemetry sender — BLOCKED: needs the shared API key, which belongs in BuildConfig and is deliberately absent from the repo, plus the 24-field Action payload contract
+- [ ] 11.12 Title bans as a fourth synced list, so the count is visible before a run
+- [x] 11.13 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
+
+## 12. Guardrails
+
+- [x] 12.1 Wiring tests: the Application supplies a WorkerFactory, every worker constructs, every dispatched component is declared, foreground permissions present
+- [x] 12.2 Parity tests read the extension's own source: settings, defaults, ban sources, author-list actions
+- [x] 12.3 Every Room table is touched by production code, so a silently unwritten one fails the build
+- [x] 12.4 No layout asks the platform to uppercase Turkish
+- [x] 12.5 The bridge payload format encodes defaults, with a test pinning the field that broke
+- [x] 12.6 Each guardrail verified by breaking it first
+- [ ] 12.7 End-to-end smoke against a local server — the one that would have caught the worker factory, the receiver, reconcile, the queue drop and the missing history write
+
 ## 10. Close out
 
 - [x] 10.1 Run the full Android check: `cd android && JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew test :app:assembleDebug`

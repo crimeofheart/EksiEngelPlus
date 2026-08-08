@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The plate behind the drop. White rather than the icon's own green: the
+        artwork is a green shape with a dark sword through it, and on green it
+        loses the silhouette that makes it recognisable at launcher size.
+    -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

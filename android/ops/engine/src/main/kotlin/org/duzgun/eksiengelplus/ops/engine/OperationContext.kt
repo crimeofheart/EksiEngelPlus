@@ -30,6 +30,15 @@ data class OperationRequest(
     val lastDayOnly: Boolean = false,
     /** LIST: explicit nicks. */
     val nicks: List<String> = emptyList(),
+    /**
+     * A second relation to apply after the first succeeds.
+     *
+     * The extension's author list offers "engel kaldır ve takip et" and
+     * "sessizden çıkar ve takip et", which are two relations per user rather
+     * than one, and doing the second regardless of the first would follow people
+     * whose unblock failed.
+     */
+    val thenApplyTo: TargetType? = null,
 )
 
 /** Where an operation got to, so a resumed run does not redo work. */

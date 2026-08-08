@@ -245,8 +245,17 @@ class SingleActionTask(private val runner: TargetRunner) : OperationTask {
  */
 class ListActionTask(private val runner: TargetRunner) : OperationTask {
     override val source = BanSource.LIST
-    override suspend fun run(ctx: OperationContext): OperationOutcome =
-        runner.applyToAll(ctx, ctx.request.nicks.map { Target(it.toEksiSlug(), null) })
+    override suspend fun run(ctx: OperationContext): OperationOutcome {
+        val targets = ctx.request.nicks.map { Target(it.toEksiSlug(), null) }
+        val second = ctx.request.thenApplyTo
+            ?: return runner.applyToAll(ctx, targets)
+        return runner.applyPairToAll(
+            ctx,
+            targets,
+            first = ctx.request.mode to ctx.request.targetType,
+            second = org.duzgun.eksiengelplus.model.BanMode.BAN to second,
+        )
+    }
 }
 
 /**

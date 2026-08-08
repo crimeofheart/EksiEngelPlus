@@ -76,7 +76,6 @@ class ListsActivity : AppCompatActivity() {
         bind(ListType.MUTED, R.id.rowMuted, R.string.lists_muted)
         bind(ListType.FOLLOWED, R.id.rowFollowed, R.string.lists_followed)
 
-        findViewById<Button>(R.id.runOnList).setOnClickListener { askWhichList() }
         findViewById<Button>(R.id.openAuthorList).setOnClickListener {
             startActivity(Intent(this, AuthorListActivity::class.java))
         }
@@ -99,22 +98,6 @@ class ListsActivity : AppCompatActivity() {
             createDocument.launch(CsvCodec.suggestedFilename(listType, today()))
         }
         rows[listType] = views
-    }
-
-    /** Which list first, since the actions differ by list. */
-    private fun askWhichList() {
-        val lists = listOf(
-            ListType.BLOCKED to R.string.lists_blocked,
-            ListType.MUTED to R.string.lists_muted,
-            ListType.FOLLOWED to R.string.lists_followed,
-        )
-        AlertDialog.Builder(this)
-            .setTitle(R.string.lists_run_title)
-            .setItems(lists.map { getString(it.second) }.toTypedArray()) { _, which ->
-                askListAction(lists[which].first)
-            }
-            .setNegativeButton(R.string.author_list_cancel, null)
-            .show()
     }
 
     /**

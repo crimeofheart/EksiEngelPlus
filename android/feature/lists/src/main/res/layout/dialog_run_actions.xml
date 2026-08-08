@@ -80,6 +80,36 @@
 
     <TextView
         android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/author_list_group_combined"
+        android:textSize="12sp" android:alpha="0.7"
+        android:paddingTop="12dp" android:paddingBottom="4dp"/>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runUnblockFollow"
+            style="@style/Widget.EksiEngel.Button.Compact"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            app:strokeColor="@color/action_follow"
+            android:textColor="@color/action_follow"
+            android:text="@string/author_list_mode_unblock_follow"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/runUnmuteFollow"
+            style="@style/Widget.EksiEngel.Button.Compact"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            app:strokeColor="@color/action_follow"
+            android:textColor="@color/action_follow"
+            android:text="@string/author_list_mode_unmute_follow"/>
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent" android:layout_height="wrap_content"
         android:text="@string/author_list_group_follow"
         android:textSize="12sp" android:alpha="0.7"
         android:paddingTop="12dp" android:paddingBottom="4dp"/>

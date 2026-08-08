@@ -153,6 +153,18 @@ class AuthorListActivity : AppCompatActivity() {
             }
         }
 
+        // The extension's combined actions: undo a relation, then follow. Two
+        // relations per user, so the follow only lands if the first did.
+        mapOf(
+            R.id.runUnblockFollow to TargetType.USER,
+            R.id.runUnmuteFollow to TargetType.MUTE,
+        ).forEach { (id, undo) ->
+            view.findViewById<View>(id).setOnClickListener {
+                model.run(BanMode.UNDOBAN, undo, thenApplyTo = TargetType.FOLLOW)
+                dialog.dismiss()
+            }
+        }
+
         dialog.show()
     }
 

@@ -130,7 +130,7 @@ class AuthorListViewModel @Inject constructor(
      * a resumed run that re-read the table could pick up at the wrong position in a
      * list the user edited in between.
      */
-    fun run(mode: BanMode, targetType: TargetType) {
+    fun run(mode: BanMode, targetType: TargetType, thenApplyTo: TargetType? = null) {
         viewModelScope.launch {
             val nicks = nicks.value.ifEmpty { repository.nicksNow() }
             if (nicks.isEmpty()) {
@@ -146,6 +146,7 @@ class AuthorListViewModel @Inject constructor(
                     mode = mode,
                     targetType = targetType,
                     nicks = nicks,
+                    thenApplyTo = thenApplyTo,
                 ),
             )
             messages.tryEmit(

@@ -80,6 +80,13 @@ Binds the Android client. The extension does not pace proactively at all.
 - **THEN** the cooldown is 62 seconds, and the next window is counted from its
   end
 
+#### Scenario: No sixty-second span exceeds the ceiling
+
+- **WHEN** any run of actions is performed, of any length
+- **THEN** no 60-second span of the resulting traffic contains more than 12
+  mutations — the invariant the server actually enforces, independent of how the
+  pauses are shaped
+
 #### Scenario: Actions within a window are still spaced
 
 - **WHEN** twelve actions are performed with allowance to spare

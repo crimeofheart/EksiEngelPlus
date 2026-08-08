@@ -182,4 +182,28 @@ class ActionPacerTest {
         now += ActionPacer.WINDOW_MS
         p.acquire()
     }
+
+    /**
+     * The ceiling, stated as the server would see it.
+     *
+     * Every other test here checks a wait in isolation. This one asks the only
+     * question that matters -- could any 60 seconds of our traffic contain a
+     * thirteenth action -- because that, not the shape of the pauses, is what
+     * produces a 429.
+     */
+    @Test fun `no sixty-second span ever contains more than twelve actions`() = runTest {
+        val p = pacer()
+        val performedAt = mutableListOf<Long>()
+
+        repeat(60) {
+            p.acquire()
+            performedAt += now
+            now += 200L        // the action itself takes time
+        }
+
+        for (start in performedAt) {
+            val inWindow = performedAt.count { it >= start && it < start + 60_000L }
+            assertThat(inWindow).isAtMost(12)
+        }
+    }
 }

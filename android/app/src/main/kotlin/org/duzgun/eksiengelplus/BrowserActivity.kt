@@ -139,6 +139,11 @@ class BrowserActivity : AppCompatActivity() {
         // Before the config is first read, so a corrected default is what the
         // screens and the engine see rather than the stale stored value.
         lifecycleScope.launch { configRepository.migrate() }
+        // Drains anything the last run recorded. Inert without a key.
+        org.duzgun.eksiengelplus.ops.runtime.TelemetryWorker.enqueue(
+            WorkManager.getInstance(applicationContext),
+            BuildConfig.TELEMETRY_KEY,
+        )
 
         lifecycleScope.launch {
             sessionMonitor.state.collectLatest { render(it) }

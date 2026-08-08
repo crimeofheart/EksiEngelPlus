@@ -109,10 +109,14 @@ class ListSyncWorker @AssistedInject constructor(
          * integers are primary keys in the shared backend (enums.js), and the
          * backend should not be able to tell the extension and the app apart.
          */
-        fun telemetrySource(listType: ListType): BanSource = when (listType) {
+        fun telemetrySource(listType: ListType): BanSource? = when (listType) {
             ListType.BLOCKED -> BanSource.REFRESH_BLOCKED_LIST
             ListType.MUTED -> BanSource.REFRESH_MUTED_LIST
             ListType.FOLLOWED -> BanSource.REFRESH_FOLLOWED_LIST
+            // The extension refreshes three lists, so there is no pk for this one.
+            // Null rather than borrowing another: these integers are rows in a
+            // shared backend, and a wrong one is worse than none.
+            ListType.TITLE_BANNED -> null
         }
 
         fun enqueue(wm: WorkManager, listType: ListType) {

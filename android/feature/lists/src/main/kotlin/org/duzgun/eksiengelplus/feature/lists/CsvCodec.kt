@@ -131,6 +131,8 @@ object CsvCodec {
             ListType.BLOCKED -> "blocked"
             ListType.MUTED -> "muted"
             ListType.FOLLOWED -> "followed"
+            // No extension counterpart: it exports three lists, not four.
+            ListType.TITLE_BANNED -> "title_banned"
         }
         return "eksiengel_${slug}_users_$today.csv"
     }

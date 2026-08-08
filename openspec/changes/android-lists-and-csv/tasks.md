@@ -100,8 +100,8 @@
 - [x] 11.8 Finished runs are recorded, so history has something to show
 - [x] 11.9 An operations screen: running, queued and finished, with pause, resume and stop
 - [x] 11.10 Verified on a real device: sync resumes from its cursor (page 177 of a 9,624-user list) with live page and count
-- [ ] 11.11 Telemetry sender — BLOCKED: needs the shared API key, which belongs in BuildConfig and is deliberately absent from the repo, plus the 24-field Action payload contract
-- [ ] 11.12 Title bans as a fourth synced list, so the count is visible before a run
+- [x] 11.11 Telemetry: an outbox written on completion and a worker that drains it, inert until EKSIENGEL_API_KEY is supplied to the build, so the key never enters the repository
+- [x] 11.12 Title bans as a fourth synced list, so the count is visible before a run
 - [x] 11.13 Verify the extension is untouched: `cd frontend/app && npm run check && npm run package`
 
 ## 12. Guardrails

@@ -26,6 +26,7 @@ class ScrapeRelationSource @Inject constructor(
         when (listType) {
             ListType.BLOCKED -> relationPage(TargetType.USER, pageIndex)
             ListType.MUTED -> relationPage(TargetType.MUTE, pageIndex)
+            ListType.TITLE_BANNED -> relationPage(TargetType.TITLE, pageIndex)
             ListType.FOLLOWED -> followingPage(ownNick, pageIndex)
         }
 

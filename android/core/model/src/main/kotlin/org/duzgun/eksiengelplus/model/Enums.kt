@@ -117,4 +117,15 @@ enum class ListType {
     BLOCKED,
     MUTED,
     FOLLOWED,
+
+    /**
+     * Title bans, the r=i relation.
+     *
+     * A list of its own rather than a property of the blocked users: the users
+     * whose titles were banned are not the users currently blocked, so removing
+     * title bans by walking the blocked list finds the wrong set.
+     *
+     * Stored by name through the existing converter, so the schema is unchanged.
+     */
+    TITLE_BANNED,
 }

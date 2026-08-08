@@ -49,10 +49,19 @@ class OperationWorker @AssistedInject constructor(
     private val configRepository: org.duzgun.eksiengelplus.datastore.ConfigRepository,
 ) : CoroutineWorker(appContext, params) {
 
+    /** Supplied by the build; blank in a developer build, which then never posts. */
+    private val telemetryKey: String
+        get() = inputData.getString(KEY_TELEMETRY_KEY).orEmpty()
+    private val telemetryUrl: String
+        get() = inputData.getString(KEY_TELEMETRY_URL)
+            ?: "https://eksiengelplus.duzgun.org/api/action/"
+
     companion object {
         const val UNIQUE_WORK = "eksiengel-operation"
         const val KEY_OPERATION_ID = "operationId"
         const val KEY_REQUEST_JSON = "requestJson"
+        const val KEY_TELEMETRY_KEY = "telemetryKey"
+        const val KEY_TELEMETRY_URL = "telemetryUrl"
 
         /**
          * Records the request, then schedules the work.
@@ -397,6 +406,33 @@ class OperationWorker @AssistedInject constructor(
         )
         db.checkpoints().remove(operationId)
         db.completedOperations().trim()
+
+        /*
+         * Reported in the extension's own shape (commHandler.js:47-93), so the
+         * backend cannot tell the two clients apart, and only with consent.
+         *
+         * Written to the outbox rather than posted here: a report must never be
+         * able to fail the run that produced it.
+         */
+        val config = configRepository.config.first()
+        TelemetryReporter(db, endpoint = telemetryUrl, apiKey = telemetryKey).record(
+            sendData = config.sendData,
+            bodyJson = Json.encodeToString(
+                kotlinx.serialization.json.JsonObject.serializer(),
+                kotlinx.serialization.json.buildJsonObject {
+                    put("ban_source", kotlinx.serialization.json.JsonPrimitive(request.source.pk))
+                    put("ban_mode", kotlinx.serialization.json.JsonPrimitive(request.mode.pk))
+                    put("target_type", kotlinx.serialization.json.JsonPrimitive(request.targetType.pk))
+                    put("planned_action", kotlinx.serialization.json.JsonPrimitive(cp.total))
+                    put("performed_action", kotlinx.serialization.json.JsonPrimitive(cp.processed))
+                    put("successful_action", kotlinx.serialization.json.JsonPrimitive(cp.successful))
+                    put("author_list_size", kotlinx.serialization.json.JsonPrimitive(request.nicks.size))
+                    put("is_early_stopped", kotlinx.serialization.json.JsonPrimitive(cp.processed < cp.total))
+                },
+            ),
+            now = System.currentTimeMillis(),
+        )
+        TelemetryWorker.enqueue(WorkManager.getInstance(applicationContext), telemetryKey)
     }
 
     /**

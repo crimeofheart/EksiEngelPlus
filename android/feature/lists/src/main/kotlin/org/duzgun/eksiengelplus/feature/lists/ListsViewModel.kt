@@ -96,10 +96,16 @@ class ListsViewModel @Inject constructor(
         rowFlow(ListType.BLOCKED),
         rowFlow(ListType.MUTED),
         rowFlow(ListType.FOLLOWED),
+        rowFlow(ListType.TITLE_BANNED),
         db.checkpoints().countWithState(OperationState.RUNNING.name).map { it > 0 },
         exportingList,
-    ) { blocked, muted, followed, running, exporting ->
-        ListsUiState(listOf(blocked, muted, followed), running, exporting)
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        ListsUiState(
+            rows = values.take(4).map { it as ListRowState },
+            operationRunning = values[4] as Boolean,
+            exporting = values[5] as ListType?,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListsUiState())
 
     private fun rowFlow(listType: ListType) = combine(

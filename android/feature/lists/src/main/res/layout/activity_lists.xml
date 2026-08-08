@@ -29,6 +29,7 @@
             <include android:id="@+id/rowBlocked" layout="@layout/view_list_row"/>
             <include android:id="@+id/rowMuted" layout="@layout/view_list_row"/>
             <include android:id="@+id/rowFollowed" layout="@layout/view_list_row"/>
+            <include android:id="@+id/rowTitleBanned" layout="@layout/view_list_row"/>
         </LinearLayout>
 
         <LinearLayout style="@style/EksiEngel.Card" android:orientation="vertical"

@@ -77,6 +77,7 @@ class ListsActivity : AppCompatActivity() {
         bind(ListType.BLOCKED, R.id.rowBlocked, R.string.lists_blocked)
         bind(ListType.MUTED, R.id.rowMuted, R.string.lists_muted)
         bind(ListType.FOLLOWED, R.id.rowFollowed, R.string.lists_followed)
+        bind(ListType.TITLE_BANNED, R.id.rowTitleBanned, R.string.lists_title_banned)
 
         findViewById<Button>(R.id.openBulk).setOnClickListener { askBulkAction() }
         findViewById<Button>(R.id.openOperations).setOnClickListener {

@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import androidx.work.testing.TestListenableWorkerBuilder
 import org.duzgun.eksiengelplus.feature.lists.ListSyncWorker
 import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
+import org.duzgun.eksiengelplus.ops.runtime.TelemetryWorker
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
@@ -55,6 +56,11 @@ class WiringTest {
             .setWorkerFactory(factory)
             .build()
         assertThat(sync).isNotNull()
+
+        val telemetry = TestListenableWorkerBuilder<TelemetryWorker>(context)
+            .setWorkerFactory(factory)
+            .build()
+        assertThat(telemetry).isNotNull()
     }
 
     /**

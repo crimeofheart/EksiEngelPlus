@@ -3,6 +3,8 @@
     <string name="lists_title">listeler</string>
     <string name="ops_title">işlemler</string>
     <string name="ops_running">süren ve bekleyen</string>
+    <string name="ops_queued">sıradakiler</string>
+    <string name="ops_remove">kaldır</string>
     <string name="ops_finished">tamamlananlar</string>
     <string name="ops_none">yok</string>
     <string name="ops_open">işlemler</string>

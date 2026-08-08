@@ -130,6 +130,16 @@ interface QueuedTaskDao {
 
     @Query("DELETE FROM queued_task WHERE id = :id")
     suspend fun remove(id: Long)
+
+    /** The next run to start, in the order they were asked for. */
+    @Query("SELECT * FROM queued_task ORDER BY seq ASC LIMIT 1")
+    suspend fun next(): QueuedTaskEntity?
+
+    @Query("SELECT COALESCE(MAX(seq), 0) FROM queued_task")
+    suspend fun maxSeq(): Long
+
+    @Query("SELECT COUNT(*) FROM queued_task")
+    fun count(): Flow<Int>
 }
 
 @Dao
@@ -141,6 +151,10 @@ interface OperationCheckpointDao {
 
     @Query("SELECT * FROM operation_checkpoint WHERE state = :state")
     suspend fun withState(state: String): List<OperationCheckpointEntity>
+
+    /** Anything not finished, which is what "is a run live" means. */
+    @Query("SELECT COUNT(*) FROM operation_checkpoint WHERE state NOT IN ('STOPPED', 'COMPLETED')")
+    suspend fun liveCount(): Int
 
     /** Every checkpoint, for the screen that shows what is running. */
     @Query("SELECT * FROM operation_checkpoint ORDER BY startedAt DESC")

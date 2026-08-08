@@ -46,6 +46,8 @@ class OperationsActivity : AppCompatActivity() {
 
     private lateinit var running: ViewGroup
     private lateinit var runningEmpty: TextView
+    private lateinit var queued: ViewGroup
+    private lateinit var queuedEmpty: TextView
     private lateinit var finished: ViewGroup
     private lateinit var finishedEmpty: TextView
 
@@ -56,6 +58,8 @@ class OperationsActivity : AppCompatActivity() {
 
         running = findViewById(R.id.opsRunning)
         runningEmpty = findViewById(R.id.opsRunningEmpty)
+        queued = findViewById(R.id.opsQueued)
+        queuedEmpty = findViewById(R.id.opsQueuedEmpty)
         finished = findViewById(R.id.opsFinished)
         finishedEmpty = findViewById(R.id.opsFinishedEmpty)
 
@@ -63,6 +67,9 @@ class OperationsActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     db.checkpoints().observeAll().collect { renderRunning(it) }
+                }
+                launch {
+                    db.queuedTasks().observeAll().collect { renderQueued(it) }
                 }
                 launch {
                     db.completedOperations().recent(50).collect { renderFinished(it) }
@@ -118,6 +125,32 @@ class OperationsActivity : AppCompatActivity() {
             )
             row.addView(controls)
             running.addView(row)
+        }
+    }
+
+    /**
+     * What is waiting behind the current run.
+     *
+     * Its own section rather than mixed into the live one: a queued run has no
+     * progress and no controls beyond removal, and showing it beside a running
+     * one with an empty progress line read as a stalled operation.
+     */
+    private fun renderQueued(all: List<org.duzgun.eksiengelplus.database.QueuedTaskEntity>) {
+        queued.removeAllViews()
+        queuedEmpty.visibility = if (all.isEmpty()) View.VISIBLE else View.GONE
+
+        for (task in all) {
+            val row = section()
+            row.addView(
+                label(sourceName(BanSource.fromPk(task.banSourcePk)?.name ?: "?"), bold = true),
+            )
+            row.addView(label(whenText(task.enqueuedAt), small = true))
+            row.addView(
+                action(R.string.ops_remove) {
+                    lifecycleScope.launch { db.queuedTasks().remove(task.id) }
+                },
+            )
+            queued.addView(row)
         }
     }
 

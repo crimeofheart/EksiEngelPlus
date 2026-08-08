@@ -72,6 +72,30 @@ class OperationWorker @AssistedInject constructor(
             operationId: String,
             request: OperationRequest,
         ) {
+            /*
+             * A run is already going: queue this one instead of losing it.
+             *
+             * The unique work uses KEEP so a second request cannot cancel a run
+             * hours deep -- but KEEP also silently discards it, which meant
+             * tapping çalıştır during a run reported "sıraya alındı" and then
+             * did nothing at all. The queue is what makes that message true.
+             */
+            if (db.checkpoints().liveCount() > 0) {
+                db.queuedTasks().enqueue(
+                    org.duzgun.eksiengelplus.database.QueuedTaskEntity(
+                        seq = db.queuedTasks().maxSeq() + 1,
+                        banSourcePk = request.source.pk,
+                        banModePk = request.mode.pk,
+                        targetTypePk = request.targetType.pk,
+                        clickSourcePk = null,
+                        payloadJson = Json.encodeToString(OperationRequest.serializer(), request),
+                        status = "QUEUED",
+                        enqueuedAt = System.currentTimeMillis(),
+                    ),
+                )
+                return
+            }
+
             db.checkpoints().upsert(
                 OperationCheckpointEntity(
                     operationId = operationId,
@@ -282,6 +306,7 @@ class OperationWorker @AssistedInject constructor(
         return when (outcome) {
             OperationOutcome.COMPLETED -> {
                 recordState(OperationState.COMPLETED)
+                startNextQueued()
                 notifier.clearProgress()
                 notifier.alert("İşlem tamamlandı", "Tüm hedefler işlendi.")
                 Result.success()
@@ -299,6 +324,7 @@ class OperationWorker @AssistedInject constructor(
                 Result.success()
             }
             OperationOutcome.STOPPED -> {
+                startNextQueued()
                 // recordState only writes if the row is still there, so a run
                 // stopped by cancellation stays deleted rather than coming back
                 // as a stopped one.
@@ -340,6 +366,27 @@ class OperationWorker @AssistedInject constructor(
      * long is cheap; erring short means the continuation is killed on arrival.
      */
     private fun budgetResetDelayMs(): Long = TimeUnit.HOURS.toMillis(20)
+
+    /**
+     * Starts whatever was waiting behind this run.
+     *
+     * Called on the terminal outcomes only. A pause is not the end of a run, so
+     * jumping the queue there would leave two operations sharing a pacer budget
+     * sized for one.
+     */
+    private suspend fun startNextQueued() {
+        val next = db.queuedTasks().next() ?: return
+        db.queuedTasks().remove(next.id)
+        val request = runCatching {
+            Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
+        }.getOrNull() ?: return
+        enqueue(
+            WorkManager.getInstance(applicationContext),
+            db,
+            java.util.UUID.randomUUID().toString(),
+            request,
+        )
+    }
 
     private suspend fun recordState(state: OperationState) {
         db.checkpoints().get(operationId)?.let {

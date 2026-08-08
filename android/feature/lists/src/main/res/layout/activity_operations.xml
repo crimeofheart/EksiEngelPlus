@@ -30,6 +30,20 @@
 
         <TextView
             android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/ops_queued" android:textStyle="bold"
+            android:textSize="13sp" android:letterSpacing="0.08"
+            android:paddingTop="20dp" android:paddingBottom="6dp" android:alpha="0.75"/>
+
+        <LinearLayout android:id="@+id/opsQueued"
+            android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <TextView android:id="@+id/opsQueuedEmpty"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/ops_none" android:textSize="13sp" android:alpha="0.6"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/ops_finished" android:textStyle="bold"
             android:textSize="13sp" android:letterSpacing="0.08"
             android:paddingTop="20dp" android:paddingBottom="6dp" android:alpha="0.75"/>

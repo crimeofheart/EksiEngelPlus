@@ -561,6 +561,11 @@
   }
 
   function injectTitleMenu(container) {
+    // Topics only. A profile carries both a #title and a sub-title row of its
+    // own, so keying off those alone put "başlıktakileri engelle" under a user's
+    // block menu, where it means nothing.
+    if (location.pathname.indexOf("/biri/") === 0) return;
+
     var title = document.getElementById("title");
     if (!title) return false;
     var slug = title.getAttribute("data-slug");

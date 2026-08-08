@@ -158,4 +158,33 @@ class WorkSchedulingTest {
         assertThat(live).hasSize(1)
         Unit
     }
+
+    /**
+     * A run that has begun is live, before it has done anything.
+     *
+     * The state used to become RUNNING only on the first checkpoint, written
+     * after the first action lands. A run opening with a rate-limit wait sat at
+     * IDLE for the whole cooldown: İşlem durumu listed it under sıradakiler as
+     * "başlamadı" while it was executing, and liveCount() -- which excludes
+     * IDLE -- did not see it, so the next request started beside it instead of
+     * queueing behind it.
+     */
+    @Test fun aRunThatHasStartedIsLiveBeforeItsFirstCheckpoint() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "op1", request)
+        assertThat(db.checkpoints().liveCount()).isEqualTo(0)   // scheduled only
+
+        // What the worker does before touching the network.
+        db.checkpoints().setState(
+            "op1",
+            org.duzgun.eksiengelplus.ops.engine.OperationState.RUNNING.name,
+            1L,
+        )
+
+        assertThat(db.checkpoints().liveCount()).isEqualTo(1)
+        // The cursor is untouched, so a resume still knows where it was.
+        assertThat(db.checkpoints().get("op1")!!.processed).isEqualTo(0)
+
+        OperationWorker.enqueue(wm, db, "op2", request)
+        assertThat(db.queuedTasks().next()).isNotNull()
+    }
 }

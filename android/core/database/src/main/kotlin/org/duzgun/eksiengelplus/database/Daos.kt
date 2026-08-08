@@ -174,6 +174,22 @@ interface OperationCheckpointDao {
     @Query("SELECT COUNT(*) FROM operation_checkpoint WHERE state = :state")
     fun countWithState(state: String): Flow<Int>
 
+    /**
+     * Marks a run as started, without disturbing its cursor.
+     *
+     * The state used to become RUNNING only on the first checkpoint, which is
+     * written after the first action lands. A run that opened with a rate-limit
+     * wait therefore sat at IDLE for the whole cooldown: İşlem durumu showed it
+     * under sıradakiler as "başlamadı" while it was executing, and liveCount()
+     * -- which excludes IDLE -- did not count it, so the next request started
+     * alongside it instead of queueing behind it.
+     */
+    @Query(
+        "UPDATE operation_checkpoint SET state = :state, updatedAt = :at " +
+            "WHERE operationId = :id",
+    )
+    suspend fun setState(id: String, state: String, at: Long)
+
     @Query("DELETE FROM operation_checkpoint WHERE operationId = :id")
     suspend fun remove(id: String)
 }

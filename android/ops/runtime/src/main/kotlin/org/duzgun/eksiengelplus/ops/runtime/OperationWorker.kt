@@ -275,6 +275,16 @@ class OperationWorker @AssistedInject constructor(
         setForeground(getForegroundInfo())
 
         val existing = db.checkpoints().get(operationId)
+        // Before any work, so a run that opens with a cooldown is not reported
+        // as başlamadı for the length of it -- and so liveCount() sees it and
+        // queues the next request behind it rather than beside it.
+        if (existing != null) {
+            db.checkpoints().setState(
+                operationId,
+                OperationState.RUNNING.name,
+                System.currentTimeMillis(),
+            )
+        }
         val startCursor = existing?.cursorJson
             ?.let { runCatching { Json.decodeFromString(OperationCursor.serializer(), it) }.getOrNull() }
             ?: OperationCursor()

@@ -63,7 +63,6 @@ class ListsActivity : AppCompatActivity() {
         val spinner: ProgressBar = root.findViewById(R.id.rowSpinner)
         val refresh: Button = root.findViewById(R.id.rowRefresh)
         val stop: Button = root.findViewById(R.id.rowStop)
-        val run: Button = root.findViewById(R.id.rowRun)
         val export: Button = root.findViewById(R.id.rowExport)
     }
 
@@ -77,6 +76,7 @@ class ListsActivity : AppCompatActivity() {
         bind(ListType.MUTED, R.id.rowMuted, R.string.lists_muted)
         bind(ListType.FOLLOWED, R.id.rowFollowed, R.string.lists_followed)
 
+        findViewById<Button>(R.id.runOnList).setOnClickListener { askWhichList() }
         findViewById<Button>(R.id.openAuthorList).setOnClickListener {
             startActivity(Intent(this, AuthorListActivity::class.java))
         }
@@ -94,12 +94,27 @@ class ListsActivity : AppCompatActivity() {
         views.title.setText(titleRes)
         views.refresh.setOnClickListener { model.refresh(listType) }
         views.stop.setOnClickListener { model.stop(listType) }
-        views.run.setOnClickListener { askListAction(listType) }
         views.export.setOnClickListener {
             pendingExport = listType
             createDocument.launch(CsvCodec.suggestedFilename(listType, today()))
         }
         rows[listType] = views
+    }
+
+    /** Which list first, since the actions differ by list. */
+    private fun askWhichList() {
+        val lists = listOf(
+            ListType.BLOCKED to R.string.lists_blocked,
+            ListType.MUTED to R.string.lists_muted,
+            ListType.FOLLOWED to R.string.lists_followed,
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.lists_run_title)
+            .setItems(lists.map { getString(it.second) }.toTypedArray()) { _, which ->
+                askListAction(lists[which].first)
+            }
+            .setNegativeButton(R.string.author_list_cancel, null)
+            .show()
     }
 
     /**
@@ -192,7 +207,6 @@ class ListsActivity : AppCompatActivity() {
             views.export.isEnabled = row.count > 0 && state.exporting == null && !syncing
             // Nothing to run against an empty list, and a second operation while
             // one is going would double the rate the pacer is holding down.
-            views.run.isEnabled = row.count > 0 && !syncing && !state.operationRunning
         }
     }
 

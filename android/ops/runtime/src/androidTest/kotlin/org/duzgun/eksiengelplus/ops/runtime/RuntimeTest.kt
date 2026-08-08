@@ -13,6 +13,7 @@ import org.duzgun.eksiengelplus.model.ListType
 import org.duzgun.eksiengelplus.ops.engine.BudgetExhaustedSignal
 import org.duzgun.eksiengelplus.ops.engine.ActionPacer
 import org.duzgun.eksiengelplus.ops.engine.OperationCursor
+import org.duzgun.eksiengelplus.ops.engine.OperationProgress
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.PauseSignal
 import org.duzgun.eksiengelplus.ops.engine.ReadPacer
@@ -77,6 +78,24 @@ class RuntimeTest {
         readPacer = ReadPacer(sleep = {}, clock = { now }),
         clock = { now },
     )
+
+    /**
+     * The row and the notification must not disagree about the same run.
+     *
+     * The notification took the total from the worker's memory, İşlem durumu
+     * from this row, and nothing wrote the row until the first checkpoint --
+     * five targets in, later still when the run opens with a cooldown. The two
+     * surfaces read "0 / 1" and "0 / 0" for the same run, and 0 / 0 is what a
+     * run against nobody looks like.
+     */
+    @Test fun publishingProgressRecordsTheSizeOnTheRow() = runTest {
+        seedCheckpoint()
+        val ctx = context()
+
+        ctx.publishProgress(OperationProgress(processed = 0, total = 37, successful = 0, failed = 0))
+
+        assertThat(db.checkpoints().get("op1")!!.total).isEqualTo(37)
+    }
 
     @Test fun checkpointAndEffectsCommitTogether() = runTest {
         seedCheckpoint()

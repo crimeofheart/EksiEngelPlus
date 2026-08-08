@@ -190,6 +190,18 @@ interface OperationCheckpointDao {
     )
     suspend fun setState(id: String, state: String, at: Long)
 
+    /**
+     * Records how big the run is, as soon as that is known.
+     *
+     * The notification took the total from the worker's own memory while İşlem
+     * durumu read it from this row, which nothing wrote until the first
+     * checkpoint -- five targets in. Until then the same run said "0 / 1" in one
+     * place and "0 / 0" in the other, and the second reads as a run against
+     * nobody.
+     */
+    @Query("UPDATE operation_checkpoint SET total = :total, updatedAt = :at WHERE operationId = :id")
+    suspend fun setTotal(id: String, total: Int, at: Long)
+
     @Query("DELETE FROM operation_checkpoint WHERE operationId = :id")
     suspend fun remove(id: String)
 }

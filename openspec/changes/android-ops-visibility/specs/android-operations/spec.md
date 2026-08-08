@@ -120,7 +120,13 @@ Binds the Android client.
 
 ### Requirement: A run states its size before it acts
 
-The number of targets SHALL be published before the first action, not after it.
+The number of targets SHALL be published before the first action, not after it,
+and SHALL be recorded on the checkpoint row at the moment it is published.
+
+The notification reads the size from the worker; İşlem durumu reads it from the
+row. Leaving the row until the first checkpoint — five targets away, further
+still when the run opens with a cooldown — had the two surfaces disagreeing about
+the same run, one reading `0 / 1` and the other `0 / 0`.
 Otherwise a run waiting out its first cooldown reads `0 / 0 · API limiti
 bekleniyor` — indistinguishable from a run against nobody, which is how a
 genuine 37-follower run came to look like a minute spent on an empty one.
@@ -129,6 +135,11 @@ A run with no targets SHALL complete without consulting the pacer and without
 writing a checkpoint. Nothing to do costs nothing.
 
 Binds the Android client.
+
+#### Scenario: The notification and the screen agree on the size
+
+- **WHEN** a run's size is published
+- **THEN** the checkpoint row carries the same total the notification shows
 
 #### Scenario: A run waiting for its first permit says what it will do
 

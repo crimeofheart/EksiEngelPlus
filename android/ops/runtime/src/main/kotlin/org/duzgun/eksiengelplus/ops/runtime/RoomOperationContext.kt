@@ -186,7 +186,21 @@ class RoomOperationContext(
 
     override suspend fun publishProgress(progress: OperationProgress) {
         // The only place the run's size is known, so the checkpoint borrows it.
-        lastTotal = progress.total
+        if (progress.total != lastTotal) {
+            lastTotal = progress.total
+            /*
+             * Written through, not just remembered.
+             *
+             * The notification reads this from memory; İşlem durumu reads it
+             * from the row. Leaving the row until the first checkpoint -- five
+             * targets away, and further still if the run opens with a cooldown
+             * -- had the two surfaces disagreeing about the same run, one saying
+             * 0 / 1 and the other 0 / 0.
+             *
+             * One write: the size is discovered once and does not change.
+             */
+            db.checkpoints().setTotal(operationId, progress.total, clock())
+        }
         onProgress(progress)
     }
 

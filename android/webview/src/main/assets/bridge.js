@@ -527,8 +527,8 @@
     var id = title.getAttribute("data-id");
     if (!slug || !id) return;
 
-    var last24 = item(muteWord("başlıktakiler (son 24s)", "başlıktakiler sessiz (24s)"), true);
-    var all = item(muteWord("başlıktakiler (tümü)", "başlıktakiler sessiz (tümü)"), true);
+    var last24 = item(muteWord("başlıktakileri engelle (24s)", "başlıktakileri sessize al (24s)"), true);
+    var all = item(muteWord("başlıktakileri engelle (tümü)", "başlıktakileri sessize al (tümü)"), true);
 
     last24.onclick = function () {
       enqueue({
@@ -590,7 +590,7 @@
     var targetType = CONFIG.enableMute ? TargetType.MUTE : TargetType.USER;
 
     var banUser = item(muteWord("yazarı engelle", "yazarı sessize al"));
-    var banFav = item("favlayanları engelle");
+    var banFav = item(muteWord("favlayanları engelle", "favlayanları sessize al"));
     var banFollow = item(muteWord("takipçilerini engelle", "takipçilerini sessize al"));
 
     banUser.onclick = function () {
@@ -650,6 +650,8 @@
     if (native) native.remove();
 
     var ban = item(muteWord("engelle", "sessize al"));
+    // Not mute-aware on purpose: title blocking is its own relation (r=i) with
+    // no mute counterpart, so this action does the same thing either way.
     var banTitles = item("başlıklarını engelle");
     var banFollowers = item(muteWord("takipçilerini engelle", "takipçilerini sessize al"));
 

@@ -72,6 +72,18 @@ function getTaskPriority(banSource) {
   }
 }
 
+/**
+ * The bracketed detail after an action name.
+ *
+ * The nick comes first because it is what tells two otherwise identical rows
+ * apart -- three queued "Favori Edenleri Engelle" entries read as the same one
+ * repeated until each says whose entry it is.
+ */
+function describeTarget(...parts) {
+  const kept = parts.filter(Boolean);
+  return kept.length ? ` (${kept.join(" - ")})` : "";
+}
+
 export function generateUnifiedDescription(banSource, metadata = {}) {
   const { targetTypes = [], sourceEntry, sourceAuthor, sourceTitle, sourceList, timeFilter, banMode, listAction } = metadata;
   let baseDescription = "";
@@ -82,22 +94,24 @@ export function generateUnifiedDescription(banSource, metadata = {}) {
     [enums.DateBulkAction.SESSIZDEN_CIKAR_VE_TAKIP_ET]: "Sessizden Çıkar ve Takip Et",
     [enums.DateBulkAction.TAKIPTEN_CIKAR]: "Takipten Çıkar"
   };
-  
+  const targetTypeNames = targetTypes && targetTypes.length > 0
+    ? targetTypes.map(t => t === enums.TargetType.USER ? "Kullanıcı" : t === enums.TargetType.TITLE ? "Başlık" : "Sessiz").join(", ")
+    : null;
+
   switch (banSource) {
     case enums.BanSource.SINGLE:
       baseDescription = `Tek Kullanıcı ${operationType}`;
-      if (targetTypes && targetTypes.length > 0) {
-        const targets = targetTypes.map(t => t === enums.TargetType.USER ? "Kullanıcı" : t === enums.TargetType.TITLE ? "Başlık" : "Sessiz").join(", ");
-        baseDescription += ` (${targets})`;
-      }
+      baseDescription += describeTarget(sourceAuthor, targetTypeNames);
       break;
     case enums.BanSource.FAV:
       baseDescription = `Favori Edenleri ${operationType}`;
-      if (sourceEntry) baseDescription += " (Entry)";
+      // The entry's author, not the favouriters -- it is whose entry was
+      // clicked, and "Entry" said only that there had been one.
+      baseDescription += describeTarget(sourceAuthor || (sourceEntry ? "Entry" : null));
       break;
     case enums.BanSource.FOLLOW:
       baseDescription = `Takipçileri ${operationType}`;
-      if (sourceAuthor) baseDescription += ` (${sourceAuthor})`;
+      baseDescription += describeTarget(sourceAuthor);
       break;
     case enums.BanSource.LIST:
       baseDescription = listActionLabels[listAction]

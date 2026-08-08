@@ -80,8 +80,21 @@ class ListsViewModel @Inject constructor(
     private val workManager get() = WorkManager.getInstance(getApplication())
 
     /** One-shot messages for the screen: export finished, export failed, and so on. */
-    private val messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    val message: SharedFlow<String> = messages.asSharedFlow()
+    private val messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 4)
+    val message: SharedFlow<UiMessage> = messages.asSharedFlow()
+
+    /**
+     * Says something to the user.
+     *
+     * [showOperations] offers a way through to İşlem durumu, and belongs only on
+     * messages about a run that has just been handed off -- the screen the user
+     * is on shows no trace of it, so without this the next step is a hunt
+     * through the menu.
+     */
+    private fun say(text: String, showOperations: Boolean = false) {
+        messages.tryEmit(UiMessage(text, showOperations))
+    }
+
 
     /**
      * The list whose export is in flight.
@@ -182,11 +195,11 @@ class ListsViewModel @Inject constructor(
                 onSuccess = { written ->
                     // null means the user dismissed the picker, which is not an event.
                     if (written != null) {
-                        messages.tryEmit(string(R.string.lists_exported, written))
+                        say(string(R.string.lists_exported, written))
                     }
                 },
                 onFailure = {
-                    messages.tryEmit(
+                    say(
                         string(R.string.lists_export_failed, it.message ?: string(R.string.lists_unknown_error)),
                     )
                 },
@@ -224,7 +237,7 @@ class ListsViewModel @Inject constructor(
         viewModelScope.launch {
             val config = configRepository.config.first()
             if (!config.enableDateFilter || config.dateFilterRules.none { it.enabled }) {
-                messages.tryEmit(string(R.string.bulk_date_needs_filter))
+                say(string(R.string.bulk_date_needs_filter))
                 return@launch
             }
             runOnList(BanSource.DATE_BASED_BULK, mode, targetType)
@@ -239,7 +252,7 @@ class ListsViewModel @Inject constructor(
                 operationId = java.util.UUID.randomUUID().toString(),
                 request = OperationRequest(source = source, mode = mode, targetType = targetType),
             )
-            messages.tryEmit(string(R.string.lists_run_started))
+            say(string(R.string.lists_run_started), showOperations = true)
         }
     }
 

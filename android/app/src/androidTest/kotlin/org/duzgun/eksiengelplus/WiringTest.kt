@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import androidx.work.testing.TestListenableWorkerBuilder
 import org.duzgun.eksiengelplus.feature.lists.ListSyncWorker
 import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
+import org.duzgun.eksiengelplus.ops.runtime.OpsNotifier
 import org.duzgun.eksiengelplus.ops.runtime.TelemetryWorker
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
@@ -114,5 +115,26 @@ class WiringTest {
             "android.permission.FOREGROUND_SERVICE",
             "android.permission.POST_NOTIFICATIONS",
         )
+    }
+
+    /**
+     * The Göster button must land somewhere.
+     *
+     * The notification and the Snackbar both fire an implicit intent, and the
+     * screen that answers it lives in another module -- deliberately, since
+     * :feature:lists depends on :ops:runtime and not the reverse. Nothing checks
+     * the two spellings agree at compile time, and a mismatch is invisible: the
+     * button appears, is tapped, and does nothing at all.
+     */
+    @Test fun theShowOperationsActionResolvesToAnActivity() {
+        val intent = android.content.Intent(OpsNotifier.ACTION_SHOW_OPERATIONS)
+            .setPackage(context.packageName)
+
+        val resolved = context.packageManager.resolveActivity(intent, 0)
+
+        assertWithMessage(
+            "No activity answers ${OpsNotifier.ACTION_SHOW_OPERATIONS}. The intent-filter " +
+                "in feature/lists AndroidManifest.xml must match the constant.",
+        ).that(resolved).isNotNull()
     }
 }

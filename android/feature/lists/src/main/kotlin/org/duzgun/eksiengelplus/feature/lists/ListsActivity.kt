@@ -7,7 +7,6 @@ import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -90,7 +89,7 @@ class ListsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { model.state.collect(::render) }
-                launch { model.message.collect { Toast.makeText(this@ListsActivity, it, Toast.LENGTH_SHORT).show() } }
+                launch { model.message.collect { showMessage(it) } }
                 // Each card says what it holds, so the screen answers the obvious
                 // questions without being opened.
                 launch {

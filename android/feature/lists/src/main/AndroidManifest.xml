@@ -18,7 +18,13 @@
         <activity
             android:name=".OperationsActivity"
             android:exported="false"
-            android:label="@string/ops_title"/>
+            android:launchMode="singleTop"
+            android:label="@string/ops_title">
+            <intent-filter>
+                <action android:name="org.duzgun.eksiengelplus.SHOW_OPERATIONS"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".AuthorListActivity"

@@ -119,4 +119,5 @@
     <string name="author_list_group_mute">sessize alma</string>
     <string name="author_list_group_follow">takip</string>
     <string name="author_list_cancel">vazgeç</string>
+    <string name="ops_show">göster</string>
 </resources>

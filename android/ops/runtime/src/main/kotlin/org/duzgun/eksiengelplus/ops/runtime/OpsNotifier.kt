@@ -38,6 +38,17 @@ class OpsNotifier(private val context: Context) {
         const val ACTION_PAUSE = "org.duzgun.eksiengelplus.PAUSE"
         const val ACTION_STOP = "org.duzgun.eksiengelplus.STOP"
         const val ACTION_RESUME = "org.duzgun.eksiengelplus.RESUME"
+
+        /**
+         * Opens the İşlem durumu screen.
+         *
+         * Matched by an intent-filter rather than a class reference: the screen
+         * lives in :feature:lists, which depends on this module, so naming the
+         * activity here would invert that. The action is private to the app --
+         * the component stays exported="false", and setPackage keeps resolution
+         * inside it.
+         */
+        const val ACTION_SHOW_OPERATIONS = "org.duzgun.eksiengelplus.SHOW_OPERATIONS"
         const val EXTRA_OPERATION_ID = "operationId"
     }
 
@@ -92,8 +103,10 @@ class OpsNotifier(private val context: Context) {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
+            .setContentIntent(showOperationsIntent())
             .addAction(0, "Duraklat", commandIntent(operationId, ACTION_PAUSE))
             .addAction(0, "Durdur", commandIntent(operationId, ACTION_STOP))
+            .addAction(0, "Göster", showOperationsIntent())
             .build()
     }
 
@@ -212,6 +225,19 @@ class OpsNotifier(private val context: Context) {
             context,
             "open-app".hashCode(),
             launch,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** Opens İşlem durumu, where the queue and the running task both live. */
+    fun showOperationsIntent(): PendingIntent {
+        val intent = Intent(ACTION_SHOW_OPERATIONS)
+            .setPackage(context.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        return PendingIntent.getActivity(
+            context,
+            ACTION_SHOW_OPERATIONS.hashCode(),
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }

@@ -33,8 +33,21 @@ class AuthorListViewModel @Inject constructor(
     private val db: EksiDatabase,
 ) : AndroidViewModel(application) {
 
-    private val messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    val message: SharedFlow<String> = messages.asSharedFlow()
+    private val messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 4)
+    val message: SharedFlow<UiMessage> = messages.asSharedFlow()
+
+    /**
+     * Says something to the user.
+     *
+     * [showOperations] offers a way through to İşlem durumu, and belongs only on
+     * messages about a run that has just been handed off -- the screen the user
+     * is on shows no trace of it, so without this the next step is a hunt
+     * through the menu.
+     */
+    private fun say(text: String, showOperations: Boolean = false) {
+        messages.tryEmit(UiMessage(text, showOperations))
+    }
+
 
     /**
      * True while a read or a write is in flight.
@@ -59,7 +72,7 @@ class AuthorListViewModel @Inject constructor(
 
     fun clear() = launchBusy {
         repository.clear()
-        messages.tryEmit(getApplication<Application>().getString(R.string.author_list_cleared))
+        say(getApplication<Application>().getString(R.string.author_list_cleared))
     }
 
     /**
@@ -76,7 +89,7 @@ class AuthorListViewModel @Inject constructor(
                     open()?.use { it.readBytes().toString(Charsets.UTF_8) }
                 }
             }.getOrElse {
-                messages.tryEmit(failure(it))
+                say(failure(it))
                 return@launchBusy
             }
             // null is a dismissed picker, not a failure.
@@ -95,7 +108,7 @@ class AuthorListViewModel @Inject constructor(
             if (replace) repository.replaceAll(result.rows) else repository.append(result.rows)
         }.fold(
             onSuccess = {
-                messages.tryEmit(
+                say(
                     getApplication<Application>().getString(
                         R.string.author_list_imported,
                         result.rows.size,
@@ -104,7 +117,7 @@ class AuthorListViewModel @Inject constructor(
                     ),
                 )
             },
-            onFailure = { messages.tryEmit(failure(it)) },
+            onFailure = { say(failure(it)) },
         )
     }
 
@@ -134,7 +147,7 @@ class AuthorListViewModel @Inject constructor(
         viewModelScope.launch {
             val nicks = nicks.value.ifEmpty { repository.nicksNow() }
             if (nicks.isEmpty()) {
-                messages.tryEmit(getApplication<Application>().getString(R.string.author_list_empty))
+                say(getApplication<Application>().getString(R.string.author_list_empty))
                 return@launch
             }
             OperationWorker.enqueue(
@@ -149,8 +162,9 @@ class AuthorListViewModel @Inject constructor(
                     thenApplyTo = thenApplyTo,
                 ),
             )
-            messages.tryEmit(
+            say(
                 getApplication<Application>().getString(R.string.author_list_enqueued, nicks.size),
+                showOperations = true,
             )
         }
     }

@@ -527,7 +527,17 @@
    * a user already looks for those.
    */
   function injectTitleMenu(menu) {
-    if (!isTitleMenu(menu)) return;
+    if (!isTitleMenu(menu)) {
+      /*
+       * An empty menu has not been seen yet, only found.
+       *
+       * Ekşi fills these when they are opened, so at scan time there is nothing
+       * to recognise -- and marking it done would mean never looking again once
+       * it filled. "Not ready" keeps it eligible; a populated menu that is
+       * simply not the title menu is marked and left alone.
+       */
+      return menu.childElementCount === 0 ? false : undefined;
+    }
     var title = document.getElementById("title");
     if (!title) return false;
     var slug = title.getAttribute("data-slug");

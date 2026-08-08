@@ -63,5 +63,5 @@
 
 - [x] 8.1 Run the full Android check: `cd android && ./gradlew test :app:assembleDebug`
 - [x] 8.2 Confirm `git diff --stat -- frontend/app/ backend/` is empty
-- [ ] 8.3 Add an end-to-end test that exercises the manifest, the Hilt-in-`Application` path and WorkManager limits — DEFERRED: the right answer to the three assembly gaps, and its own change rather than a task here
-- [ ] 8.4 Run `openspec validate android-device-hardening` clean, then `openspec archive android-device-hardening`
+- [x] 8.3 Add an end-to-end test that exercises the manifest, the Hilt-in-`Application` path and WorkManager limits — SUPERSEDED by `app/src/androidTest/.../WiringTest.kt`, written under `android-ops-visibility`: it asserts the worker factory is installed, that each worker can actually be constructed, that `OperationCommandReceiver` is declared, and that the `SHOW_OPERATIONS` action resolves. Covers all three assembly gaps. Caveat carried to 8.4: it has never been executed, because no device has been attached since it was written.
+- [ ] 8.4 Run `openspec validate android-device-hardening` clean, then `openspec archive android-device-hardening` — BLOCKED on the same device run as `android-ops-visibility` 7.3: archiving a change whose closing guardrail has never executed would be recording a verification that did not happen

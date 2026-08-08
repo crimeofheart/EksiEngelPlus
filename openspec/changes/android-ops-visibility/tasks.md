@@ -91,9 +91,12 @@
 
 - [x] 7.1 Full `./gradlew test` and `:app:assembleDebug` clean
 - [x] 7.2 Every new test verified by breaking the code it covers
-- [ ] 7.3 Run the instrumented suites on a device — NOT RUN: no device was
-      attached when these were written, so `WiringTest.theShowOperationsActionResolvesToAnActivity`
-      and `aRunThatHasStartedIsLiveBeforeItsFirstCheckpoint` have never executed
+- [ ] 7.3 Run the instrumented suites on a device — NOT RUN: no device has been
+      attached since these were written, so
+      `WiringTest.theShowOperationsActionResolvesToAnActivity`,
+      `aRunThatHasStartedIsLiveBeforeItsFirstCheckpoint` and
+      `publishingProgressRecordsTheCountsOnTheRow` have never executed. This run
+      also discharges `android-device-hardening` 8.4, which is blocked on it.
 - [ ] 7.4 Confirm on device that the in-app countdown ticks alongside the
       notification — the one behaviour resting on `OperationWaits` being a single
       instance across worker and UI

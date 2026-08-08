@@ -1,0 +1,72 @@
+## 1. Interruptible waits
+
+- [x] 1.1 Slice the injected sleep in `OperationWorker`, polling the command bus
+      every 250ms and raising the same signals `ensureActive()` does
+- [x] 1.2 Pin that abandoning a wait spends no token — `ActionPacerTest`,
+      verified by breaking `acquire()` to take the token before sleeping
+- [x] 1.3 Widen the signal guard in both runners from `ensureActive()` to the
+      whole loop; add `park()` absorbing a stop raised by the checkpoint itself
+- [x] 1.4 Add `FakeContext.permitSignal` and two `TargetRunnerTest` cases for a
+      signal raised inside the permit wait, verified by narrowing the guard back
+- [x] 1.5 `cd frontend/app && npm run check && npm run package`
+
+## 2. The wait made visible
+
+- [x] 2.1 Replace the rate-limit-derived ETA in `OpsNotifier.progress` with the
+      wait counting down; delete `humanDuration`, its only caller
+- [x] 2.2 Throttle notification updates to second boundaries rather than the
+      250ms poll
+- [x] 2.3 Add `OperationWaits` and provide it as a `@Singleton`
+- [x] 2.4 Publish from the worker, clearing in a `finally` so a signal mid-wait
+      leaves nothing ticking
+- [x] 2.5 Render it in the İşlem durumu running row, combining the checkpoint
+      flow with the wait flow rather than collecting each separately
+- [x] 2.6 Introduce and then revert `WaitReason` — recorded because the revert is
+      the decision, not an accident
+- [x] 2.7 `cd frontend/app && npm run check && npm run package`
+
+## 3. A way through
+
+- [x] 3.1 Add `ACTION_SHOW_OPERATIONS` and an intent-filter on
+      `OperationsActivity`; make it `singleTop`
+- [x] 3.2 `Göster` action plus content intent on the progress notification
+- [x] 3.3 Content intent and auto-cancel on the completion alert
+- [x] 3.4 `UiMessage` and `showMessage`; the queued-run messages become Snackbars
+      carrying `göster`, everything else keeps Toast semantics
+- [x] 3.5 Assert the action resolves in `WiringTest`, since nothing checks the
+      constant against the manifest at compile time
+- [x] 3.6 `cd frontend/app && npm run check && npm run package`
+
+## 4. Lifecycle correctness
+
+- [x] 4.1 `checkpoints().setState` and mark a run `RUNNING` before any network
+      work, leaving the cursor alone
+- [x] 4.2 Regression test that a started run is live before its first checkpoint
+      and queues the next request behind it
+- [x] 4.3 Drain the queue at startup reconciliation, starting the run directly
+      rather than re-entering `enqueue`
+- [x] 4.4 `runCancellable`, replacing `runCatching` at the three sites that
+      report a failure to the user
+- [x] 4.5 Fix the clear-all button stretching the queued section — `action()`
+      carries `weight = 1`, correct in a row and wrong in a column
+- [x] 4.6 `cd frontend/app && npm run check && npm run package`
+
+## 5. Browsing shell
+
+- [x] 5.1 Restore `ensureLayer`, `preloadTab` and `warmNeighbours` in
+      `bridge.js`; they were called from three places and defined nowhere
+- [x] 5.2 `node --check bridge.js`
+- [x] 5.3 `cd frontend/app && npm run check && npm run package`
+
+## 6. Verification
+
+- [x] 6.1 Full `./gradlew test` and `:app:assembleDebug` clean
+- [x] 6.2 Every new test verified by breaking the code it covers
+- [ ] 6.3 Run the instrumented suites on a device — NOT RUN: no device was
+      attached when these were written, so `WiringTest.theShowOperationsActionResolvesToAnActivity`
+      and `aRunThatHasStartedIsLiveBeforeItsFirstCheckpoint` have never executed
+- [ ] 6.4 Confirm on device that the in-app countdown ticks alongside the
+      notification — the one behaviour resting on `OperationWaits` being a single
+      instance across worker and UI
+- [ ] 6.5 Run `openspec validate android-ops-visibility` clean, then
+      `openspec archive android-ops-visibility`

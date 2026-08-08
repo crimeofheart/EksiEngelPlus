@@ -327,10 +327,36 @@ class OperationWorker @AssistedInject constructor(
         return when (outcome) {
             OperationOutcome.COMPLETED -> {
                 recordState(OperationState.COMPLETED)
+                val done = db.checkpoints().get(operationId)
                 archive(request)
-                startNextQueued()
+
+                /*
+                 * One run finishing is not everything finishing.
+                 *
+                 * The old wording announced completion outright while a queue was
+                 * still waiting, so the app declared itself done and then carried
+                 * on working. What is left is counted before the queue is drained,
+                 * so it reflects what has not started rather than what just did.
+                 */
+                val waiting = db.queuedTasks().count().first()
+                val summary = done?.let { "${it.successful}/${it.processed} işlendi" }.orEmpty()
+
                 notifier.clearProgress()
-                notifier.alert("İşlem tamamlandı", "Tüm hedefler işlendi.")
+                if (waiting > 0) {
+                    notifier.alert(
+                        "İşlem tamamlandı",
+                        listOf(summary, "sırada $waiting işlem var, bir sonrakine geçiliyor.")
+                            .filter { it.isNotBlank() }
+                            .joinToString(" · "),
+                    )
+                } else {
+                    notifier.alert(
+                        "Tüm işlemler tamamlandı",
+                        summary.ifBlank { "Tüm hedefler işlendi." },
+                    )
+                }
+
+                startNextQueued()
                 Result.success()
             }
             OperationOutcome.PAUSED -> {

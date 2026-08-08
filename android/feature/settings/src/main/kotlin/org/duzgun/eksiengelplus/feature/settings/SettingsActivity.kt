@@ -1,6 +1,7 @@
 package org.duzgun.eksiengelplus.feature.settings
 
 import android.os.Bundle
+import android.view.View
 import android.widget.CompoundButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
@@ -11,6 +12,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.duzgun.eksiengelplus.datastore.ConfigRepository
+import org.duzgun.eksiengelplus.datastore.DateCriteria
+import org.duzgun.eksiengelplus.datastore.DateFilterRule
 import org.duzgun.eksiengelplus.datastore.EksiConfig
 
 /**
@@ -73,15 +76,162 @@ class SettingsActivity : AppCompatActivity() {
             bind(R.id.switchSendLog, { it.sendLog }, { c, v -> c.copy(sendLog = v) }),
         )
 
+        rulesSection = findViewById(R.id.rulesSection)
+        rulesList = findViewById(R.id.rulesList)
+        rulesEmpty = findViewById(R.id.rulesEmpty)
+        findViewById<android.widget.Button>(R.id.rulesAdd).setOnClickListener { addRule() }
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 configRepository.config.collect { config ->
                     binding = true
                     switches.forEach { (view, b) -> view.isChecked = b.read(config) }
+                    renderRules(config)
                     binding = false
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------- date rules
+
+    private lateinit var rulesSection: android.view.ViewGroup
+    private lateinit var rulesList: android.view.ViewGroup
+    private lateinit var rulesEmpty: android.widget.TextView
+
+    private val criteriaOrder = listOf(
+        DateCriteria.NEWER_THAN,
+        DateCriteria.OLDER_THAN,
+        DateCriteria.BEFORE_DATE,
+        DateCriteria.AFTER_DATE,
+    )
+
+    private fun criteriaLabels() = arrayOf(
+        getString(R.string.settings_criteria_newer),
+        getString(R.string.settings_criteria_older),
+        getString(R.string.settings_criteria_before),
+        getString(R.string.settings_criteria_after),
+    )
+
+    private fun addRule() {
+        lifecycleScope.launch {
+            configRepository.update { c ->
+                c.copy(
+                    dateFilterRules = c.dateFilterRules + DateFilterRule(
+                        id = java.util.UUID.randomUUID().toString(),
+                        criteria = DateCriteria.OLDER_THAN,
+                        days = 30,
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun mutateRule(id: String, change: (DateFilterRule) -> DateFilterRule) {
+        lifecycleScope.launch {
+            configRepository.update { c ->
+                c.copy(dateFilterRules = c.dateFilterRules.map { if (it.id == id) change(it) else it })
+            }
+        }
+    }
+
+    private fun deleteRule(id: String) {
+        lifecycleScope.launch {
+            configRepository.update { c ->
+                c.copy(dateFilterRules = c.dateFilterRules.filterNot { it.id == id })
+            }
+        }
+    }
+
+    /**
+     * Rebuilds the rule rows from stored config.
+     *
+     * Rebuilt wholesale rather than diffed: the list is a handful of rows the
+     * user edits by hand, and a diffing adapter here would be more machinery
+     * than the thing it manages.
+     */
+    private fun renderRules(config: EksiConfig) {
+        rulesSection.visibility = if (config.enableDateFilter) View.VISIBLE else View.GONE
+        rulesEmpty.visibility = if (config.dateFilterRules.isEmpty()) View.VISIBLE else View.GONE
+        rulesList.removeAllViews()
+
+        for (rule in config.dateFilterRules) {
+            val row = layoutInflater.inflate(R.layout.view_rule_row, rulesList, false)
+            val enabled = row.findViewById<MaterialSwitch>(R.id.ruleEnabled)
+            val criteria = row.findViewById<android.widget.Spinner>(R.id.ruleCriteria)
+            val days = row.findViewById<android.widget.EditText>(R.id.ruleDays)
+            val date = row.findViewById<android.widget.TextView>(R.id.ruleDate)
+
+            enabled.isChecked = rule.enabled
+            enabled.setOnCheckedChangeListener { _, checked ->
+                if (!binding) mutateRule(rule.id) { it.copy(enabled = checked) }
+            }
+
+            criteria.adapter = android.widget.ArrayAdapter(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                criteriaLabels(),
+            )
+            criteria.setSelection(criteriaOrder.indexOf(rule.criteria).coerceAtLeast(0))
+            criteria.onItemSelectedListener =
+                object : android.widget.AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(
+                        parent: android.widget.AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long,
+                    ) {
+                        val picked = criteriaOrder[position]
+                        if (binding || picked == rule.criteria) return
+                        // Switching between a day count and a date leaves the old
+                        // value meaningless, so it is dropped rather than carried.
+                        mutateRule(rule.id) {
+                            it.copy(
+                                criteria = picked,
+                                days = if (picked.usesDays) it.days ?: 30 else null,
+                                epochDay = if (picked.usesDays) null else it.epochDay,
+                            )
+                        }
+                    }
+
+                    override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+                }
+
+            days.visibility = if (rule.criteria.usesDays) View.VISIBLE else View.GONE
+            date.visibility = if (rule.criteria.usesDays) View.GONE else View.VISIBLE
+
+            days.setText(rule.days?.toString().orEmpty())
+            days.setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) return@setOnFocusChangeListener
+                val v = days.text.toString().toIntOrNull()
+                if (v != null && v != rule.days) mutateRule(rule.id) { it.copy(days = v) }
+            }
+
+            date.text = rule.epochDay
+                ?.let { java.time.LocalDate.ofEpochDay(it).toString() }
+                ?: getString(R.string.settings_rule_pick_date)
+            date.setOnClickListener { pickDate(rule) }
+
+            row.findViewById<android.widget.TextView>(R.id.ruleDelete)
+                .setOnClickListener { deleteRule(rule.id) }
+
+            rulesList.addView(row)
+        }
+    }
+
+    private fun pickDate(rule: DateFilterRule) {
+        val today = java.time.LocalDate.now()
+        val start = rule.epochDay?.let { java.time.LocalDate.ofEpochDay(it) } ?: today
+        android.app.DatePickerDialog(
+            this,
+            { _, year, month, day ->
+                val picked = java.time.LocalDate.of(year, month + 1, day)
+                mutateRule(rule.id) { it.copy(epochDay = picked.toEpochDay()) }
+            },
+            start.year,
+            start.monthValue - 1,
+            start.dayOfMonth,
+        ).show()
     }
 
     private fun bind(

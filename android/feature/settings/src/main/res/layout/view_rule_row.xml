@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One rule. The value field is either a day count or a date, decided by the
+    criteria beside it, so only the one that applies is ever shown.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:paddingTop="8dp" android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical">
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/ruleEnabled"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+
+        <Spinner
+            android:id="@+id/ruleCriteria"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"/>
+
+        <TextView
+            android:id="@+id/ruleDelete"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:padding="10dp" android:textSize="12sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:text="@string/settings_rule_delete"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp">
+
+        <EditText
+            android:id="@+id/ruleDays"
+            android:layout_width="90dp" android:layout_height="wrap_content"
+            android:inputType="number"
+            android:importantForAutofill="no"
+            android:textSize="14sp"
+            android:hint="@string/settings_rule_days"/>
+
+        <TextView
+            android:id="@+id/ruleDate"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:padding="10dp" android:textSize="14sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:text="@string/settings_rule_pick_date"/>
+    </LinearLayout>
+</LinearLayout>

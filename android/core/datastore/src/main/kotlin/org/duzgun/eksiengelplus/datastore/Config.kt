@@ -78,7 +78,15 @@ data class DateFilterRule(
     val enabled: Boolean = true,
 )
 
-enum class DateCriteria { NEWER_THAN, OLDER_THAN, BEFORE_DATE, AFTER_DATE }
+enum class DateCriteria {
+    NEWER_THAN,
+    OLDER_THAN,
+    BEFORE_DATE,
+    AFTER_DATE;
+
+    /** Whether the rule is expressed as a day count rather than a calendar date. */
+    val usesDays: Boolean get() = this == NEWER_THAN || this == OLDER_THAN
+}
 
 /** Install identity. Separate store: different lifetime and different sensitivity. */
 @Serializable

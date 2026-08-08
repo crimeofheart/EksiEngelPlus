@@ -149,6 +149,33 @@
             android:textSize="12sp" android:alpha="0.6"
             android:paddingBottom="6dp"/>
 
+        <!-- Rules live under their toggle and are hidden with it: editing rules
+             that nothing consults would only invite the question why. -->
+        <LinearLayout
+            android:id="@+id/rulesSection"
+            android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/rulesList"
+                android:orientation="vertical"
+                android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+            <TextView
+                android:id="@+id/rulesEmpty"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/settings_rules_empty"
+                android:textSize="13sp" android:alpha="0.6"
+                android:paddingTop="8dp" android:paddingBottom="8dp"/>
+
+            <Button
+                android:id="@+id/rulesAdd"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/settings_rules_add"/>
+        </LinearLayout>
+
         <TextView
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_telemetry"

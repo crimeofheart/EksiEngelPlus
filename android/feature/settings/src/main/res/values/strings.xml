@@ -28,5 +28,14 @@
 
     <string name="settings_group_filter">tarih filtresi</string>
     <string name="settings_date_filter">tarih filtresini kullan</string>
-    <string name="settings_date_filter_hint">kurallar bir sonraki sürümde düzenlenebilecek</string>
+    <string name="settings_date_filter_hint">yalnızca kurala uyan yazarlar işleme alınır</string>
+    <string name="settings_rules_add">kural ekle</string>
+    <string name="settings_rules_empty">henüz kural yok</string>
+    <string name="settings_rule_delete">sil</string>
+    <string name="settings_rule_days">gün</string>
+    <string name="settings_rule_pick_date">tarih seç</string>
+    <string name="settings_criteria_newer">şu kadar günden yeni</string>
+    <string name="settings_criteria_older">şu kadar günden eski</string>
+    <string name="settings_criteria_before">şu tarihten önce</string>
+    <string name="settings_criteria_after">şu tarihten sonra</string>
 </resources>

@@ -61,6 +61,32 @@ class OperationReconciler @Inject constructor(
             stale += cp.operationId
         }
 
+        /*
+         * Start whatever is waiting, if nothing is running.
+         *
+         * The queue was drained only when a run reached a terminal state, so a
+         * queue that outlived the process -- the app killed, or simply
+         * reinstalled -- had nothing left to trigger it and sat there
+         * indefinitely. Startup is exactly the moment to check.
+         */
+        if (db.checkpoints().liveCount() == 0) {
+            val next = db.queuedTasks().next()
+            if (next != null) {
+                val request = runCatching {
+                    Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
+                }.getOrNull()
+                if (request != null) {
+                    db.queuedTasks().remove(next.id)
+                    OperationWorker.startNow(
+                        workManager,
+                        db,
+                        java.util.UUID.randomUUID().toString(),
+                        request,
+                    )
+                }
+            }
+        }
+
         return stale
     }
 

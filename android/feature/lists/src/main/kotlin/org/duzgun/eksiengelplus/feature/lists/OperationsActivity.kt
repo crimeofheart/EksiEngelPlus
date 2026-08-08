@@ -165,10 +165,27 @@ class OperationsActivity : AppCompatActivity() {
             if (all.isEmpty() && pending.isEmpty()) View.VISIBLE else View.GONE
 
         if (pending.size > 1) {
+            // A full-width button of its own. action() carries weight 1, which in
+            // this vertical column stretches to fill the screen while staying zero
+            // wide -- an invisible control and a page of blank space above the
+            // rows it was meant to sit over.
             queued.addView(
-                action(R.string.ops_clear_pending) {
-                    lifecycleScope.launch {
-                        pending.forEach { db.checkpoints().remove(it.operationId) }
+                TextView(this).apply {
+                    text = getString(R.string.ops_clear_pending)
+                    textSize = 12f
+                    setPadding(dp(12), dp(10), dp(12), dp(10))
+                    background = androidx.core.content.ContextCompat.getDrawable(
+                        this@OperationsActivity,
+                        R.drawable.bg_card,
+                    )
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ).apply { bottomMargin = dp(8) }
+                    setOnClickListener {
+                        lifecycleScope.launch {
+                            pending.forEach { db.checkpoints().remove(it.operationId) }
+                        }
                     }
                 },
             )

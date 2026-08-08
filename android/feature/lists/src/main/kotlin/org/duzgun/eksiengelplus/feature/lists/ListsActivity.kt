@@ -40,6 +40,8 @@ class ListsActivity : AppCompatActivity() {
     private val model: ListsViewModel by viewModels()
 
     private lateinit var notice: TextView
+    private lateinit var authorSummary: TextView
+    private lateinit var opsSummary: TextView
     private val rows = mutableMapOf<ListType, RowViews>()
 
     /** The list whose export is waiting on the file picker. */
@@ -61,9 +63,7 @@ class ListsActivity : AppCompatActivity() {
         val freshness: TextView = root.findViewById(R.id.rowFreshness)
         val partial: TextView = root.findViewById(R.id.rowPartial)
         val spinner: ProgressBar = root.findViewById(R.id.rowSpinner)
-        val refresh: Button = root.findViewById(R.id.rowRefresh)
-        val stop: Button = root.findViewById(R.id.rowStop)
-        val export: Button = root.findViewById(R.id.rowExport)
+        val menu: TextView = root.findViewById(R.id.rowMenu)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,12 +71,14 @@ class ListsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_lists)
         title = getString(R.string.lists_title)
         notice = findViewById(R.id.listsNotice)
+        authorSummary = findViewById(R.id.authorSummary)
+        opsSummary = findViewById(R.id.opsSummary)
 
         bind(ListType.BLOCKED, R.id.rowBlocked, R.string.lists_blocked)
         bind(ListType.MUTED, R.id.rowMuted, R.string.lists_muted)
         bind(ListType.FOLLOWED, R.id.rowFollowed, R.string.lists_followed)
 
-        buildBulkActions()
+        findViewById<Button>(R.id.openBulk).setOnClickListener { askBulkAction() }
         findViewById<Button>(R.id.openOperations).setOnClickListener {
             startActivity(Intent(this, OperationsActivity::class.java))
         }
@@ -88,6 +90,22 @@ class ListsActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { model.state.collect(::render) }
                 launch { model.message.collect { Toast.makeText(this@ListsActivity, it, Toast.LENGTH_SHORT).show() } }
+                // Each card says what it holds, so the screen answers the obvious
+                // questions without being opened.
+                launch {
+                    model.authorListCount.collect {
+                        authorSummary.text = getString(R.string.author_list_summary, it)
+                    }
+                }
+                launch {
+                    model.operationSummary.collect { (live, queued) ->
+                        opsSummary.text = if (live == 0 && queued == 0) {
+                            getString(R.string.ops_summary_idle)
+                        } else {
+                            getString(R.string.ops_summary_busy, live, queued)
+                        }
+                    }
+                }
             }
         }
     }
@@ -95,13 +113,39 @@ class ListsActivity : AppCompatActivity() {
     private fun bind(listType: ListType, rootId: Int, titleRes: Int) {
         val views = RowViews(findViewById(rootId))
         views.title.setText(titleRes)
-        views.refresh.setOnClickListener { model.refresh(listType) }
-        views.stop.setOnClickListener { model.stop(listType) }
-        views.export.setOnClickListener {
-            pendingExport = listType
-            createDocument.launch(CsvCodec.suggestedFilename(listType, today()))
-        }
+        views.menu.setOnClickListener { showRowMenu(listType, views.menu) }
         rows[listType] = views
+    }
+
+    /**
+     * The row's verbs, in a menu rather than as three buttons per list.
+     *
+     * Availability is decided here instead of by greying out controls that are
+     * always on screen: a menu item that cannot apply simply is not offered.
+     */
+    private fun showRowMenu(listType: ListType, anchor: View) {
+        val state = model.state.value
+        val row = state.rows.firstOrNull { it.listType == listType } ?: return
+        val syncing = row.sync.isActive
+
+        val menu = android.widget.PopupMenu(this, anchor)
+        if (!syncing && !state.operationRunning) menu.menu.add(0, 1, 0, R.string.lists_refresh)
+        if (syncing) menu.menu.add(0, 2, 1, R.string.lists_stop)
+        if (row.count > 0 && state.exporting == null && !syncing) {
+            menu.menu.add(0, 3, 2, R.string.lists_export)
+        }
+        menu.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> model.refresh(listType)
+                2 -> model.stop(listType)
+                3 -> {
+                    pendingExport = listType
+                    createDocument.launch(CsvCodec.suggestedFilename(listType, today()))
+                }
+            }
+            true
+        }
+        menu.show()
     }
 
     /**
@@ -111,7 +155,13 @@ class ListsActivity : AppCompatActivity() {
      * rather than in the author list's chooser -- that one runs against a list
      * the user typed.
      */
-    private fun buildBulkActions() {
+    /**
+     * Every bulk action in one chooser.
+     *
+     * The same shape the author list uses, rather than a stack of buttons in the
+     * middle of the screen: one entry point, one dialog, one way to pick.
+     */
+    private fun askBulkAction() {
         data class Bulk(
             val labelRes: Int,
             val list: ListType,
@@ -120,52 +170,24 @@ class ListsActivity : AppCompatActivity() {
             val target: TargetType,
         )
 
-        val groups = listOf(
-            R.string.bulk_group_relations to listOf(
-                Bulk(R.string.bulk_migrate, ListType.BLOCKED, BanSource.MIGRATE_BLOCKED_TO_MUTED, BanMode.UNDOBAN, TargetType.USER),
-                Bulk(R.string.bulk_block_muted, ListType.MUTED, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER),
-                Bulk(R.string.bulk_undoban_all, ListType.BLOCKED, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER),
-                Bulk(R.string.bulk_unmute_all, ListType.MUTED, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE),
-            ),
-            R.string.bulk_group_titles to listOf(
-                Bulk(R.string.bulk_block_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.BAN, TargetType.TITLE),
-                Bulk(R.string.bulk_unblock_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.UNDOBAN, TargetType.TITLE),
-            ),
-            R.string.bulk_group_date to listOf(
-                Bulk(R.string.bulk_date_based, ListType.BLOCKED, BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER),
-            ),
+        val actions = listOf(
+            Bulk(R.string.bulk_migrate, ListType.BLOCKED, BanSource.MIGRATE_BLOCKED_TO_MUTED, BanMode.UNDOBAN, TargetType.USER),
+            Bulk(R.string.bulk_block_muted, ListType.MUTED, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER),
+            Bulk(R.string.bulk_undoban_all, ListType.BLOCKED, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER),
+            Bulk(R.string.bulk_unmute_all, ListType.MUTED, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE),
+            Bulk(R.string.bulk_block_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.BAN, TargetType.TITLE),
+            Bulk(R.string.bulk_unblock_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.UNDOBAN, TargetType.TITLE),
+            Bulk(R.string.bulk_date_based, ListType.BLOCKED, BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER),
         )
 
-        val container = findViewById<android.view.ViewGroup>(R.id.bulkActions)
-        for ((headingRes, actions) in groups) {
-            container.addView(
-                TextView(this).apply {
-                    text = getString(headingRes)
-                    textSize = 12f
-                    alpha = 0.6f
-                    setPadding(0, (12 * resources.displayMetrics.density).toInt(), 0, 0)
-                },
-            )
-            for (a in actions) {
-            val b = com.google.android.material.button.MaterialButton(
-                this,
-                null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle,
-            )
-            b.text = getString(a.labelRes)
-            b.textSize = 12f
-            b.isAllCaps = false
-            b.cornerRadius = 0
-            b.setOnClickListener { model.runOnList(a.list, a.source, a.mode, a.target) }
-            container.addView(
-                b,
-                android.widget.LinearLayout.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ).apply { topMargin = (4 * resources.displayMetrics.density).toInt() },
-                )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.bulk_title)
+            .setItems(actions.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
+                val a = actions[which]
+                model.runOnList(a.list, a.source, a.mode, a.target)
             }
-        }
+            .setNegativeButton(R.string.author_list_cancel, null)
+            .show()
     }
 
     /**
@@ -250,12 +272,7 @@ class ListsActivity : AppCompatActivity() {
 
             // Refresh is pointless while this list is already syncing (KEEP would
             // drop it silently) and unwise while an operation runs.
-            views.refresh.isEnabled = !state.operationRunning && !syncing
-            views.stop.isEnabled = syncing
-            // Only one export at a time, and none while this list is still being
-            // written to -- exporting mid-sync would write a snapshot the progress
-            // line is actively contradicting.
-            views.export.isEnabled = row.count > 0 && state.exporting == null && !syncing
+
             // Nothing to run against an empty list, and a second operation while
             // one is going would double the rate the pacer is holding down.
         }

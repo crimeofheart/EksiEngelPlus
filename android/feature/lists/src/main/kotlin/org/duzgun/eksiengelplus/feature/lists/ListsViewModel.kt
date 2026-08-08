@@ -133,6 +133,14 @@ class ListsViewModel @Inject constructor(
             }
             .distinctUntilChanged()
 
+    /** For the card summaries, so each says what it holds without being opened. */
+    val authorListCount: Flow<Int> = db.authorList().count()
+
+    val operationSummary: Flow<Pair<Int, Int>> = combine(
+        db.checkpoints().countWithState(OperationState.RUNNING.name),
+        db.queuedTasks().count(),
+    ) { live, queued -> live to queued }
+
     fun refresh(listType: ListType) = ListSyncWorker.enqueue(workManager, listType)
 
     fun stop(listType: ListType) = ListSyncWorker.stop(workManager, listType)

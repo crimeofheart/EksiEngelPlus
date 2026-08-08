@@ -1,78 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One relation list. Included three times by activity_lists.xml rather than driven
-    by an adapter: the set is fixed at three and always visible, so a RecyclerView
-    would be scaffolding around nothing.
+    One list, in one line plus a status line.
+    Three buttons per row cost half a screen across three lists; the actions live
+    behind a single overflow so the row states a fact and the menu offers the
+    verbs.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+    android:orientation="horizontal"
     android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:gravity="center_vertical"
+    android:paddingTop="10dp" android:paddingBottom="10dp">
 
     <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="wrap_content">
 
-        <TextView android:id="@+id/rowTitle"
-            android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:textSize="16sp" android:textStyle="bold"/>
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center_vertical">
 
-        <!-- Indeterminate on purpose: neither endpoint reports a total, so a
-             determinate bar would have to invent one. -->
-        <ProgressBar android:id="@+id/rowSpinner"
-            style="?android:attr/progressBarStyleSmall"
+            <TextView android:id="@+id/rowTitle"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="15sp" android:textStyle="bold"/>
+
+            <TextView android:id="@+id/rowCount"
+                android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:paddingStart="8dp" android:paddingEnd="8dp"
+                android:textSize="14sp" android:alpha="0.8"/>
+
+            <ProgressBar android:id="@+id/rowSpinner"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:visibility="gone"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/rowFreshness"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="2dp" android:textSize="12sp" android:alpha="0.6"/>
+
+        <TextView android:id="@+id/rowPartial"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:visibility="gone"/>
+            android:layout_marginTop="4dp"
+            android:paddingStart="8dp" android:paddingEnd="8dp"
+            android:paddingTop="2dp" android:paddingBottom="2dp"
+            android:textSize="11sp" android:textColor="#000000"
+            android:background="#ffd166"
+            android:visibility="gone"
+            android:text="@string/lists_partial_badge"/>
     </LinearLayout>
 
-    <TextView android:id="@+id/rowCount"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:paddingTop="2dp" android:textSize="14sp"/>
-
-    <!-- Replaces the freshness line while a sync runs: the two answer the same
-         question ("how current is this?") and stacking both just competes. -->
-    <TextView android:id="@+id/rowFreshness"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:paddingTop="2dp" android:textSize="12sp" android:alpha="0.7"/>
-
-    <!-- Visible only when the stored list is a half-finished sync. A truncated list
-         read as complete is the failure this exists to prevent. -->
-    <TextView android:id="@+id/rowPartial"
+    <TextView android:id="@+id/rowMenu"
         android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:paddingStart="8dp" android:paddingEnd="8dp"
-        android:paddingTop="2dp" android:paddingBottom="2dp"
-        android:textSize="12sp" android:textColor="#000000"
-        android:background="#ffd166"
-        android:visibility="gone"
-        android:text="@string/lists_partial_badge"/>
-
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="8dp">
-
-        <com.google.android.material.button.MaterialButton android:id="@+id/rowRefresh"
-            style="@style/Widget.EksiEngel.Button.Compact"
-            android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:text="@string/lists_refresh"/>
-
-        <com.google.android.material.button.MaterialButton android:id="@+id/rowStop"
-            style="@style/Widget.EksiEngel.Button.Compact"
-            android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:text="@string/lists_stop"/>
-
-
-        <com.google.android.material.button.MaterialButton android:id="@+id/rowExport"
-            style="@style/Widget.EksiEngel.Button.Compact"
-            android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:text="@string/lists_export"/>
-    </LinearLayout>
+        android:paddingStart="14dp" android:paddingEnd="6dp"
+        android:paddingTop="10dp" android:paddingBottom="10dp"
+        android:textSize="18sp"
+        android:background="?android:attr/selectableItemBackground"
+        android:text="⋮"/>
 </LinearLayout>

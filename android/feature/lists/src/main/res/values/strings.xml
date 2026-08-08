@@ -9,6 +9,12 @@
     <string name="ops_none">yok</string>
     <string name="ops_open">işlemler</string>
     <string name="bulk_title">toplu işlemler</string>
+    <string name="bulk_hint">listelerinizin tamamı üzerinde çalışır</string>
+    <string name="bulk_open">toplu işlem seç</string>
+    <string name="author_list_open">düzenle ve çalıştır</string>
+    <string name="author_list_summary">listede %d yazar</string>
+    <string name="ops_summary_idle">süren işlem yok</string>
+    <string name="ops_summary_busy">%1$d süren · %2$d sırada</string>
     <string name="section_lists">listeler</string>
     <string name="section_other">diğer</string>
     <string name="bulk_group_relations">engelleme ve sessize alma</string>

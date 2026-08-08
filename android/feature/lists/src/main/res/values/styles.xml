@@ -59,4 +59,28 @@
         <item name="android:letterSpacing">0.12</item>
         <item name="android:textSize">12sp</item>
     </style>
+
+    <!-- One card shape everywhere, so sections stop inventing their own. -->
+    <style name="EksiEngel.Card" parent="">
+        <item name="android:layout_marginBottom">10dp</item>
+        <item name="android:padding">14dp</item>
+        <item name="android:background">@drawable/bg_card</item>
+    </style>
+
+    <style name="EksiEngel.CardTitle" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:alpha">0.8</item>
+        <item name="android:paddingBottom">4dp</item>
+    </style>
+
+    <style name="EksiEngel.CardHint" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:alpha">0.6</item>
+    </style>
 </resources>

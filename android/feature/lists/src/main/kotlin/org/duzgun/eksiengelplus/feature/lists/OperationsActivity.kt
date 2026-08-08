@@ -81,10 +81,15 @@ class OperationsActivity : AppCompatActivity() {
     private fun renderRunning(all: List<OperationCheckpointEntity>) {
         // Terminal rows belong in history, not here; a completed run left in the
         // live section would read as something still happening.
-        val live = all.filter {
-            val state = runCatching { OperationState.valueOf(it.state) }.getOrNull()
-            state != null && !state.isTerminal
-        }
+        val live = all
+            .filter {
+                val state = runCatching { OperationState.valueOf(it.state) }.getOrNull()
+                state != null && !state.isTerminal
+            }
+            // One row per run. A checkpoint is upserted many times during a run,
+            // and reconciliation can leave more than one row for the same id;
+            // showing each would read as several operations rather than one.
+            .distinctBy { it.operationId }
         running.removeAllViews()
         runningEmpty.visibility = if (live.isEmpty()) View.VISIBLE else View.GONE
 

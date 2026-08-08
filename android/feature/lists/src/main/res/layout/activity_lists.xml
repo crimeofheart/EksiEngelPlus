@@ -1,70 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    One card per concern, in the order notification.html uses them. Every card
+    carries the same header, padding and divider, so the screen reads as one
+    thing rather than as the sum of what was added last.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:fitsSystemWindows="true">
 
     <LinearLayout
         android:orientation="vertical"
-        android:layout_width="match_parent" android:layout_height="wrap_content">
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="12dp">
 
         <TextView android:id="@+id/listsNotice"
+            style="@style/EksiEngel.Card"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:padding="16dp" android:textSize="13sp"
             android:visibility="gone"
+            android:textSize="13sp"
             android:background="#ffd166" android:textColor="#000000"
             android:text="@string/lists_operation_running"/>
 
-        <TextView
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/section_lists"
-            android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.08" android:alpha="0.75"
-            android:paddingStart="16dp" android:paddingEnd="16dp"
-            android:paddingTop="16dp" android:paddingBottom="2dp"/>
+        <LinearLayout style="@style/EksiEngel.Card" android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content">
 
-        <include android:id="@+id/rowBlocked" layout="@layout/view_list_row"/>
-        <include android:id="@+id/rowMuted" layout="@layout/view_list_row"/>
-        <include android:id="@+id/rowFollowed" layout="@layout/view_list_row"/>
+            <TextView style="@style/EksiEngel.CardTitle" android:text="@string/section_lists"/>
 
-        <!-- Grouped the way the extension groups them, under the lists they act
-             on rather than as a fourth button on every row. -->
-        <TextView
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/bulk_title"
-            android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.08" android:alpha="0.75"
-            android:paddingStart="16dp" android:paddingEnd="16dp"
-            android:paddingTop="20dp" android:paddingBottom="4dp"/>
+            <include android:id="@+id/rowBlocked" layout="@layout/view_list_row"/>
+            <include android:id="@+id/rowMuted" layout="@layout/view_list_row"/>
+            <include android:id="@+id/rowFollowed" layout="@layout/view_list_row"/>
+        </LinearLayout>
 
-        <LinearLayout android:id="@+id/bulkActions"
-            android:orientation="vertical"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:paddingStart="16dp" android:paddingEnd="16dp"/>
+        <LinearLayout style="@style/EksiEngel.Card" android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content">
 
-        <TextView
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/section_other"
-            android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.08" android:alpha="0.75"
-            android:paddingStart="16dp" android:paddingEnd="16dp"
-            android:paddingTop="20dp" android:paddingBottom="4dp"/>
+            <TextView style="@style/EksiEngel.CardTitle" android:text="@string/bulk_title"/>
 
-        <View
-            android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginTop="8dp" android:alpha="0.2"
-            android:background="?android:attr/textColorPrimary"/>
+            <TextView style="@style/EksiEngel.CardHint" android:text="@string/bulk_hint"/>
 
+            <com.google.android.material.button.MaterialButton android:id="@+id/openBulk"
+                style="@style/Widget.EksiEngel.Button.Primary"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/bulk_open"/>
+        </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton android:id="@+id/openOperations"
-            style="@style/Widget.EksiEngel.Button"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginStart="16dp" android:layout_marginEnd="16dp"
-            android:text="@string/ops_open"/>
+        <LinearLayout style="@style/EksiEngel.Card" android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content">
 
-        <com.google.android.material.button.MaterialButton android:id="@+id/openAuthorList"
-            style="@style/Widget.EksiEngel.Button.Primary"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            android:text="@string/lists_open_author_list"/>
+            <TextView style="@style/EksiEngel.CardTitle" android:text="@string/author_list_title"/>
+
+            <TextView android:id="@+id/authorSummary"
+                style="@style/EksiEngel.CardHint"/>
+
+            <com.google.android.material.button.MaterialButton android:id="@+id/openAuthorList"
+                style="@style/Widget.EksiEngel.Button.Primary"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/author_list_open"/>
+        </LinearLayout>
+
+        <LinearLayout style="@style/EksiEngel.Card" android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content">
+
+            <TextView style="@style/EksiEngel.CardTitle" android:text="@string/ops_title"/>
+
+            <TextView android:id="@+id/opsSummary" style="@style/EksiEngel.CardHint"/>
+
+            <com.google.android.material.button.MaterialButton android:id="@+id/openOperations"
+                style="@style/Widget.EksiEngel.Button"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/ops_open"/>
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

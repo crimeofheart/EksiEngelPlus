@@ -16,6 +16,11 @@
             android:label="@string/lists_title"/>
 
         <activity
+            android:name=".OperationsActivity"
+            android:exported="false"
+            android:label="@string/ops_title"/>
+
+        <activity
             android:name=".AuthorListActivity"
             android:exported="false"
             android:label="@string/author_list_title"/>

@@ -142,6 +142,10 @@ interface OperationCheckpointDao {
     @Query("SELECT * FROM operation_checkpoint WHERE state = :state")
     suspend fun withState(state: String): List<OperationCheckpointEntity>
 
+    /** Every checkpoint, for the screen that shows what is running. */
+    @Query("SELECT * FROM operation_checkpoint ORDER BY startedAt DESC")
+    fun observeAll(): Flow<List<OperationCheckpointEntity>>
+
     /** Observed so a screen can gate an action on "an operation is running" without polling. */
     @Query("SELECT COUNT(*) FROM operation_checkpoint WHERE state = :state")
     fun countWithState(state: String): Flow<Int>

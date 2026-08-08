@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="lists_title">listeler</string>
+    <string name="ops_title">işlemler</string>
+    <string name="ops_running">süren ve bekleyen</string>
+    <string name="ops_finished">tamamlananlar</string>
+    <string name="ops_none">yok</string>
+    <string name="ops_open">işlemler</string>
+    <string name="bulk_title">toplu işlemler</string>
+    <string name="bulk_migrate">engelli kullanıcıları sessize al</string>
+    <string name="bulk_block_muted">sessiz kullanıcıları engelle</string>
+    <string name="bulk_block_titles">engellilerin başlıklarını da engelle</string>
+    <string name="bulk_unblock_titles">engellenen başlıkları kaldır</string>
+    <string name="bulk_undoban_all">tüm engelleri kaldır</string>
+    <string name="bulk_unmute_all">tüm sessizleri kaldır</string>
+    <string name="bulk_date_based">tarih filtresine göre çalıştır</string>
+    <string name="bulk_needs_filter">önce ayarlardan tarih filtresini açın</string>
+    <string name="ops_progress">%1$d / %2$d · %3$d başarılı · %4$d başarısız</string>
+    <string name="ops_resume">devam et</string>
+    <string name="ops_pause">duraklat</string>
+    <string name="ops_stop">durdur</string>
     <string name="lists_blocked">engellenenler</string>
     <string name="lists_muted">sessize alınanlar</string>
     <string name="lists_followed">takip edilenler</string>

@@ -76,6 +76,10 @@ class ListsActivity : AppCompatActivity() {
         bind(ListType.MUTED, R.id.rowMuted, R.string.lists_muted)
         bind(ListType.FOLLOWED, R.id.rowFollowed, R.string.lists_followed)
 
+        buildBulkActions()
+        findViewById<Button>(R.id.openOperations).setOnClickListener {
+            startActivity(Intent(this, OperationsActivity::class.java))
+        }
         findViewById<Button>(R.id.openAuthorList).setOnClickListener {
             startActivity(Intent(this, AuthorListActivity::class.java))
         }
@@ -98,6 +102,54 @@ class ListsActivity : AppCompatActivity() {
             createDocument.launch(CsvCodec.suggestedFilename(listType, today()))
         }
         rows[listType] = views
+    }
+
+    /**
+     * The extension's bulk operations, in its own grouping.
+     *
+     * These act on the user's own relation lists, which is why they live here
+     * rather than in the author list's chooser -- that one runs against a list
+     * the user typed.
+     */
+    private fun buildBulkActions() {
+        data class Bulk(
+            val labelRes: Int,
+            val list: ListType,
+            val source: BanSource,
+            val mode: BanMode,
+            val target: TargetType,
+        )
+
+        val actions = listOf(
+            Bulk(R.string.bulk_migrate, ListType.BLOCKED, BanSource.MIGRATE_BLOCKED_TO_MUTED, BanMode.UNDOBAN, TargetType.USER),
+            Bulk(R.string.bulk_block_muted, ListType.MUTED, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER),
+            Bulk(R.string.bulk_block_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.BAN, TargetType.TITLE),
+            Bulk(R.string.bulk_unblock_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.UNDOBAN, TargetType.TITLE),
+            Bulk(R.string.bulk_undoban_all, ListType.BLOCKED, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER),
+            Bulk(R.string.bulk_unmute_all, ListType.MUTED, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE),
+            Bulk(R.string.bulk_date_based, ListType.BLOCKED, BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER),
+        )
+
+        val container = findViewById<android.view.ViewGroup>(R.id.bulkActions)
+        for (a in actions) {
+            val b = com.google.android.material.button.MaterialButton(
+                this,
+                null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle,
+            )
+            b.text = getString(a.labelRes)
+            b.textSize = 12f
+            b.isAllCaps = false
+            b.cornerRadius = 0
+            b.setOnClickListener { model.runOnList(a.list, a.source, a.mode, a.target) }
+            container.addView(
+                b,
+                android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = (4 * resources.displayMetrics.density).toInt() },
+            )
+        }
     }
 
     /**

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Ongoing, queued and finished in one place, the way the extension's
+    notification page shows them, so a run is never something the user has to
+    infer from a notification they may have dismissed.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/ops_running" android:textStyle="bold"
+            android:textSize="13sp" android:letterSpacing="0.08"
+            android:paddingBottom="6dp" android:alpha="0.75"/>
+
+        <LinearLayout android:id="@+id/opsRunning"
+            android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <TextView android:id="@+id/opsRunningEmpty"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/ops_none" android:textSize="13sp" android:alpha="0.6"
+            android:paddingBottom="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/ops_finished" android:textStyle="bold"
+            android:textSize="13sp" android:letterSpacing="0.08"
+            android:paddingTop="20dp" android:paddingBottom="6dp" android:alpha="0.75"/>
+
+        <LinearLayout android:id="@+id/opsFinished"
+            android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <TextView android:id="@+id/opsFinishedEmpty"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/ops_none" android:textSize="13sp" android:alpha="0.6"/>
+    </LinearLayout>
+</ScrollView>

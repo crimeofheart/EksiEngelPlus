@@ -18,11 +18,32 @@
         <include android:id="@+id/rowMuted" layout="@layout/view_list_row"/>
         <include android:id="@+id/rowFollowed" layout="@layout/view_list_row"/>
 
+        <!-- Grouped the way the extension groups them, under the lists they act
+             on rather than as a fourth button on every row. -->
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/bulk_title"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.08" android:alpha="0.75"
+            android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="20dp" android:paddingBottom="4dp"/>
+
+        <LinearLayout android:id="@+id/bulkActions"
+            android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingStart="16dp" android:paddingEnd="16dp"/>
+
         <View
             android:layout_width="match_parent" android:layout_height="1dp"
             android:layout_marginTop="8dp" android:alpha="0.2"
             android:background="?android:attr/textColorPrimary"/>
 
+
+        <com.google.android.material.button.MaterialButton android:id="@+id/openOperations"
+            style="@style/Widget.EksiEngel.Button"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="16dp" android:layout_marginEnd="16dp"
+            android:text="@string/ops_open"/>
 
         <com.google.android.material.button.MaterialButton android:id="@+id/openAuthorList"
             style="@style/Widget.EksiEngel.Button.Primary"

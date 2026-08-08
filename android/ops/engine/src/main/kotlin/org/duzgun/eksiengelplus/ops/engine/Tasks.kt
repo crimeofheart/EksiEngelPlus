@@ -96,6 +96,79 @@ class TargetRunner(
         return OperationOutcome.COMPLETED
     }
 
+    /**
+     * Two relations per target, in order, second only if the first landed.
+     *
+     * Migrating a blocked user to muted is not one action with a different
+     * argument: it is an unblock and then a mute, and doing the second to
+     * someone still blocked would leave them in both states.
+     */
+    suspend fun applyPairToAll(
+        ctx: OperationContext,
+        targets: List<Target>,
+        first: Pair<org.duzgun.eksiengelplus.model.BanMode, TargetType>,
+        second: Pair<org.duzgun.eksiengelplus.model.BanMode, TargetType>,
+        checkpointEvery: Int = 5,
+    ): OperationOutcome {
+        var cursor = ctx.startCursor
+        var i = cursor.index
+
+        while (i < targets.size) {
+            try {
+                ctx.ensureActive()
+            } catch (e: PauseSignal) {
+                ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED
+            } catch (e: StopSignal) {
+                ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.STOPPED
+            } catch (e: BudgetExhaustedSignal) {
+                ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED_BUDGET
+            }
+
+            val target = targets[i]
+            if (!ctx.allows(target.nick)) {
+                cursor = cursor.copy(index = i + 1, processed = cursor.processed + 1)
+                i++
+                continue
+            }
+
+            val id = target.id ?: resolveId(ctx, target.nick)
+            if (id == null) {
+                cursor = cursor.copy(processed = cursor.processed + 1, failed = cursor.failed + 1)
+                i++
+                continue
+            }
+
+            when (performWithRetry(ctx, first.first, first.second, id)) {
+                is Applied.SessionGone -> {
+                    ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED_AUTH
+                }
+                is Applied.Failed ->
+                    cursor = cursor.copy(processed = cursor.processed + 1, failed = cursor.failed + 1)
+                is Applied.Ok -> when (performWithRetry(ctx, second.first, second.second, id)) {
+                    is Applied.SessionGone -> {
+                        ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED_AUTH
+                    }
+                    is Applied.Ok ->
+                        cursor = cursor.copy(
+                            processed = cursor.processed + 1,
+                            successful = cursor.successful + 1,
+                        )
+                    is Applied.Failed ->
+                        cursor = cursor.copy(processed = cursor.processed + 1, failed = cursor.failed + 1)
+                }
+            }
+
+            i++
+            if (i % checkpointEvery == 0) ctx.checkpoint(cursor.copy(index = i))
+            ctx.publishProgress(
+                OperationProgress(cursor.processed, targets.size, cursor.successful, cursor.failed),
+            )
+        }
+
+        ctx.checkpoint(cursor.copy(index = targets.size))
+        return OperationOutcome.COMPLETED
+    }
+
     private sealed interface Applied {
         data object Ok : Applied
         data object Failed : Applied
@@ -263,4 +336,40 @@ class UndoBanAllTask(
         val targets = page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) }
         return runner.applyToAll(ctx, targets, checkpointEvery = 1)
     }
+}
+
+
+/**
+ * The sources whose target set is resolved before the run and carried in the
+ * request, exactly as LIST is.
+ *
+ * ban_source 7, 9, 12 and 13 differ from each other only in which list they were
+ * built from and what the backend should call them -- the work itself is the
+ * same loop, so they share it rather than each growing their own copy the way
+ * background.js did.
+ */
+class PreresolvedListTask(
+    override val source: BanSource,
+    private val runner: TargetRunner,
+) : OperationTask {
+    override suspend fun run(ctx: OperationContext): OperationOutcome =
+        runner.applyToAll(ctx, ctx.request.nicks.map { Target(it.toEksiSlug(), null) })
+}
+
+/**
+ * ban_source 8. Move everyone blocked into muted instead.
+ *
+ * Two relations per user, because Ekşi models them separately: unblock, then
+ * mute. A user left half-migrated would be in neither state, so the mute only
+ * follows a successful unblock.
+ */
+class MigrateBlockedToMutedTask(private val runner: TargetRunner) : OperationTask {
+    override val source = BanSource.MIGRATE_BLOCKED_TO_MUTED
+    override suspend fun run(ctx: OperationContext): OperationOutcome =
+        runner.applyPairToAll(
+            ctx,
+            ctx.request.nicks.map { Target(it.toEksiSlug(), null) },
+            first = org.duzgun.eksiengelplus.model.BanMode.UNDOBAN to TargetType.USER,
+            second = org.duzgun.eksiengelplus.model.BanMode.BAN to TargetType.MUTE,
+        )
 }

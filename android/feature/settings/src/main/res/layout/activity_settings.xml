@@ -16,7 +16,7 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_action"
             android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:letterSpacing="0.08"
             android:paddingTop="20dp" android:paddingBottom="6dp"
             android:alpha="0.75"/>
 
@@ -50,7 +50,7 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_scope"
             android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:letterSpacing="0.08"
             android:paddingTop="20dp" android:paddingBottom="6dp"
             android:alpha="0.75"/>
 
@@ -110,7 +110,7 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_appearance"
             android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:letterSpacing="0.08"
             android:paddingTop="20dp" android:paddingBottom="6dp"
             android:alpha="0.75"/>
 
@@ -145,7 +145,7 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_filter"
             android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:letterSpacing="0.08"
             android:paddingTop="20dp" android:paddingBottom="6dp"
             android:alpha="0.75"/>
 
@@ -193,7 +193,7 @@
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_telemetry"
             android:textStyle="bold" android:textSize="13sp"
-            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:letterSpacing="0.08"
             android:paddingTop="20dp" android:paddingBottom="6dp"
             android:alpha="0.75"/>
 

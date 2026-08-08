@@ -23,7 +23,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.duzgun.eksiengelplus.database.EksiDatabase
+import org.duzgun.eksiengelplus.model.BanMode
+import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.model.ListType
+import org.duzgun.eksiengelplus.model.TargetType
+import org.duzgun.eksiengelplus.ops.engine.OperationRequest
+import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
 import org.duzgun.eksiengelplus.ops.engine.OperationState
 
 /**
@@ -170,6 +175,41 @@ class ListsViewModel @Inject constructor(
                     )
                 },
             )
+        }
+    }
+
+    /**
+     * Runs one of the migration sources against a synced list.
+     *
+     * The nicks are resolved here and carried in the request, exactly as a LIST
+     * run does, so a resumed operation replays the set it started with rather
+     * than whatever the list has since become.
+     *
+     * The ban_source is the real one rather than LIST, because those integers are
+     * rows in the shared backend and reporting a migration as a list run would
+     * make the two clients disagree about what happened.
+     */
+    fun runOnList(listType: ListType, source: BanSource, mode: BanMode, targetType: TargetType) {
+        viewModelScope.launch {
+            val nicks = withContext(Dispatchers.IO) {
+                db.relationUsers().get(listType).map { it.nick }
+            }
+            if (nicks.isEmpty()) {
+                messages.tryEmit(string(R.string.lists_run_empty))
+                return@launch
+            }
+            OperationWorker.enqueue(
+                WorkManager.getInstance(getApplication()),
+                db = db,
+                operationId = java.util.UUID.randomUUID().toString(),
+                request = OperationRequest(
+                    source = source,
+                    mode = mode,
+                    targetType = targetType,
+                    nicks = nicks,
+                ),
+            )
+            messages.tryEmit(string(R.string.lists_run_enqueued, nicks.size))
         }
     }
 

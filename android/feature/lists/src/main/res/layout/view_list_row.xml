@@ -65,6 +65,12 @@
             android:layout_marginStart="8dp"
             android:text="@string/lists_stop"/>
 
+        <com.google.android.material.button.MaterialButton android:id="@+id/rowRun"
+            style="@style/Widget.EksiEngel.Button"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/lists_run"/>
+
         <com.google.android.material.button.MaterialButton android:id="@+id/rowExport"
             style="@style/Widget.EksiEngel.Button"
             android:layout_width="wrap_content" android:layout_height="wrap_content"

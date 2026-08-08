@@ -20,7 +20,11 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import androidx.appcompat.app.AlertDialog
+import org.duzgun.eksiengelplus.model.BanMode
+import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.model.ListType
+import org.duzgun.eksiengelplus.model.TargetType
 import org.duzgun.eksiengelplus.model.TurkishDateParser
 
 /**
@@ -59,6 +63,7 @@ class ListsActivity : AppCompatActivity() {
         val spinner: ProgressBar = root.findViewById(R.id.rowSpinner)
         val refresh: Button = root.findViewById(R.id.rowRefresh)
         val stop: Button = root.findViewById(R.id.rowStop)
+        val run: Button = root.findViewById(R.id.rowRun)
         val export: Button = root.findViewById(R.id.rowExport)
     }
 
@@ -89,11 +94,75 @@ class ListsActivity : AppCompatActivity() {
         views.title.setText(titleRes)
         views.refresh.setOnClickListener { model.refresh(listType) }
         views.stop.setOnClickListener { model.stop(listType) }
+        views.run.setOnClickListener { askListAction(listType) }
         views.export.setOnClickListener {
             pendingExport = listType
             createDocument.launch(CsvCodec.suggestedFilename(listType, today()))
         }
         rows[listType] = views
+    }
+
+    /**
+     * What can be done with a list depends on which list it is.
+     *
+     * Offering "sessizden çıkar" for the blocked list would be an action with no
+     * meaning, so each list shows only its own migrations.
+     */
+    private fun askListAction(listType: ListType) {
+        data class Choice(val labelRes: Int, val run: () -> Unit)
+
+        val choices = when (listType) {
+            ListType.BLOCKED -> listOf(
+                Choice(R.string.lists_run_migrate) {
+                    model.runOnList(
+                        listType,
+                        BanSource.MIGRATE_BLOCKED_TO_MUTED,
+                        BanMode.UNDOBAN,
+                        TargetType.USER,
+                    )
+                },
+                Choice(R.string.lists_run_unblock_all) {
+                    model.runOnList(listType, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER)
+                },
+                Choice(R.string.lists_run_titles) {
+                    model.runOnList(
+                        listType,
+                        BanSource.BLOCKED_MUTED_TITLES,
+                        BanMode.BAN,
+                        TargetType.TITLE,
+                    )
+                },
+            )
+            ListType.MUTED -> listOf(
+                Choice(R.string.lists_run_block_muted) {
+                    model.runOnList(listType, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER)
+                },
+                Choice(R.string.lists_run_unmute_all) {
+                    model.runOnList(listType, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE)
+                },
+                Choice(R.string.lists_run_titles) {
+                    model.runOnList(
+                        listType,
+                        BanSource.BLOCKED_MUTED_TITLES,
+                        BanMode.BAN,
+                        TargetType.TITLE,
+                    )
+                },
+            )
+            ListType.FOLLOWED -> listOf(
+                Choice(R.string.author_list_mode_unfollow) {
+                    model.runOnList(listType, BanSource.LIST, BanMode.UNDOBAN, TargetType.FOLLOW)
+                },
+            )
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.lists_run_title)
+            .setItems(choices.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
+                choices[which].run()
+            }
+            .setNegativeButton(R.string.author_list_cancel, null)
+            .show()
     }
 
     private fun render(state: ListsUiState) {
@@ -121,6 +190,9 @@ class ListsActivity : AppCompatActivity() {
             // written to -- exporting mid-sync would write a snapshot the progress
             // line is actively contradicting.
             views.export.isEnabled = row.count > 0 && state.exporting == null && !syncing
+            // Nothing to run against an empty list, and a second operation while
+            // one is going would double the rate the pacer is holding down.
+            views.run.isEnabled = row.count > 0 && !syncing && !state.operationRunning
         }
     }
 

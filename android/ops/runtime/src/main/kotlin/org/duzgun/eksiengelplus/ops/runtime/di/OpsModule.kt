@@ -15,6 +15,8 @@ import org.duzgun.eksiengelplus.eksi.client.ScrapeClient
 import org.duzgun.eksiengelplus.ops.engine.FavActionTask
 import org.duzgun.eksiengelplus.ops.engine.FollowActionTask
 import org.duzgun.eksiengelplus.ops.engine.ListActionTask
+import org.duzgun.eksiengelplus.ops.engine.MigrateBlockedToMutedTask
+import org.duzgun.eksiengelplus.ops.engine.PreresolvedListTask
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.OperationTask
 import org.duzgun.eksiengelplus.ops.engine.PacerSnapshot
@@ -95,7 +97,22 @@ object OpsModule {
                 BanSource.FOLLOW -> FollowActionTask(runner, scrape)
                 BanSource.TITLE -> TitleActionTask(runner, scrape)
                 BanSource.UNDOBANALL -> UndoBanAllTask(runner, scrape)
-                else -> null   // the remaining sources arrive with later changes
+
+                // Resolved before the run and carried in the request, like LIST.
+                BanSource.BLOCKED_MUTED_TITLES,
+                BanSource.BLOCK_MUTED_USERS,
+                BanSource.DATE_BASED_BULK,
+                BanSource.UNMUTEALL,
+                -> PreresolvedListTask(request.source, runner)
+
+                BanSource.MIGRATE_BLOCKED_TO_MUTED -> MigrateBlockedToMutedTask(runner)
+
+                // Refreshes are ListSyncWorker's job, not an operation: they make
+                // no mutations and must not draw down the foreground budget.
+                BanSource.REFRESH_BLOCKED_LIST,
+                BanSource.REFRESH_MUTED_LIST,
+                BanSource.REFRESH_FOLLOWED_LIST,
+                -> null
             }
         }
 }

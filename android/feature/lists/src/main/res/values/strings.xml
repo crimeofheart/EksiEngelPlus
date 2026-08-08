@@ -8,6 +8,15 @@
     <string name="lists_refresh">yenile</string>
     <string name="lists_stop">durdur</string>
     <string name="lists_export">dışa aktar</string>
+    <string name="lists_run">çalıştır</string>
+    <string name="lists_run_title">bu listeyle ne yapılsın</string>
+    <string name="lists_run_migrate">engellileri sessize taşı</string>
+    <string name="lists_run_block_muted">sessizdekileri engelle</string>
+    <string name="lists_run_unmute_all">sessizden çıkar</string>
+    <string name="lists_run_unblock_all">engeli kaldır</string>
+    <string name="lists_run_titles">başlıklarını engelle</string>
+    <string name="lists_run_enqueued">%d yazar için işlem sıraya alındı.</string>
+    <string name="lists_run_empty">liste boş, önce yenileyin.</string>
 
     <string name="lists_partial_badge">yarım liste</string>
     <string name="lists_never_refreshed">hiç yenilenmedi</string>

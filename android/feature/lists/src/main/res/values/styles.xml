@@ -6,6 +6,10 @@
 
     Material's rounded pills read as a different product next to the extension,
     which is the thing these two are supposed to feel like halves of.
+
+    No textAllCaps. The platform uppercases with the default locale, and Turkish
+    maps i to İ, so labels rendered as IŞLEM and TEMIZLE. The app's voice is
+    lowercase throughout anyway, which is also how Ekşi writes.
 -->
 <resources>
     <style name="Widget.EksiEngel.Button" parent="Widget.Material3.Button.OutlinedButton">
@@ -13,7 +17,6 @@
         <item name="strokeWidth">2dp</item>
         <item name="strokeColor">@color/eksi_accent</item>
         <item name="android:textColor">@color/eksi_accent</item>
-        <item name="android:textAllCaps">true</item>
         <item name="android:letterSpacing">0.12</item>
         <item name="android:textSize">12sp</item>
     </style>
@@ -42,7 +45,6 @@
         <item name="cornerRadius">0dp</item>
         <item name="backgroundTint">@color/eksi_accent</item>
         <item name="android:textColor">@color/eksi_on_accent</item>
-        <item name="android:textAllCaps">true</item>
         <item name="android:letterSpacing">0.12</item>
         <item name="android:textSize">12sp</item>
     </style>

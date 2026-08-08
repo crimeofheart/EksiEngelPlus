@@ -175,29 +175,21 @@ class OperationsActivity : AppCompatActivity() {
         }
 
         for (cp in pending) {
-            val row = section()
-            row.addView(label("${sourceName(cp.type)} · ${getString(R.string.ops_pending)}", bold = true))
-            row.addView(label(whenText(cp.startedAt), small = true))
-            row.addView(
-                action(R.string.ops_remove) {
-                    lifecycleScope.launch { db.checkpoints().remove(cp.operationId) }
-                },
+            queued.addView(
+                pendingRow(
+                    "${sourceName(cp.type)} · ${getString(R.string.ops_pending)}",
+                    whenText(cp.startedAt),
+                ) { lifecycleScope.launch { db.checkpoints().remove(cp.operationId) } },
             )
-            queued.addView(row)
         }
 
         for (task in all) {
-            val row = section()
-            row.addView(
-                label(sourceName(BanSource.fromPk(task.banSourcePk)?.name ?: "?"), bold = true),
+            queued.addView(
+                pendingRow(
+                    sourceName(BanSource.fromPk(task.banSourcePk)?.name ?: "?"),
+                    whenText(task.enqueuedAt),
+                ) { lifecycleScope.launch { db.queuedTasks().remove(task.id) } },
             )
-            row.addView(label(whenText(task.enqueuedAt), small = true))
-            row.addView(
-                action(R.string.ops_remove) {
-                    lifecycleScope.launch { db.queuedTasks().remove(task.id) }
-                },
-            )
-            queued.addView(row)
         }
     }
 
@@ -224,6 +216,51 @@ class OperationsActivity : AppCompatActivity() {
     }
 
     // ------------------------------------------------------------ tiny views
+
+    /**
+     * A waiting entry, on one line.
+     *
+     * Nothing is happening to it, so it has no progress to show and one verb;
+     * stacking a title, a timestamp and a full-width button gave three lines of
+     * chrome to a row that says "later".
+     */
+    private fun pendingRow(title: String, whenText: String, onRemove: () -> Unit): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(6), dp(6), dp(6))
+            background = androidx.core.content.ContextCompat.getDrawable(
+                this@OperationsActivity,
+                R.drawable.bg_card,
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(6) }
+        }
+
+        val labels = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        labels.addView(label(title, bold = true).apply { textSize = 14f })
+        labels.addView(label(whenText, small = true))
+        row.addView(labels)
+
+        row.addView(
+            TextView(this).apply {
+                text = getString(R.string.ops_remove)
+                textSize = 12f
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                background = android.util.TypedValue().let {
+                    theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
+                    androidx.core.content.ContextCompat.getDrawable(this@OperationsActivity, it.resourceId)
+                }
+                setOnClickListener { onRemove() }
+            },
+        )
+        return row
+    }
 
     /** Bordered, so two entries of the same source do not read as one repeated. */
     private fun section() = LinearLayout(this).apply {

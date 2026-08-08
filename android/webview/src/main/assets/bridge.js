@@ -500,7 +500,14 @@
    * separates it from the per-entry menus that share the .dropdown-menu class.
    */
   function isTitleMenu(menu) {
-    return (menu.textContent || "").toLowerCase().indexOf("başlığı açan") !== -1;
+    // The in-topic options menu is the title menu by identity, whatever it
+    // happens to contain. Requiring "başlığı açan" alone meant a layout without
+    // that item got no title actions at all, rather than getting them elsewhere.
+    if (menu.id === "in-topic-search-options") return true;
+    var text = (menu.textContent || "").toLowerCase();
+    if (text.indexOf("başlığı açan") !== -1) return true;
+    // Failing both, a menu on a page that has a title and offers following it.
+    return !!document.getElementById("title") && text.indexOf("takip et") !== -1;
   }
 
   /** The item our two sit above, so they land inside the existing group. */
@@ -799,7 +806,7 @@
   }
 
   var injectors = [
-    { selector: ".dropdown-menu", apply: injectTitleMenu },
+    { selector: "#in-topic-search-options, .dropdown-menu", apply: injectTitleMenu },
     { selector: ".dropdown-menu", apply: injectEntryMenu },
     { selector: ".dropdown-menu", apply: injectShareMenu },
     { selector: ".profile-buttons", apply: injectProfile }

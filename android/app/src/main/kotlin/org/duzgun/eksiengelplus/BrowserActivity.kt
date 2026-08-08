@@ -162,7 +162,7 @@ class BrowserActivity : AppCompatActivity() {
             var loaded = false
             configRepository.config.collectLatest { config ->
                 currentConfig = config
-                val json = BridgeJson.encodeToString(EksiConfig.serializer(), config)
+                val json = org.duzgun.eksiengelplus.datastore.BridgeConfigJson.encode(config)
                 if (!loaded) {
                     loaded = true
                     bridge.install(web, configJson = json, iconDataUri = ICON_DATA_URI)
@@ -344,15 +344,6 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     companion object {
-        /**
-         * encodeDefaults, because the page reads the JSON as plain properties.
-         *
-         * Kotlin's default omits any field equal to its default, so a config
-         * whose value happens to match ships without the field at all and
-         * CONFIG.enableMute reads undefined -- which is falsy, so every menu
-         * silently reverted to "engelle" the moment true became the default.
-         */
-        private val BridgeJson = Json { encodeDefaults = true }
 
         /**
          * Enough movement to be a swipe rather than a tap that wandered.

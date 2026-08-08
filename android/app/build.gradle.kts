@@ -56,6 +56,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         applicationId = "org.duzgun.eksiengelplus"
         minSdk = 26
         targetSdk = 36
@@ -129,6 +130,14 @@ dependencies {
     // failure is silent -- WorkManager just never runs the job.
     implementation(libs.hilt.work)
     ksp(libs.hilt.work.compiler)
+
+    // The wiring tests live here because this is the only module that knows how
+    // the app is actually assembled.
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.truth)
+    androidTestImplementation(libs.work.testing)
 }
 
 /** Lets CI assert the derivation without parsing build output. */

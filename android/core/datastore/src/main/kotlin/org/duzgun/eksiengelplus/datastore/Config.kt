@@ -1,6 +1,7 @@
 package org.duzgun.eksiengelplus.datastore
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Ported from frontend/app/assets/js/config.js.
@@ -101,6 +102,23 @@ enum class DateCriteria {
 
     /** Whether the rule is expressed as a day count rather than a calendar date. */
     val usesDays: Boolean get() = this == NEWER_THAN || this == OLDER_THAN
+}
+
+/**
+ * How config is serialised for the page.
+ *
+ * encodeDefaults is the whole point. Kotlin's default omits any field equal to
+ * its default, so a value that happens to match ships without the field at all
+ * and the page reads undefined -- which is falsy, so every menu quietly reverted
+ * to "engelle" the day true became the default of enableMute.
+ *
+ * Named and tested here rather than constructed at the call site, so the
+ * property belongs to the format instead of to whoever remembered.
+ */
+object BridgeConfigJson {
+    val json: Json = Json { encodeDefaults = true }
+
+    fun encode(config: EksiConfig): String = json.encodeToString(EksiConfig.serializer(), config)
 }
 
 /**

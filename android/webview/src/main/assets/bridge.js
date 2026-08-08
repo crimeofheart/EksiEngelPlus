@@ -137,7 +137,17 @@
    * every pass because these fill in late, which is why the gaps came back after
    * scrolling.
    */
-  var EMPTY_WHEN_BLOCKED = "#aside, .ads, .sticky-ad, .bottom-ads, .under-top-ad";
+  /*
+   * Ad slots only, and #aside is not one.
+   *
+   * It was added on the strength of a single 70px empty element seen while
+   * chasing gaps that turned out to be in a different app entirely. On a profile
+   * it is the sidebar -- entry counts, follower counts, join date, the follow
+   * button -- and collapsing it while momentarily empty took all of that away.
+   *
+   * Every remaining selector is a container Ekşi itself marks as an ad.
+   */
+  var EMPTY_WHEN_BLOCKED = ".ads, .sticky-ad, .bottom-ads, .under-top-ad";
 
   function collapseEmptyAdContainers() {
     var nodes = document.querySelectorAll(EMPTY_WHEN_BLOCKED);

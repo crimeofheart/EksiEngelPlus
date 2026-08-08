@@ -121,10 +121,11 @@ class OpsNotifier(private val context: Context) {
      * Ongoing, because a paused run is unfinished business -- swiping it away
      * would strand work the user explicitly chose to keep.
      */
-    fun paused(operationId: String, processed: Int, total: Int): Notification =
+    fun paused(operationId: String, label: String, processed: Int, total: Int): Notification =
         NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle("İşlem duraklatıldı")
+            // Named, so a paused run found hours later says which one it is.
+            .setContentTitle("$label duraklatıldı")
             .setContentText("$processed / $total işlendi · devam etmek için dokunun")
             .setProgress(total.coerceAtLeast(1), processed, false)
             .setOngoing(true)
@@ -140,8 +141,8 @@ class OpsNotifier(private val context: Context) {
             .addAction(0, "Durdur", commandIntent(operationId, ACTION_STOP))
             .build()
 
-    fun showPaused(operationId: String, processed: Int, total: Int) {
-        manager.notify(NOTIFICATION_ID_PROGRESS, paused(operationId, processed, total))
+    fun showPaused(operationId: String, label: String, processed: Int, total: Int) {
+        manager.notify(NOTIFICATION_ID_PROGRESS, paused(operationId, label, processed, total))
     }
 
     fun clearProgress() = manager.cancel(NOTIFICATION_ID_PROGRESS)

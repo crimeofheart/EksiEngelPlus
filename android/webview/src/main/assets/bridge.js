@@ -699,8 +699,12 @@
     };
     banFav.onclick = function () {
       enqueue({
+        // The author rides along even though the run targets the favouriters:
+        // it is what names the operation on the status screen, and without it
+        // three queued "favlayanlar" rows are indistinguishable.
         banSource: BanSource.FAV, banMode: BanMode.BAN, targetType: targetType,
-        clickSource: clickSource, entryUrl: entryUrl, entryId: Number(entryId)
+        clickSource: clickSource, authorName: authorName,
+        entryUrl: entryUrl, entryId: Number(entryId)
       });
     };
     banFollow.onclick = function () {

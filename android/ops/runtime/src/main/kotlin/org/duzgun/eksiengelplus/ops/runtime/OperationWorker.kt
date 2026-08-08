@@ -274,6 +274,20 @@ class OperationWorker @AssistedInject constructor(
         notifier.ensureChannels()
         setForeground(getForegroundInfo())
 
+        /*
+         * The same string the İşlem durumu screen shows for this run.
+         *
+         * The notification titled itself with the BanSource constant -- "FAV"
+         * over a Turkish screen reading "favlayanlar (coh)" -- so two surfaces
+         * described one run in two languages, and neither of the two queued
+         * "FAV" notifications said which entry it was.
+         */
+        val runLabel = OperationLabel.of(
+            applicationContext,
+            request.source,
+            OperationLabel.target(request),
+        )
+
         val existing = db.checkpoints().get(operationId)
         // Before any work, so a run that opens with a cooldown is not reported
         // as başlamadı for the length of it -- and so liveCount() sees it and
@@ -335,7 +349,7 @@ class OperationWorker @AssistedInject constructor(
                             OpsNotifier.NOTIFICATION_ID_PROGRESS,
                             notifier.progress(
                                 operationId,
-                                request.source.name,
+                                runLabel,
                                 lastProcessed,
                                 lastTotal,
                                 waitMs = remaining,
@@ -410,7 +424,7 @@ class OperationWorker @AssistedInject constructor(
                         OpsNotifier.NOTIFICATION_ID_PROGRESS,
                         notifier.progress(
                             operationId,
-                            request.source.name,
+                            runLabel,
                             p.processed,
                             p.total,
                         ),
@@ -446,7 +460,12 @@ class OperationWorker @AssistedInject constructor(
                  * so it reflects what has not started rather than what just did.
                  */
                 val waiting = db.queuedTasks().count().first()
-                val summary = done?.let { "${it.successful}/${it.processed} işlendi" }.orEmpty()
+                // Named, because the notification arrives long after the tap and
+                // may be the second of three identical-looking runs.
+                val summary = listOfNotNull(
+                    runLabel,
+                    done?.let { "${it.successful}/${it.processed} işlendi" },
+                ).joinToString(" · ")
 
                 notifier.clearProgress()
                 if (waiting > 0) {
@@ -473,6 +492,7 @@ class OperationWorker @AssistedInject constructor(
                 val cp = db.checkpoints().get(operationId)
                 notifier.showPaused(
                     operationId,
+                    label = runLabel,
                     processed = cp?.processed ?: 0,
                     total = cp?.total ?: 0,
                 )
@@ -546,7 +566,11 @@ class OperationWorker @AssistedInject constructor(
                 failed = cp.failed,
                 startedAt = cp.startedAt,
                 finishedAt = System.currentTimeMillis(),
-                summaryJson = "{}",
+                // The nick the run was about. The checkpoint holding the request
+                // is removed two lines down, so this is the last chance to keep
+                // it -- without it the history row falls back to "favlayanlar"
+                // with no way to tell three of them apart.
+                summaryJson = OperationLabel.summaryJson(OperationLabel.target(request)),
             ),
         )
         db.checkpoints().remove(operationId)

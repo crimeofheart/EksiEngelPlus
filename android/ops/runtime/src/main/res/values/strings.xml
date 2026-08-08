@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      What a run is called, in one place.
+
+      These lived in :feature:lists, which the notification cannot reach: the
+      İşlem durumu screen showed "favlayanlar" while the notification for the
+      same run showed the enum constant "FAV". Both read the label from here.
+    -->
+    <string name="src_single">tek yazar</string>
+    <string name="src_fav">favlayanlar</string>
+    <string name="src_follow">takipçiler</string>
+    <string name="src_list">yazar listesi</string>
+    <string name="src_title">başlıktakiler</string>
+    <string name="src_undobanall">tüm engelleri kaldırma</string>
+    <string name="src_unmuteall">tüm sessizleri kaldırma</string>
+    <string name="src_blocked_muted_titles">başlık engelleme</string>
+    <string name="src_migrate">engelliden sessize taşıma</string>
+    <string name="src_block_muted">sessizleri engelleme</string>
+    <string name="src_date_based">tarih filtresiyle işlem</string>
+    <string name="src_refresh">liste yenileme</string>
+    <string name="src_unknown">işlem</string>
+
+    <!--
+      Which nick the run is about, in brackets after the name.
+
+      Two "favlayanlar" rows are otherwise the same row twice; the nick is the
+      only thing that tells the user which entry's favouriters are being
+      blocked and which one is still waiting.
+    -->
+    <string name="src_with_target">%1$s (%2$s)</string>
+</resources>

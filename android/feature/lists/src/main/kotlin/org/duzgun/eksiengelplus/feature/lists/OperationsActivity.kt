@@ -25,6 +25,7 @@ import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.ops.engine.OperationState
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommand
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommandBus
+import org.duzgun.eksiengelplus.ops.runtime.OperationLabel
 import org.duzgun.eksiengelplus.ops.runtime.OperationWaits
 import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
 
@@ -145,7 +146,7 @@ class OperationsActivity : AppCompatActivity() {
             val state = runCatching { OperationState.valueOf(cp.state) }.getOrNull() ?: continue
             val row = section()
             row.addView(
-                label("${sourceName(cp.type)} · ${stateName(state)}", bold = true),
+                label("${runName(cp)} · ${stateName(state)}", bold = true),
             )
             // Two runs of the same source are otherwise indistinguishable.
             row.addView(label(whenText(cp.startedAt), small = true))
@@ -229,7 +230,7 @@ class OperationsActivity : AppCompatActivity() {
         for (cp in pending) {
             queued.addView(
                 pendingRow(
-                    "${sourceName(cp.type)} · ${getString(R.string.ops_pending)}",
+                    "${runName(cp)} · ${getString(R.string.ops_pending)}",
                     whenText(cp.startedAt),
                 ) { lifecycleScope.launch { db.checkpoints().remove(cp.operationId) } },
             )
@@ -238,7 +239,11 @@ class OperationsActivity : AppCompatActivity() {
         for (task in all) {
             queued.addView(
                 pendingRow(
-                    sourceName(BanSource.fromPk(task.banSourcePk)?.name ?: "?"),
+                    OperationLabel.of(
+                        this,
+                        BanSource.fromPk(task.banSourcePk),
+                        OperationLabel.targetFromRequest(task.payloadJson),
+                    ),
                     whenText(task.enqueuedAt),
                 ) { lifecycleScope.launch { db.queuedTasks().remove(task.id) } },
             )
@@ -253,7 +258,13 @@ class OperationsActivity : AppCompatActivity() {
             val row = section()
             row.addView(
                 label(
-                    "${sourceName(BanSource.fromPk(op.banSourcePk)?.name ?: "?")} · ${whenText(op.finishedAt)}",
+                    OperationLabel.of(
+                        this,
+                        BanSource.fromPk(op.banSourcePk),
+                        // The request is gone by now; the summary is where the
+                        // archiver put the nick.
+                        OperationLabel.targetFromSummary(op.summaryJson),
+                    ) + " · ${whenText(op.finishedAt)}",
                     bold = true,
                 ),
             )
@@ -349,30 +360,17 @@ class OperationsActivity : AppCompatActivity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     /**
-     * What the run is, in the language the rest of the app speaks.
+     * What the run is, with the nick it is about.
      *
-     * The stored type is a BanSource constant, and showing it raw put "fav" and
-     * "follow" on a Turkish screen.
+     * The label comes from :ops:runtime so this screen and the notification for
+     * the same run cannot word it differently; the nick comes out of the request
+     * the checkpoint already stores, so nothing new had to be persisted for the
+     * live and pending rows.
      */
-    private fun sourceName(raw: String): String = getString(
-        when (runCatching { BanSource.valueOf(raw) }.getOrNull()) {
-            BanSource.SINGLE -> R.string.src_single
-            BanSource.FAV -> R.string.src_fav
-            BanSource.FOLLOW -> R.string.src_follow
-            BanSource.LIST -> R.string.src_list
-            BanSource.TITLE -> R.string.src_title
-            BanSource.UNDOBANALL -> R.string.src_undobanall
-            BanSource.UNMUTEALL -> R.string.src_unmuteall
-            BanSource.BLOCKED_MUTED_TITLES -> R.string.src_blocked_muted_titles
-            BanSource.MIGRATE_BLOCKED_TO_MUTED -> R.string.src_migrate
-            BanSource.BLOCK_MUTED_USERS -> R.string.src_block_muted
-            BanSource.DATE_BASED_BULK -> R.string.src_date_based
-            BanSource.REFRESH_BLOCKED_LIST,
-            BanSource.REFRESH_MUTED_LIST,
-            BanSource.REFRESH_FOLLOWED_LIST,
-            -> R.string.src_refresh
-            null -> R.string.src_unknown
-        },
+    private fun runName(cp: OperationCheckpointEntity): String = OperationLabel.of(
+        this,
+        cp.type,
+        OperationLabel.targetFromRequest(cp.requestJson),
     )
 
     /** The run's state, likewise. */

@@ -42,6 +42,16 @@ class BridgeMapperTest {
         assertThat(r.entryId).isEqualTo(14065731)
     }
 
+    @Test fun `a fav run carries the entry's author, which is what names it`() {
+        // The run targets the favouriters, but the nick on screen has to be the
+        // author whose entry was clicked -- otherwise three queued "favlayanlar"
+        // rows are the same row three times.
+        val r = BridgeMapper.toRequest(
+            EnqueuePayload(banSource = 2, banMode = 1, authorName = "coh", entryId = 7),
+        )!!
+        assertThat(r.authorNick).isEqualTo("coh")
+    }
+
     @Test fun `an explicit entry id wins over the url`() {
         val r = BridgeMapper.toRequest(
             EnqueuePayload(

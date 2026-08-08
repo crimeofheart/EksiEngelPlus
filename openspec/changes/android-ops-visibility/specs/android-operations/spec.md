@@ -181,3 +181,51 @@ Binds the Android client.
 - **WHEN** the user stops a run while it is waiting
 - **THEN** the countdown is cleared rather than left ticking against a run that
   has ended
+
+### Requirement: A run says which nick it is about
+
+Every surface that names a run — İşlem durumu's three sections and the
+notification — SHALL render it as the operation's name followed by the nick it
+targets in brackets: `favlayanlar (coh)`. The nick SHALL be omitted, brackets and
+all, when the run has no single subject: a sweep over the whole blocked list, or
+a pasted list of forty names.
+
+One name, in one place. The label SHALL live in `:ops:runtime`, which both the
+screen and the notification can reach; `:feature:lists` cannot be reached from
+the notification, which is why the same run was titled `favlayanlar` on the
+screen and `FAV` in the shade.
+
+`FAV` SHALL be named after the author whose entry was clicked, not the
+favouriters it acts on — that is what the user picked and what they will
+recognise. The bridge SHALL therefore send `authorName` on a fav enqueue.
+
+The nick SHALL survive archival. `completed_operation` holds no request, and the
+checkpoint that carried one is removed as the run is archived, so the nick is
+written into `summaryJson`. Rows archived before this SHALL degrade to the bare
+name rather than failing to render.
+
+Binds the Android client.
+
+#### Scenario: Three runs of the same kind are told apart
+
+- **GIVEN** favlayanlar runs queued from three different entries
+- **WHEN** İşlem durumu is opened
+- **THEN** each row reads `favlayanlar (<nick>)` with the author of its own
+  entry, rather than three identical rows
+
+#### Scenario: The notification names the run the same way the screen does
+
+- **WHEN** a run is in progress
+- **THEN** the notification title reads `favlayanlar (coh)`, the same string the
+  running row shows — not the `FAV` enum constant
+
+#### Scenario: A finished run keeps its nick
+
+- **WHEN** a run completes and moves into tamamlananlar
+- **THEN** the history row still reads `favlayanlar (coh)`, though the request it
+  came from has been deleted
+
+#### Scenario: A run with no single subject shows no brackets
+
+- **WHEN** tüm engelleri kaldırma runs, or a list of forty names
+- **THEN** the row reads `tüm engelleri kaldırma` with nothing in brackets

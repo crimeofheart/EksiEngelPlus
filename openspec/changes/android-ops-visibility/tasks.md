@@ -102,3 +102,22 @@
       instance across worker and UI
 - [ ] 7.5 Run `openspec validate android-ops-visibility` clean, then
       `openspec archive android-ops-visibility`
+
+## 8. Naming a run
+
+- [x] 8.1 Move the `src_*` strings into `:ops:runtime` behind `OperationLabel`,
+      so the notification stops titling itself `FAV` while the screen says
+      `favlayanlar`
+- [x] 8.2 Render `<isim> (<nick>)` on the running, queued and finished rows,
+      taking the nick from the request the checkpoint or the queue row already
+      stores
+- [x] 8.3 Send `authorName` on a fav enqueue in `bridge.js`; the run acts on the
+      favouriters but is named after the author whose entry was clicked
+- [x] 8.4 Write the nick into `completed_operation.summaryJson` on archive — the
+      request is deleted in the same step, so history has nowhere else to get it
+- [x] 8.5 Title the progress, paused and completion notifications with the same
+      label
+- [x] 8.6 `OperationLabelTest` covers which source is named after what, the
+      round-trip through the summary, and the `{}` rows already archived
+- [x] 8.7 `./gradlew test` and `:app:assembleDebug` clean
+- [x] 8.8 `cd frontend/app && npm run check && npm run package`

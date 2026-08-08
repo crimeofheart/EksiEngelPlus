@@ -37,6 +37,26 @@ class ConfigTest {
         assertThat(c.sendLog).isTrue()
     }
 
+    /**
+     * A config stored before versioning must be recognisable as old.
+     *
+     * The whole migration rests on absent-means-zero, so this is the assumption
+     * worth pinning rather than the migration's own arithmetic.
+     */
+    @Test fun `a config written before versioning reads as version zero`() {
+        val old = json.decodeFromString(
+            EksiConfig.serializer(),
+            """{"enableMute":false,"enableProtectFollowedUsers":false}""",
+        )
+
+        assertThat(old.configVersion).isEqualTo(0)
+        assertThat(old.configVersion).isLessThan(EksiConfig.CURRENT_VERSION)
+        // And the stored values really do beat the corrected defaults, which is
+        // the reason a migration is needed at all.
+        assertThat(old.enableMute).isFalse()
+        assertThat(old.enableProtectFollowedUsers).isFalse()
+    }
+
     @Test fun `the user can turn telemetry off and it persists`() {
         // Default-on only defensible if opting out actually works.
         val off = EksiConfig(sendData = false, sendLog = false)

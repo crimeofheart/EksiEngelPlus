@@ -136,6 +136,9 @@ class BrowserActivity : AppCompatActivity() {
          * which is resumable, and until now nothing called it.
          */
         lifecycleScope.launch { reconciler.reconcile() }
+        // Before the config is first read, so a corrected default is what the
+        // screens and the engine see rather than the stale stored value.
+        lifecycleScope.launch { configRepository.migrate() }
 
         lifecycleScope.launch {
             sessionMonitor.state.collectLatest { render(it) }

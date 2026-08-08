@@ -13,6 +13,14 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class EksiConfig(
+    /**
+     * Bumped when a stored config needs correcting on upgrade.
+     *
+     * Zero for anything written before versioning existed, which is exactly the
+     * set that needs the fix, so absent-means-old is the behaviour we want.
+     */
+    val configVersion: Int = 0,
+
     val eksiSozlukUrl: String = DEFAULT_BASE_URL,
 
     val enableMute: Boolean = true,
@@ -63,6 +71,9 @@ data class EksiConfig(
 ) {
     companion object {
         const val DEFAULT_BASE_URL = "https://eksisozluk.com"
+
+        /** Raise this, and add a step to ConfigRepository.migrate, together. */
+        const val CURRENT_VERSION = 1
     }
 }
 

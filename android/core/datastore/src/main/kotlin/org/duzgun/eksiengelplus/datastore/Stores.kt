@@ -42,6 +42,32 @@ private class JsonSerializer<T>(
 class ConfigRepository(private val store: DataStore<EksiConfig>) {
     val config: Flow<EksiConfig> get() = store.data
     suspend fun update(transform: (EksiConfig) -> EksiConfig) { store.updateData(transform) }
+
+    /**
+     * Corrects a config written before its defaults were checked against the
+     * extension.
+     *
+     * enableMute and enableProtectFollowedUsers shipped false here while
+     * config.js has both true, and a stored false beats a corrected default --
+     * so every install from before the fix keeps the wrong behaviour forever
+     * unless something rewrites it.
+     *
+     * This does overwrite a deliberate choice, which is why it happens once and
+     * is recorded in the version rather than run on every launch.
+     */
+    suspend fun migrate() {
+        store.updateData { current ->
+            if (current.configVersion >= EksiConfig.CURRENT_VERSION) {
+                current
+            } else {
+                current.copy(
+                    enableMute = true,
+                    enableProtectFollowedUsers = true,
+                    configVersion = EksiConfig.CURRENT_VERSION,
+                )
+            }
+        }
+    }
 }
 
 class IdentityRepository(private val store: DataStore<Identity>) {

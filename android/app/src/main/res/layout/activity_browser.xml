@@ -16,17 +16,22 @@
 
         <!-- The only way into the lists and the author list. The theme has no
              action bar, so the entry point lives in the layout. -->
+        <TextView android:id="@+id/listsEntry"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:paddingStart="8dp" android:paddingEnd="8dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="12sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:text="@string/open_lists"/>
+
         <TextView android:id="@+id/settingsEntry"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:padding="10dp" android:textSize="12sp"
+            android:paddingStart="8dp" android:paddingEnd="12dp"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="12sp"
             android:background="?android:attr/selectableItemBackground"
             android:text="@string/open_settings"/>
 
-        <TextView android:id="@+id/listsEntry"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:padding="10dp" android:textSize="12sp"
-            android:background="?android:attr/selectableItemBackground"
-            android:text="@string/open_lists"/>
     </LinearLayout>
 
     <!-- Hidden until a session appears with a run parked on PAUSED_AUTH. An offer,

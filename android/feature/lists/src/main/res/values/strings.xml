@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="lists_title">listeler</string>
-    <string name="ops_title">işlemler</string>
+    <string name="ops_title">işlem durumu</string>
     <string name="ops_running">süren ve bekleyen</string>
     <string name="ops_queued">sıradakiler</string>
     <string name="ops_remove">kaldır</string>
@@ -9,7 +9,7 @@
     <string name="ops_clear_pending">başlamayanları temizle</string>
     <string name="ops_finished">tamamlananlar</string>
     <string name="ops_none">yok</string>
-    <string name="ops_open">işlemler</string>
+    <string name="ops_open">işlem durumu</string>
     <string name="bulk_title">toplu işlemler</string>
     <string name="bulk_hint">listelerinizin tamamı üzerinde çalışır</string>
     <string name="bulk_open">toplu işlem seç</string>
@@ -42,7 +42,7 @@
     <string name="lists_blocked">engellenenler</string>
     <string name="lists_muted">sessize alınanlar</string>
     <string name="lists_followed">takip edilenler</string>
-    <string name="lists_title_banned">engellenen başlıklar</string>
+    <string name="lists_title_banned">başlıkları engellenenler</string>
 
     <string name="lists_refresh">yenile</string>
     <string name="lists_stop">durdur</string>

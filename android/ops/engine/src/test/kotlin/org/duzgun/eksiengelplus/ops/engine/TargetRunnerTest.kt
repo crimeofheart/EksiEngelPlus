@@ -202,4 +202,40 @@ class TargetRunnerTest {
         assertThat(outcome).isEqualTo(OperationOutcome.STOPPED)
         assertThat(c.lastCheckpoint!!.failed).isEqualTo(0)
     }
+
+    /**
+     * A run against nobody must not pay the rate limit.
+     *
+     * An entry with no favouriters or an author with no followers still opens a
+     * run. If it asks the pacer for a permit on the way past, and the window
+     * happens to be spent, it waits 62 seconds to do nothing.
+     */
+    @Test fun `a run with no targets completes without consulting the pacer`() = runTest {
+        val c = ctx()
+
+        assertThat(runner.applyToAll(c, emptyList())).isEqualTo(OperationOutcome.COMPLETED)
+
+        assertThat(c.actionPermits).isEqualTo(0)
+        assertThat(c.readPermits).isEqualTo(0)
+        assertThat(server.requestCount).isEqualTo(0)
+    }
+
+    /**
+     * The size is known before the first action, so a run waiting out a cooldown
+     * says what it is waiting to do.
+     *
+     * Publishing only after each target meant the screen read "0 / 0" for the
+     * whole of the first wait, which is exactly what a run against nobody looks
+     * like.
+     */
+    @Test fun `the total is published before the first action`() = runTest {
+        repeat(3) { ok() }
+        val c = ctx()
+        c.permitSignal = { StopSignal() }   // stops before anything is processed
+
+        runner.applyToAll(c, targets(3))
+
+        assertThat(c.progress.first().total).isEqualTo(3)
+        assertThat(c.progress.first().processed).isEqualTo(0)
+    }
 }

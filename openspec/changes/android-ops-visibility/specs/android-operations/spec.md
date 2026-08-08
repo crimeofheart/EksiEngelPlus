@@ -118,6 +118,30 @@ Binds the Android client.
 - **WHEN** a run is queued from a list screen
 - **THEN** the message shown carries a `göster` action
 
+### Requirement: A run states its size before it acts
+
+The number of targets SHALL be published before the first action, not after it.
+Otherwise a run waiting out its first cooldown reads `0 / 0 · API limiti
+bekleniyor` — indistinguishable from a run against nobody, which is how a
+genuine 37-follower run came to look like a minute spent on an empty one.
+
+A run with no targets SHALL complete without consulting the pacer and without
+writing a checkpoint. Nothing to do costs nothing.
+
+Binds the Android client.
+
+#### Scenario: A run waiting for its first permit says what it will do
+
+- **GIVEN** a run over 37 followers whose first action waits on the rate limit
+- **WHEN** İşlem durumu is read during that wait
+- **THEN** the row reads `0 / 37`, not `0 / 0`
+
+#### Scenario: A run against nobody costs nothing
+
+- **WHEN** an operation resolves zero targets — an entry with no favouriters, an
+  author with no followers
+- **THEN** it completes immediately, taking no permit and waiting no cooldown
+
 ### Requirement: The screen and the notification agree
 
 İşlem durumu SHALL show the same rate-limit countdown the notification shows, for

@@ -55,7 +55,11 @@
 - [x] 4.7 Retext the running rows on each tick instead of rebuilding them: the
       rebuild destroyed Duraklat and Durdur under the user's finger, so taps
       went nowhere for the length of a cooldown
-- [x] 4.8 `cd frontend/app && npm run check && npm run package`
+- [x] 4.8 Publish the target count before the first action, so a run waiting out
+      a cooldown does not read `0 / 0` and pass for a run against nobody
+- [x] 4.9 Short-circuit a run with no targets before the pacer and the
+      checkpoint — a guard, not a fix: the loop never reached a permit anyway
+- [x] 4.10 `cd frontend/app && npm run check && npm run package`
 
 ## 5. Fixed-window pacing
 

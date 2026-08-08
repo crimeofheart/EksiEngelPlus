@@ -34,6 +34,25 @@ class TargetRunner(
         val mode = ctx.request.mode
         val targetType = ctx.request.targetType
 
+        // Nothing to do costs nothing. An entry with no favouriters, an author
+        // with no followers: the run is over before the rate limit is relevant,
+        // and it must not check in with the pacer or write a checkpoint on the
+        // way past.
+        if (targets.isEmpty()) return OperationOutcome.COMPLETED
+
+        /*
+         * The size, before the first action rather than after it.
+         *
+         * Progress was published only once a target had been dealt with, so a
+         * run waiting out its first cooldown read "0 / 0 · API limiti
+         * bekleniyor" -- indistinguishable from a run against nobody, and the
+         * reason a genuine 37-follower run looked like a minute wasted on an
+         * empty one.
+         */
+        ctx.publishProgress(
+            OperationProgress(cursor.processed, targets.size, cursor.successful, cursor.failed),
+        )
+
         var i = cursor.index
         /*
          * The whole loop, not just ensureActive().
@@ -139,8 +158,15 @@ class TargetRunner(
         second: Pair<org.duzgun.eksiengelplus.model.BanMode, TargetType>,
         checkpointEvery: Int = 5,
     ): OperationOutcome {
+        if (targets.isEmpty()) return OperationOutcome.COMPLETED
+
         var cursor = ctx.startCursor
         var i = cursor.index
+
+        // The size up front, for the reason applyToAll spells out.
+        ctx.publishProgress(
+            OperationProgress(cursor.processed, targets.size, cursor.successful, cursor.failed),
+        )
 
         // Guarded as a whole, for the reason applyToAll spells out.
         try {

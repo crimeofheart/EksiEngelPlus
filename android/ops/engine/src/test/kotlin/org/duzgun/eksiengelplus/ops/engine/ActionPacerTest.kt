@@ -47,6 +47,35 @@ class ActionPacerTest {
         assertThat(sleeps).containsExactly(ActionPacer.WINDOW_MS)
     }
 
+    /**
+     * Every wait is the same length, however long the twelve took to send.
+     *
+     * Counting the wait from when the window opened subtracted the time spent
+     * sending, so the first cooldown was 61s and the next 56s -- the countdown
+     * visibly drifting, against a server whose window start we cannot see.
+     */
+    @Test fun `the wait is a whole window however long the actions took`() = runTest {
+        val p = pacer()
+        repeat(12) {
+            p.acquire()
+            now += 5_000L      // the actions themselves take real time
+        }
+
+        p.acquire()
+
+        assertThat(sleeps).containsExactly(ActionPacer.WINDOW_MS)
+    }
+
+    @Test fun `a second cooldown is as long as the first`() = runTest {
+        val p = pacer()
+        repeat(12) { p.acquire(); now += 3_000L }
+        p.acquire()                                   // first cooldown
+        repeat(11) { p.acquire(); now += 3_000L }
+        p.acquire()                                   // second
+
+        assertThat(sleeps).containsExactly(ActionPacer.WINDOW_MS, ActionPacer.WINDOW_MS)
+    }
+
     @Test fun `the allowance returns once the window turns over`() = runTest {
         val p = pacer()
         repeat(12) { p.acquire() }

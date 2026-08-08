@@ -34,9 +34,10 @@ class InMemoryPacerState : PacerState {
  *
  * A window matches how the limit is actually expressed
  * (notificationHandler.js:60, "Dakikada 12 engel limiti bekleniyor"): spend the
- * twelve as fast as they go, then wait for the window to turn over. Every wait
- * is therefore the same length and starts from the same number, which is also
- * what makes the countdown legible.
+ * twelve as fast as they go, then wait a full window from the moment they run
+ * out. Every wait is therefore exactly 61 seconds and starts from the same
+ * number, which is what makes the countdown legible -- and it is never shorter
+ * than the window the server is enforcing.
  *
  * Retry-After is deliberately ignored. A rejection means the window is spent,
  * and only a full fresh one is guaranteed to clear it.
@@ -97,10 +98,25 @@ class ActionPacer(
                     return@withLock 0L
                 }
 
-                // Spent. Wait for this window to turn over, not for a fraction
-                // of it -- a partial wait is what put the next burst back inside
-                // the same window.
-                (windowStartedAt + WINDOW_MS - now).coerceAtLeast(1L)
+                /*
+                 * Spent. A whole window from this moment, not from when the
+                 * window opened.
+                 *
+                 * Counting from the open subtracts however long the twelve took
+                 * to send -- so the first wait was 61s and the next 56s, and the
+                 * user watching the countdown saw the limit drift. It also
+                 * assumes our clock agrees with the server's about when the
+                 * window began, which is the assumption Retry-After already
+                 * disproved.
+                 *
+                 * Waiting from exhaustion is the conservative reading: never
+                 * shorter than the window the server is enforcing.
+                 */
+                blockedUntil = now + WINDOW_MS
+                windowStartedAt = blockedUntil
+                usedInWindow = 0
+                persist()
+                WINDOW_MS
             }
             if (wait <= 0L) return
             sleep(wait)

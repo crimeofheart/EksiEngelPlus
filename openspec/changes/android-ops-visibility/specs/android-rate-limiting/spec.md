@@ -37,6 +37,12 @@ The limit SHALL be enforced as 12 actions per 61-second window, spent as fast as
 they go and then waited out in full — not as a leaky bucket returning one permit
 every 5s.
 
+The wait SHALL be a whole window measured from the moment the allowance runs
+out, not from when the window opened. Measuring from the open subtracts however
+long the twelve took to send, so the first cooldown is 61s and the next 56s, and
+it assumes our clock agrees with the server about when the window began — the
+assumption `Retry-After` already disproved.
+
 `Retry-After` SHALL be ignored. The header describes the remainder of a window
 whose start the client cannot see, so honouring it produced cooldowns of 23 and
 24 seconds that placed the next burst back inside the same window and tripped
@@ -54,6 +60,12 @@ Binds the Android client. The extension does not pace proactively at all.
 - **GIVEN** twelve actions already performed in the current window
 - **WHEN** a thirteenth is requested
 - **THEN** the caller waits the full 61 seconds, not a fraction of it
+
+#### Scenario: Every cooldown is the same length
+
+- **GIVEN** twelve actions that each took real time to send
+- **WHEN** the allowance runs out a second and a third time
+- **THEN** each wait is 61 seconds, not 61 then 56
 
 #### Scenario: A rejection costs a full window whatever the header says
 

@@ -1,7 +1,9 @@
 package org.duzgun.eksiengelplus.ops.engine
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
@@ -112,5 +114,34 @@ class ActionPacerTest {
         sleeps.clear()
         p.acquire()
         return sleeps.sum()
+    }
+
+    /**
+     * A wait must be abandonable.
+     *
+     * Durdur and Duraklat are delivered by the injected sleep throwing, which is
+     * only sound if acquire() has not already spent the token it was waiting
+     * for -- otherwise stopping a run would silently consume budget the next run
+     * has to wait out again.
+     */
+    @Test
+    fun `a signal thrown from the wait escapes without spending a token`() = runTest {
+        var now = 0L
+        val pacer = ActionPacer(
+            permitsPerMinute = 12,
+            capacity = 1,
+            clock = { now },
+            sleep = { throw StopSignal() },
+        )
+
+        // Drains the single token, so the next call has to wait.
+        pacer.acquire()
+
+        assertThrows(StopSignal::class.java) { runBlocking { pacer.acquire() } }
+
+        // The interrupted wait took nothing: once the bucket refills on its own
+        // schedule, exactly one token is there -- not zero.
+        now += 60_000L / 12
+        pacer.acquire()
     }
 }

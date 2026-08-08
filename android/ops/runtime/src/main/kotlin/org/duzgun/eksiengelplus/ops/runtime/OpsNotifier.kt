@@ -69,12 +69,23 @@ class OpsNotifier(private val context: Context) {
         processed: Int,
         total: Int,
         actionsPerMinute: Int,
+        /**
+         * Milliseconds left on a rate-limit wait, or 0 when running.
+         *
+         * Defaulted and last so existing callers are untouched. During a
+         * cooldown the run genuinely is not progressing, and a notification that
+         * keeps showing an ETA looks stuck -- the extension counts the wait down
+         * instead, so the user can see the pause is deliberate and how long is
+         * left of it.
+         */
+        cooldownMs: Long = 0L,
     ): Notification {
         val remaining = (total - processed).coerceAtLeast(0)
-        val etaText = if (actionsPerMinute > 0 && remaining > 0) {
-            " · ~${humanDuration((remaining.toDouble() / actionsPerMinute * 60_000).roundToLong())} kaldı"
-        } else {
-            ""
+        val etaText = when {
+            cooldownMs > 0L -> " · ${(cooldownMs + 999) / 1000} sn bekleniyor"
+            actionsPerMinute > 0 && remaining > 0 ->
+                " · ~${humanDuration((remaining.toDouble() / actionsPerMinute * 60_000).roundToLong())} kaldı"
+            else -> ""
         }
 
         return NotificationCompat.Builder(context, CHANNEL_PROGRESS)

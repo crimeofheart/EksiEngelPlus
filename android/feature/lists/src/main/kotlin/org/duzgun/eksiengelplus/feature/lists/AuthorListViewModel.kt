@@ -71,7 +71,7 @@ class AuthorListViewModel @Inject constructor(
      */
     fun importFrom(replace: Boolean, open: () -> InputStream?) {
         launchBusy {
-            val text = runCatching {
+            val text = runCancellable {
                 withContext(Dispatchers.IO) {
                     open()?.use { it.readBytes().toString(Charsets.UTF_8) }
                 }
@@ -91,7 +91,7 @@ class AuthorListViewModel @Inject constructor(
         // enough work to drop frames, and it is the half that runs before anything
         // is committed.
         val result = withContext(Dispatchers.IO) { CsvCodec.parseImport(text) }
-        runCatching {
+        runCancellable {
             if (replace) repository.replaceAll(result.rows) else repository.append(result.rows)
         }.fold(
             onSuccess = {

@@ -162,7 +162,7 @@ class ListsViewModel @Inject constructor(
     fun export(listType: ListType, open: () -> OutputStream?) {
         viewModelScope.launch {
             exportingList.value = listType
-            val result = runCatching {
+            val result = runCancellable {
                 withContext(Dispatchers.IO) {
                     val users = db.relationUsers().get(listType)
                     val rows = users.map { user ->

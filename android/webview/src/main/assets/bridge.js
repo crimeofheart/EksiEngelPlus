@@ -333,6 +333,64 @@
     return SWIPE.tabs[n];
   }
 
+  /*
+   * The panel the incoming page is drawn on.
+   *
+   * Created once and reused: a fresh element per drag would restart the
+   * compositor layer mid-gesture, which is visible as a stutter on the first
+   * frame of every swipe.
+   */
+  function ensureLayer() {
+    if (SWIPE.layer && SWIPE.layer.isConnected) return SWIPE.layer;
+    var layer = document.createElement("div");
+    layer.setAttribute("data-eep-preview", "1");
+    layer.style.cssText = [
+      "position:fixed",
+      "left:0",
+      "right:0",
+      "bottom:0",
+      "z-index:2147483000",
+      "display:none",
+      "will-change:transform",
+      "pointer-events:none",
+    ].join(";");
+    document.body.appendChild(layer);
+    SWIPE.layer = layer;
+    return layer;
+  }
+
+  /*
+   * Fetches a tab's markup into previewCache.
+   *
+   * XHR-flagged so Ekşi returns the partial rather than a full document -- the
+   * same header the entry lists use. Failures are swallowed: a warm cache is an
+   * optimisation, and the drag falls back to showing the tab's label.
+   */
+  function preloadTab(href) {
+    if (!href || previewCache[href] || preloadTab.inFlight[href]) return;
+    preloadTab.inFlight[href] = true;
+    fetch(href, {
+      credentials: "include",
+      headers: { "x-requested-with": "XMLHttpRequest" },
+    })
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (html) {
+        if (html) previewCache[href] = html;
+      })
+      .catch(function () {})
+      .then(function () { delete preloadTab.inFlight[href]; });
+  }
+  preloadTab.inFlight = {};
+
+  /** Warms both neighbours, so the first drag of a session has content. */
+  function warmNeighbours() {
+    var tabs = mainTabs();
+    var at = currentTabIndex(tabs);
+    if (at === -1 || tabs.length < 2) return;
+    preloadTab(tabs[(at + 1) % tabs.length].href);
+    preloadTab(tabs[(at - 1 + tabs.length) % tabs.length].href);
+  }
+
   function renderPreview(layer, tab) {
     var cached = previewCache[tab.href];
     layer.innerHTML =

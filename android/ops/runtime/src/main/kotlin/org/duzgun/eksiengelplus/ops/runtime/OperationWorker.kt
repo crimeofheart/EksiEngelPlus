@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
+import org.duzgun.eksiengelplus.ops.engine.PauseSignal
+import org.duzgun.eksiengelplus.ops.engine.StopSignal
 import org.duzgun.eksiengelplus.ops.engine.ActionPacer
 import org.duzgun.eksiengelplus.ops.engine.OperationCursor
 import org.duzgun.eksiengelplus.ops.engine.OperationOutcome
@@ -57,6 +59,18 @@ class OperationWorker @AssistedInject constructor(
             ?: "https://eksiengelplus.duzgun.org/api/action/"
 
     companion object {
+        /**
+         * How often a pacing wait looks at the command bus.
+         *
+         * Short enough that Durdur feels immediate, long enough that a 30s
+         * penalty costs 120 cheap reads of an in-memory bus rather than a poll
+         * loop worth worrying about.
+         */
+        private const val COMMAND_POLL_MS = 250L
+
+        /** Waits shorter than this are ordinary pacing, not a cooldown worth showing. */
+        private const val COOLDOWN_VISIBLE_MS = 3_000L
+
         const val UNIQUE_WORK = "eksiengel-operation"
         const val KEY_OPERATION_ID = "operationId"
         const val KEY_REQUEST_JSON = "requestJson"
@@ -221,6 +235,10 @@ class OperationWorker @AssistedInject constructor(
     /** Kept so the budget warning can state how much work is left. */
     private var lastRemaining: Int = 0
 
+    /** Last published counts, so a cooldown notification keeps showing them. */
+    private var lastProcessed: Int = 0
+    private var lastTotal: Int = 0
+
     private val operationId: String
         get() = inputData.getString(KEY_OPERATION_ID) ?: "unknown"
 
@@ -261,8 +279,62 @@ class OperationWorker @AssistedInject constructor(
             ?: OperationCursor()
 
         val budget = ForegroundBudget().apply { resume(existing?.fgsMillisUsed ?: 0) }
-        val actionPacer = ActionPacer(sleep = { kotlinx.coroutines.delay(it) }, state = pacerState)
-        val readPacer = ReadPacer(sleep = { kotlinx.coroutines.delay(it) })
+        /*
+         * Pacing waits sleep in slices, watching for Durdur and Duraklat.
+         *
+         * The pacer slept a whole wait in one delay(), and ensureActive() -- the
+         * only thing that reads the command bus -- runs between actions. A 429
+         * penalty holds the bucket for up to 30s and a server cooldown longer,
+         * so pressing Durdur during one did nothing until the wait expired: the
+         * button looked stuck, then the run reacted all at once when the
+         * cooldown ended.
+         *
+         * The signals are the same ones ensureActive() raises and the task loop
+         * already handles both. Safe to abandon a wait: acquire() takes its
+         * token after sleeping, never before, so nothing is consumed here.
+         */
+        suspend fun responsiveSleep(totalMs: Long) {
+            var remaining = totalMs
+            // The bus is polled four times a second; the notification is not.
+            // Posting every slice would be ~120 updates on a 30s cooldown, which
+            // the system rate-limits anyway, and the text only changes on the
+            // second.
+            var shownSecond = -1L
+            while (remaining > 0) {
+                when (commands.peek(operationId)) {
+                    OperationCommand.PAUSE -> throw PauseSignal()
+                    OperationCommand.STOP -> throw StopSignal()
+                    null -> Unit
+                }
+                // Only a wait long enough to look like a stall gets a
+                // countdown; the sub-second gaps between ordinary actions would
+                // just make the notification flicker.
+                val second = (remaining + 999) / 1000
+                if (totalMs >= COOLDOWN_VISIBLE_MS && second != shownSecond) {
+                    shownSecond = second
+                    setForeground(
+                        ForegroundInfo(
+                            OpsNotifier.NOTIFICATION_ID_PROGRESS,
+                            notifier.progress(
+                                operationId,
+                                request.source.name,
+                                lastProcessed,
+                                lastTotal,
+                                ActionPacer.DEFAULT_PERMITS_PER_MINUTE,
+                                cooldownMs = remaining,
+                            ),
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                        ),
+                    )
+                }
+                val slice = minOf(remaining, COMMAND_POLL_MS)
+                kotlinx.coroutines.delay(slice)
+                remaining -= slice
+            }
+        }
+
+        val actionPacer = ActionPacer(sleep = ::responsiveSleep, state = pacerState)
+        val readPacer = ReadPacer(sleep = ::responsiveSleep)
 
         /*
          * The date filter, resolved once for the run.
@@ -309,6 +381,8 @@ class OperationWorker @AssistedInject constructor(
             },
             onProgress = { p ->
                 lastRemaining = (p.total - p.processed).coerceAtLeast(0)
+                lastProcessed = p.processed
+                lastTotal = p.total
                 setForeground(
                     ForegroundInfo(
                         OpsNotifier.NOTIFICATION_ID_PROGRESS,

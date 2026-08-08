@@ -29,6 +29,11 @@
     <string name="bulk_undoban_all">tüm engelleri kaldır</string>
     <string name="bulk_unmute_all">tüm sessizleri kaldır</string>
     <string name="bulk_date_based">tarih filtresine göre çalıştır</string>
+    <string name="bulk_date_which">hangi listeye uygulansın</string>
+    <string name="bulk_date_blocked_unblock">engellilerden filtreye uyanların engelini kaldır</string>
+    <string name="bulk_date_muted_unmute">sessizlerden filtreye uyanları sessizden çıkar</string>
+    <string name="bulk_date_blocked_mute">engellilerden filtreye uyanları sessize al</string>
+    <string name="bulk_date_needs_filter">önce ayarlardan tarih filtresini açıp kural ekleyin</string>
     <string name="bulk_needs_filter">önce ayarlardan tarih filtresini açın</string>
     <string name="ops_progress">%1$d / %2$d · %3$d başarılı · %4$d başarısız</string>
     <string name="ops_resume">devam et</string>

@@ -183,7 +183,37 @@ class ListsActivity : AppCompatActivity() {
             .setTitle(R.string.bulk_title)
             .setItems(actions.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
                 val a = actions[which]
-                model.runOnList(a.source, a.mode, a.target)
+                // The date-filtered run is the one action whose target set the
+                // filter decides, so it asks what to apply rather than assuming
+                // a direction the user never chose.
+                if (a.source == BanSource.DATE_BASED_BULK) askDateBasedAction()
+                else model.runOnList(a.source, a.mode, a.target)
+            }
+            .setNegativeButton(R.string.author_list_cancel, null)
+            .show()
+    }
+
+    /**
+     * The date-filtered run, which needs a direction of its own.
+     *
+     * It was hardcoded to unblocking from the blocked list, which is one of
+     * three reasonable readings of "apply my date filter" and not obviously the
+     * one intended.
+     */
+    private fun askDateBasedAction() {
+        data class Choice(val labelRes: Int, val mode: BanMode, val target: TargetType)
+
+        val choices = listOf(
+            Choice(R.string.bulk_date_blocked_unblock, BanMode.UNDOBAN, TargetType.USER),
+            Choice(R.string.bulk_date_muted_unmute, BanMode.UNDOBAN, TargetType.MUTE),
+            Choice(R.string.bulk_date_blocked_mute, BanMode.BAN, TargetType.MUTE),
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.bulk_date_which)
+            .setItems(choices.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
+                val c = choices[which]
+                model.runDateBased(c.mode, c.target)
             }
             .setNegativeButton(R.string.author_list_cancel, null)
             .show()

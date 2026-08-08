@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -73,6 +74,7 @@ data class ListsUiState(
 class ListsViewModel @Inject constructor(
     application: Application,
     private val db: EksiDatabase,
+    private val configRepository: org.duzgun.eksiengelplus.datastore.ConfigRepository,
 ) : AndroidViewModel(application) {
 
     private val workManager get() = WorkManager.getInstance(getApplication())
@@ -205,6 +207,24 @@ class ListsViewModel @Inject constructor(
      * empty" whenever the user had not pressed refresh first, which described
      * our cache rather than their account.
      */
+    /**
+     * The date-filtered run, refused when there is no filter to apply.
+     *
+     * Without an enabled rule the filter allows everything, so this would act on
+     * the whole list -- which is the opposite of what someone reaching for a
+     * date filter is asking for.
+     */
+    fun runDateBased(mode: BanMode, targetType: TargetType) {
+        viewModelScope.launch {
+            val config = configRepository.config.first()
+            if (!config.enableDateFilter || config.dateFilterRules.none { it.enabled }) {
+                messages.tryEmit(string(R.string.bulk_date_needs_filter))
+                return@launch
+            }
+            runOnList(BanSource.DATE_BASED_BULK, mode, targetType)
+        }
+    }
+
     fun runOnList(source: BanSource, mode: BanMode, targetType: TargetType) {
         viewModelScope.launch {
             OperationWorker.enqueue(

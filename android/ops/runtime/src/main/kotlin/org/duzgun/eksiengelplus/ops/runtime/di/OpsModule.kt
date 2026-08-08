@@ -100,9 +100,27 @@ object OpsModule {
                 BanSource.UNDOBANALL -> UndoBanAllTask(runner, scrape)
 
                 // Resolved before the run and carried in the request, like LIST.
-                // Which list each reads is part of what the source means.
-                BanSource.BLOCKED_MUTED_TITLES ->
-                    RelationListTask(request.source, TargetType.USER, runner, scrape)
+                /*
+                 * Which list each reads is part of what the source means, and for
+                 * titles the direction decides it.
+                 *
+                 * Banning titles walks the blocked users and bans theirs.
+                 * Removing title bans has to walk the title bans themselves --
+                 * r=i, a list of its own -- because the users whose titles were
+                 * banned are not the same set, and may not be blocked at all any
+                 * more. Reading the user list here made the action a no-op that
+                 * reported success.
+                 */
+                BanSource.BLOCKED_MUTED_TITLES -> RelationListTask(
+                    request.source,
+                    if (request.mode == org.duzgun.eksiengelplus.model.BanMode.UNDOBAN) {
+                        TargetType.TITLE
+                    } else {
+                        TargetType.USER
+                    },
+                    runner,
+                    scrape,
+                )
                 BanSource.BLOCK_MUTED_USERS, BanSource.UNMUTEALL ->
                     RelationListTask(request.source, TargetType.MUTE, runner, scrape)
                 BanSource.DATE_BASED_BULK ->

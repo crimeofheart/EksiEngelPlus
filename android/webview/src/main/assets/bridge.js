@@ -527,6 +527,12 @@
    * a user already looks for those.
    */
   function injectTitleMenu(menu) {
+    console.warn("eksiengel tm: id=" + (menu.id || "-") +
+      " cls=" + (typeof menu.className === "string" ? menu.className : "-") +
+      " kids=" + menu.childElementCount +
+      " isTitle=" + isTitleMenu(menu) +
+      " hasTitleEl=" + !!document.getElementById("title") +
+      " txt=" + (menu.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60));
     if (!isTitleMenu(menu)) {
       /*
        * An empty menu has not been seen yet, only found.

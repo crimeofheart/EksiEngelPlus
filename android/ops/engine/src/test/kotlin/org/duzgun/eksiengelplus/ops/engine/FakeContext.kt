@@ -21,6 +21,9 @@ class FakeContext(
     /** Raised from inside the permit wait, the way a real Durdur now arrives. */
     var permitSignal: (() -> Throwable)? = null
     var readPermits = 0
+
+    /** Raised from inside the read permit wait, where resolveId used to eat it. */
+    var readPermitSignal: (() -> Throwable)? = null
     val penalties = mutableListOf<Int>()
     private var activeCalls = 0
 
@@ -36,7 +39,7 @@ class FakeContext(
 
     override suspend fun publishProgress(progress: OperationProgress) { this.progress += progress }
     override suspend fun awaitActionPermit() { actionPermits++; permitSignal?.let { throw it() } }
-    override suspend fun awaitReadPermit() { readPermits++ }
+    override suspend fun awaitReadPermit() { readPermits++; readPermitSignal?.let { throw it() } }
     override suspend fun log(message: String) { logs += message }
     override suspend fun onRateLimited(retryAfterSeconds: Int) { penalties += retryAfterSeconds }
 

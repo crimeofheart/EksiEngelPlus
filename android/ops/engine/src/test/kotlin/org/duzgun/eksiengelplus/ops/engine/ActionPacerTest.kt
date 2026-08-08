@@ -25,9 +25,27 @@ class ActionPacerTest {
         state = state,
     )
 
-    @Test fun `a fresh window releases its whole allowance immediately`() = runTest {
+    /**
+     * The allowance is released without waiting on the window, but not as a
+     * burst: the extension spaces mutations by 50ms (background.js:548) and so
+     * do we.
+     */
+    @Test fun `a fresh window releases its whole allowance, spaced`() = runTest {
         val p = pacer()
         repeat(12) { p.acquire() }
+
+        // Eleven gaps between twelve actions, and no window wait.
+        assertThat(sleeps).hasSize(11)
+        assertThat(sleeps.toSet()).containsExactly(ActionPacer.MIN_ACTION_GAP_MS)
+    }
+
+    @Test fun `an action that arrives late needs no gap`() = runTest {
+        val p = pacer()
+        p.acquire()
+        now += 1_000L
+
+        p.acquire()
+
         assertThat(sleeps).isEmpty()
     }
 
@@ -41,6 +59,7 @@ class ActionPacerTest {
     @Test fun `the thirteenth action waits out the whole window`() = runTest {
         val p = pacer()
         repeat(12) { p.acquire() }
+        sleeps.clear()
 
         p.acquire()
 
@@ -70,6 +89,7 @@ class ActionPacerTest {
         val p = pacer()
         repeat(12) { p.acquire(); now += 3_000L }
         p.acquire()                                   // first cooldown
+        now += 3_000L
         repeat(11) { p.acquire(); now += 3_000L }
         p.acquire()                                   // second
 
@@ -78,10 +98,11 @@ class ActionPacerTest {
 
     @Test fun `the allowance returns once the window turns over`() = runTest {
         val p = pacer()
-        repeat(12) { p.acquire() }
+        repeat(12) { p.acquire(); now += 1_000L }
         now += ActionPacer.WINDOW_MS
+        sleeps.clear()
 
-        repeat(12) { p.acquire() }
+        repeat(12) { p.acquire(); now += 1_000L }
 
         assertThat(sleeps).isEmpty()
     }
@@ -115,11 +136,12 @@ class ActionPacerTest {
         val p = pacer()
         p.penalize(retryAfterSeconds = 23)
         p.acquire()          // waits out the penalty
+        now += 1_000L        // and that action takes time, like the rest
         sleeps.clear()
 
         // The window began when the penalty ended, so the twelve are spent from
         // there rather than immediately colliding with the server's own window.
-        repeat(11) { p.acquire() }
+        repeat(11) { p.acquire(); now += 1_000L }
         assertThat(sleeps).isEmpty()
         p.acquire()
         assertThat(sleeps).containsExactly(ActionPacer.WINDOW_MS)
@@ -127,7 +149,7 @@ class ActionPacerTest {
 
     @Test fun `the window survives a restart`() = runTest {
         val shared = InMemoryPacerState()
-        repeat(12) { pacer(state = shared).acquire() }
+        repeat(12) { pacer(state = shared).acquire(); now += 1_000L }
 
         // Process dies and comes back. The server already counted those twelve.
         sleeps.clear()

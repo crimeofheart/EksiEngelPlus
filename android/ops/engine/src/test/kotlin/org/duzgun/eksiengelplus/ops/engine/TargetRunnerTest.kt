@@ -183,4 +183,23 @@ class TargetRunnerTest {
 
         assertThat(runner.applyToAll(c, targets(3))).isEqualTo(OperationOutcome.PAUSED)
     }
+
+    /**
+     * A signal raised while resolving an id is the user, not a lookup failure.
+     *
+     * resolveId caught Exception to turn a failed profile fetch into a skipped
+     * target. PauseSignal and StopSignal are RuntimeExceptions, so a Durdur
+     * pressed during the read permit was swallowed by that handler and charged
+     * to the target as unresolvable.
+     */
+    @Test fun `a signal while resolving an id is not charged to the target`() = runTest {
+        val c = ctx()
+        c.readPermitSignal = { StopSignal() }
+
+        // No id on the target, so the runner must resolve it first.
+        val outcome = runner.applyToAll(c, listOf(Target("someone", null)))
+
+        assertThat(outcome).isEqualTo(OperationOutcome.STOPPED)
+        assertThat(c.lastCheckpoint!!.failed).isEqualTo(0)
+    }
 }

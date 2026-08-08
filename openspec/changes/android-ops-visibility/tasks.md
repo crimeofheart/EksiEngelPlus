@@ -49,18 +49,28 @@
       report a failure to the user
 - [x] 4.5 Fix the clear-all button stretching the queued section — `action()`
       carries `weight = 1`, correct in a row and wrong in a column
-- [x] 4.6 `cd frontend/app && npm run check && npm run package`
+- [x] 4.6 Stop `resolveId` swallowing pause and stop signals — they are
+      RuntimeExceptions, so its catch-all charged the user's Durdur to the
+      target as an unresolvable nick
+- [x] 4.7 Retext the running rows on each tick instead of rebuilding them: the
+      rebuild destroyed Duraklat and Durdur under the user's finger, so taps
+      went nowhere for the length of a cooldown
+- [x] 4.8 `cd frontend/app && npm run check && npm run package`
 
 ## 5. Fixed-window pacing
 
-- [x] 5.1 Replace the leaky bucket and its AIMD with a fixed 12-per-61s window,
+- [x] 5.1 Replace the leaky bucket and its AIMD with a fixed 12-per-62s window,
       so every wait is a whole window and starts from the same number
 - [x] 5.2 Ignore `Retry-After`; a rejection costs one full window, and the next
       window begins when the penalty ends
 - [x] 5.3 Migrate the persisted snapshot from tokens/interval to window state
 - [x] 5.4 Rewrite `ActionPacerTest` for the window model; verify the
       Retry-After rule by restoring the header and watching it fail
-- [x] 5.5 `cd frontend/app && npm run check && npm run package`
+- [x] 5.5 Measure the wait from when the allowance runs out, not from when the
+      window opened — otherwise it shortens by however long the actions took
+- [x] 5.6 Match the extension exactly: 62s (`background.js:642`) and a 50ms gap
+      between mutations (`background.js:548`)
+- [x] 5.7 `cd frontend/app && npm run check && npm run package`
 
 ## 6. Browsing shell
 

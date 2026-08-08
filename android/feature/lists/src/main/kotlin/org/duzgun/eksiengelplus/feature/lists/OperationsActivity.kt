@@ -68,14 +68,22 @@ class OperationsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    // Combined, not two collectors: the wait ticks once a second
-                    // while the checkpoints sit still, and rendering the row from
-                    // whichever arrived last would drop the other's state.
-                    kotlinx.coroutines.flow.combine(
-                        db.checkpoints().observeAll(),
-                        waits.remaining,
-                    ) { checkpoints, waiting -> checkpoints to waiting }
-                        .collect { (checkpoints, waiting) -> renderRunning(checkpoints, waiting) }
+                    db.checkpoints().observeAll().collect { renderRunning(it, waits.remaining.value) }
+                }
+                launch {
+                    /*
+                     * The countdown retexts the rows it belongs to. It must not
+                     * rebuild them.
+                     *
+                     * Rendering the section from a combined flow rebuilt every
+                     * row once a second for the length of a cooldown --
+                     * removeAllViews() and back again -- which destroyed the
+                     * Duraklat and Durdur buttons under the user's finger
+                     * between touch-down and touch-up. The taps went nowhere,
+                     * and only ever during a cooldown, which is exactly when
+                     * they are most wanted.
+                     */
+                    waits.remaining.collect(::retimeRunning)
                 }
                 launch {
                     db.queuedTasks().observeAll().collect { renderQueued(it) }
@@ -86,6 +94,20 @@ class OperationsActivity : AppCompatActivity() {
             }
         }
     }
+
+    /** The progress line per run, so a tick can retext it without a rebuild. */
+    private val progressLabels = mutableMapOf<String, TextView>()
+    private var runningCheckpoints: List<OperationCheckpointEntity> = emptyList()
+
+    private fun retimeRunning(waiting: Map<String, Long>) {
+        for (cp in runningCheckpoints) {
+            progressLabels[cp.operationId]?.text = progressText(cp, waiting[cp.operationId] ?: 0L)
+        }
+    }
+
+    private fun progressText(cp: OperationCheckpointEntity, waitMs: Long): String =
+        getString(R.string.ops_progress, cp.processed, cp.total, cp.successful, cp.failed) +
+            if (waitMs > 0L) " · " + getString(R.string.ops_rate_wait, (waitMs + 999) / 1000) else ""
 
     private var queuedTasks: List<org.duzgun.eksiengelplus.database.QueuedTaskEntity> = emptyList()
     private var pendingCheckpoints: List<OperationCheckpointEntity> = emptyList()
@@ -115,6 +137,8 @@ class OperationsActivity : AppCompatActivity() {
             // showing each would read as several operations rather than one.
             .distinctBy { it.operationId }
         running.removeAllViews()
+        progressLabels.clear()
+        runningCheckpoints = live
         runningEmpty.visibility = if (live.isEmpty()) View.VISIBLE else View.GONE
 
         for (cp in live) {
@@ -126,17 +150,10 @@ class OperationsActivity : AppCompatActivity() {
             // Two runs of the same source are otherwise indistinguishable.
             row.addView(label(whenText(cp.startedAt), small = true))
             // The API-limit wait, the same number the notification counts down.
-            // Without it a run in a cooldown reads as stalled here while the
-            // notification is visibly moving.
-            val waitMs = waiting[cp.operationId] ?: 0L
-            val progressText =
-                getString(R.string.ops_progress, cp.processed, cp.total, cp.successful, cp.failed) +
-                    if (waitMs > 0L) {
-                        " · " + getString(R.string.ops_rate_wait, (waitMs + 999) / 1000)
-                    } else {
-                        ""
-                    }
-            row.addView(label(progressText, small = true))
+            // Held so retimeRunning can update it in place each second.
+            val progress = label(progressText(cp, waiting[cp.operationId] ?: 0L), small = true)
+            progressLabels[cp.operationId] = progress
+            row.addView(progress)
 
             val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             if (state == OperationState.RUNNING) {

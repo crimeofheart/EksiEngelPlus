@@ -33,8 +33,8 @@ it, which is why a stop there waits out the cooldown.
 
 ### Requirement: Mutations are paced as a fixed window, and every wait is a whole one
 
-The limit SHALL be enforced as 12 actions per 61-second window, spent as fast as
-they go and then waited out in full — not as a leaky bucket returning one permit
+The limit SHALL be enforced as 12 actions per 62-second window, spent as fast as
+the minimum gap allows and then waited out in full — not as a leaky bucket returning one permit
 every 5s.
 
 The wait SHALL be a whole window measured from the moment the allowance runs
@@ -49,9 +49,16 @@ whose start the client cannot see, so honouring it produced cooldowns of 23 and
 the limit again. A rejection SHALL cost one whole fresh window, and the window
 SHALL be treated as beginning when that penalty ends.
 
-61 seconds rather than 60: landing exactly on the boundary races the server's own
-bookkeeping. The extension pads for the same reason (`background.js:639` waits
-62s).
+62 seconds, matching the extension exactly (`background.js:642`,
+`let waitTimeInSec = 62`). Landing on the minute boundary races the server's own
+bookkeeping, and a value the extension has been running against this server for
+years is better evidence than our arithmetic. Both clients hit the same account.
+
+Consecutive mutations SHALL additionally be spaced by at least 50ms
+(`background.js:548`, `await utils.sleep(50)`, commented "Small delay to avoid
+rate limiting"). The window governs how many actions a minute allows; the gap
+governs how hard they arrive, and twelve requests fired inside a few hundred
+milliseconds is a burst whether or not the count is legal.
 
 Binds the Android client. The extension does not pace proactively at all.
 
@@ -59,19 +66,24 @@ Binds the Android client. The extension does not pace proactively at all.
 
 - **GIVEN** twelve actions already performed in the current window
 - **WHEN** a thirteenth is requested
-- **THEN** the caller waits the full 61 seconds, not a fraction of it
+- **THEN** the caller waits the full 62 seconds, not a fraction of it
 
 #### Scenario: Every cooldown is the same length
 
 - **GIVEN** twelve actions that each took real time to send
 - **WHEN** the allowance runs out a second and a third time
-- **THEN** each wait is 61 seconds, not 61 then 56
+- **THEN** each wait is 62 seconds, not 62 then 57
 
 #### Scenario: A rejection costs a full window whatever the header says
 
 - **WHEN** the server rejects a request with `Retry-After: 23`
-- **THEN** the cooldown is 61 seconds, and the next window is counted from its
+- **THEN** the cooldown is 62 seconds, and the next window is counted from its
   end
+
+#### Scenario: Actions within a window are still spaced
+
+- **WHEN** twelve actions are performed with allowance to spare
+- **THEN** consecutive actions are at least 50ms apart
 
 ### Requirement: A whole-run ETA is not derived from the rate limit
 
@@ -86,4 +98,4 @@ Binds the Android client.
 
 - **WHEN** a run is waiting on the rate limit
 - **THEN** the notification shows the wait counting down —
-  `API limiti bekleniyor 5 sn` — rather than a fixed `~1dk kaldı`
+  `API limiti bekleniyor 62 sn` — rather than a fixed `~1dk kaldı`

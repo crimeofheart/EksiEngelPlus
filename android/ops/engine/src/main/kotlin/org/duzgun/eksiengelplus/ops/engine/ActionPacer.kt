@@ -34,8 +34,8 @@ class InMemoryPacerState : PacerState {
  *
  * A window matches how the limit is actually expressed
  * (notificationHandler.js:60, "Dakikada 12 engel limiti bekleniyor"): spend the
- * twelve as fast as they go, then wait a full window from the moment they run
- * out. Every wait is therefore exactly 61 seconds and starts from the same
+ * twelve, spaced by 50ms as the extension spaces them, then wait a full window
+ * from the moment they run out. Every wait is therefore exactly 61 seconds and starts from the same
  * number, which is what makes the countdown legible -- and it is never shorter
  * than the window the server is enforcing.
  *
@@ -55,12 +55,28 @@ class ActionPacer(
         const val DEFAULT_PERMITS_PER_WINDOW = 12
 
         /**
-         * One second past the minute the limit is expressed in.
+         * 62 seconds, the same wait the extension uses (background.js:642,
+         * `let waitTimeInSec = 62`).
          *
-         * Landing exactly on the boundary races the server's own bookkeeping;
-         * the extension pads for the same reason (background.js:639 waits 62s).
+         * Two seconds past the minute the limit is expressed in: landing on the
+         * boundary races the server's own bookkeeping. Matching the extension
+         * exactly matters more than shaving a second -- the two clients hit the
+         * same account, and a value the extension has been running against this
+         * server for years is better evidence than our arithmetic.
          */
-        const val WINDOW_MS = 61_000L
+        const val WINDOW_MS = 62_000L
+
+        /**
+         * Minimum gap between two mutations, from background.js:548 --
+         * `await utils.sleep(50)`, commented "Small delay to avoid rate
+         * limiting".
+         *
+         * The window governs how many actions a minute allows; this governs how
+         * hard they arrive. Twelve requests fired back to back inside a few
+         * hundred milliseconds is a burst whether or not the count is legal, and
+         * bursts are what get an account looked at rather than merely throttled.
+         */
+        const val MIN_ACTION_GAP_MS = 50L
     }
 
     private val mutex = Mutex()
@@ -68,6 +84,15 @@ class ActionPacer(
     private var windowStartedAt: Long
     private var usedInWindow: Int
     private var blockedUntil: Long
+
+    /**
+     * Not persisted: a process that has just started cannot be mid-burst, and
+     * the gap is 50ms.
+     *
+     * Far in the past rather than 0, so the first action is not held back and a
+     * clock that legitimately reads 0 is not mistaken for "no action yet".
+     */
+    private var lastActionAt: Long = Long.MIN_VALUE / 2
 
     init {
         val restored = state.load()
@@ -93,7 +118,13 @@ class ActionPacer(
                 }
 
                 if (usedInWindow < permitsPerWindow) {
+                    // Space them out even when the window has room.
+                    val sinceLast = now - lastActionAt
+                    if (sinceLast < MIN_ACTION_GAP_MS) {
+                        return@withLock MIN_ACTION_GAP_MS - sinceLast
+                    }
                     usedInWindow++
+                    lastActionAt = now
                     persist()
                     return@withLock 0L
                 }

@@ -235,6 +235,15 @@ class TargetRunner(
     private suspend fun resolveId(ctx: OperationContext, nick: String): Long? = try {
         ctx.awaitReadPermit()
         scrape.authorProfile(nick).authorId
+    } catch (e: PauseSignal) {
+        // The permit wait raises these, and they are RuntimeExceptions, so the
+        // catch-all below was swallowing the user's own Durdur and charging the
+        // target as unresolvable.
+        throw e
+    } catch (e: StopSignal) {
+        throw e
+    } catch (e: BudgetExhaustedSignal) {
+        throw e
     } catch (e: Exception) {
         ctx.log("could not resolve id for $nick: ${e.message}")
         null

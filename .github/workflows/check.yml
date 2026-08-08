@@ -82,17 +82,46 @@ jobs:
       extension: ${{ steps.filter.outputs.extension }}
       android: ${{ steps.filter.outputs.android }}
     steps:
+      # Full history so the diff base is always reachable.
       - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v3
-        id: filter
         with:
-          filters: |
-            extension:
-              - 'frontend/app/**'
-              - '.github/workflows/check.yml'
-            android:
-              - 'android/**'
-              - '.github/workflows/check.yml'
+          fetch-depth: 0
+
+      # Plain git rather than an action: two globs do not justify a third-party
+      # dependency, and every JS action carries its own Node-runtime deprecation
+      # cycle. When no base is available -- a workflow_dispatch run, a branch's
+      # first push, or a force-push that orphaned the old tip -- both trees are
+      # treated as touched, so the fallback is a full build, never a skipped one.
+      - name: Detect touched trees
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "no usable base ('$BASE_SHA') -- building everything"
+            changed=""
+            all=1
+          else
+            changed="$(git diff --name-only "$BASE_SHA" HEAD)"
+            echo "$changed"
+            all=0
+          fi
+
+          touched() {
+            [ "$all" = 1 ] && return 0
+            printf '%s\n' "$changed" | grep -qE "$1"
+          }
+
+          # This workflow defines both builds, so a change to it re-runs both.
+          self='^\.github/workflows/check\.yml$'
+
+          touched "^frontend/app/|$self" && ext=true || ext=false
+          touched "^android/|$self" && droid=true || droid=false
+
+          echo "extension=$ext | android=$droid"
+          echo "extension=$ext" >> "$GITHUB_OUTPUT"
+          echo "android=$droid" >> "$GITHUB_OUTPUT"
 
   extension:
     name: Chrome + Firefox zips

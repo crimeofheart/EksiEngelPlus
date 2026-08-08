@@ -78,13 +78,25 @@ class OperationsActivity : AppCompatActivity() {
         }
     }
 
+    private var queuedTasks: List<org.duzgun.eksiengelplus.database.QueuedTaskEntity> = emptyList()
+    private var pendingCheckpoints: List<OperationCheckpointEntity> = emptyList()
+
     private fun renderRunning(all: List<OperationCheckpointEntity>) {
+        pendingCheckpoints = all
+            .filter { runCatching { OperationState.valueOf(it.state) }.getOrNull() == OperationState.IDLE }
+            .distinctBy { it.operationId }
+        renderPending()
+
         // Terminal rows belong in history, not here; a completed run left in the
         // live section would read as something still happening.
         val live = all
             .filter {
                 val state = runCatching { OperationState.valueOf(it.state) }.getOrNull()
-                state != null && !state.isTerminal
+                // IDLE is scheduled, not started: the row is written when the work
+                // is enqueued, so a run that never began was showing here as
+                // something in progress at 0/0 -- five of them looked like the
+                // same operation repeated.
+                state != null && !state.isTerminal && state != OperationState.IDLE
             }
             // One row per run. A checkpoint is upserted many times during a run,
             // and reconciliation can leave more than one row for the same id;
@@ -97,11 +109,10 @@ class OperationsActivity : AppCompatActivity() {
             val state = runCatching { OperationState.valueOf(cp.state) }.getOrNull() ?: continue
             val row = section()
             row.addView(
-                label(
-                    "${sourceName(cp.type)} · ${state.name.lowercase()}",
-                    bold = true,
-                ),
+                label("${sourceName(cp.type)} · ${state.name.lowercase()}", bold = true),
             )
+            // Two runs of the same source are otherwise indistinguishable.
+            row.addView(label(whenText(cp.startedAt), small = true))
             row.addView(
                 label(
                     getString(R.string.ops_progress, cp.processed, cp.total, cp.successful, cp.failed),
@@ -141,8 +152,29 @@ class OperationsActivity : AppCompatActivity() {
      * one with an empty progress line read as a stalled operation.
      */
     private fun renderQueued(all: List<org.duzgun.eksiengelplus.database.QueuedTaskEntity>) {
+        queuedTasks = all
+        renderPending()
+    }
+
+    /** Scheduled-but-not-started runs and the explicit queue, together. */
+    private fun renderPending() {
+        val all = queuedTasks
+        val pending = pendingCheckpoints
         queued.removeAllViews()
-        queuedEmpty.visibility = if (all.isEmpty()) View.VISIBLE else View.GONE
+        queuedEmpty.visibility =
+            if (all.isEmpty() && pending.isEmpty()) View.VISIBLE else View.GONE
+
+        for (cp in pending) {
+            val row = section()
+            row.addView(label("${sourceName(cp.type)} · ${getString(R.string.ops_pending)}", bold = true))
+            row.addView(label(whenText(cp.startedAt), small = true))
+            row.addView(
+                action(R.string.ops_remove) {
+                    lifecycleScope.launch { db.checkpoints().remove(cp.operationId) }
+                },
+            )
+            queued.addView(row)
+        }
 
         for (task in all) {
             val row = section()
@@ -183,9 +215,18 @@ class OperationsActivity : AppCompatActivity() {
 
     // ------------------------------------------------------------ tiny views
 
+    /** Bordered, so two entries of the same source do not read as one repeated. */
     private fun section() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, dp(10), 0, dp(10))
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        background = androidx.core.content.ContextCompat.getDrawable(
+            this@OperationsActivity,
+            R.drawable.bg_card,
+        )
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        ).apply { bottomMargin = dp(8) }
     }
 
     private fun label(text: String, bold: Boolean = false, small: Boolean = false) =

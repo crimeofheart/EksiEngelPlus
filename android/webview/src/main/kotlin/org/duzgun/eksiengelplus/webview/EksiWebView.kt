@@ -28,6 +28,8 @@ class EksiWebViewClient(
     private val context: Context,
     private val allowedHosts: Set<String>,
     private val onNavigated: (String?) -> Unit,
+    /** Read per request, so a settings change takes effect without a reload. */
+    private val blockAds: () -> Boolean = { true },
 ) : WebViewClient() {
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -88,6 +90,7 @@ class EksiWebViewClient(
         view: WebView,
         request: WebResourceRequest,
     ): WebResourceResponse? {
+        if (!blockAds()) return null
         val host = request.url.host?.lowercase() ?: return null
         if (!isAdOrTrackerHost(host)) return null
         return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))

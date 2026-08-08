@@ -5,6 +5,7 @@
     <!-- "bugün yükleniyor…" -->
     <string name="tab_loading">%s yükleniyor…</string>
     <string name="open_lists">listeler</string>
+    <string name="open_settings">ayarlar</string>
     <string name="resume_cancel">iptal</string>
     <string name="resume_cancelled">duraklatılmış işlem iptal edildi.</string>
 </resources>

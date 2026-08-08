@@ -27,6 +27,14 @@ data class EksiConfig(
      * friction -- the user already chose a client.
      */
     val hideAppPromo: Boolean = true,
+    /**
+     * Third-party advertising and analytics hosts are dropped.
+     *
+     * On by default because the measurement was decisive -- a cold start went
+     * from 23.4s to 6.0s -- but a setting, because it withholds revenue from a
+     * site the user chooses to use, and that is theirs to decide.
+     */
+    val blockAds: Boolean = true,
 
     /**
      * On by default, at parity with the extension (config.js:25-26).

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One switch per extension option, grouped the way the extension groups them,
+    so a user who knows one client can find the same setting in the other.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_group_action"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:paddingTop="20dp" android:paddingBottom="6dp"
+            android:alpha="0.75"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchMute"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_mute"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_mute_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchTitleBan"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_title_ban"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_title_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_group_scope"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:paddingTop="20dp" android:paddingBottom="6dp"
+            android:alpha="0.75"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchNoobBan"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_noob_ban"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_noob_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchProtectFollowed"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_protect_followed"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_protect_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchOnlyRequired"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_only_required"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_only_required_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_group_appearance"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:paddingTop="20dp" android:paddingBottom="6dp"
+            android:alpha="0.75"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchPremiumIcons"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_premium_icons"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchAppPromo"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_app_promo"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchBlockAds"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_block_ads"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_block_ads_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_group_filter"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:paddingTop="20dp" android:paddingBottom="6dp"
+            android:alpha="0.75"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchDateFilter"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_date_filter"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_date_filter_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_group_telemetry"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.12" android:textAllCaps="true"
+            android:paddingTop="20dp" android:paddingBottom="6dp"
+            android:alpha="0.75"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchSendData"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_send_data"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchSendLog"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_send_log"/>
+
+    </LinearLayout>
+</ScrollView>

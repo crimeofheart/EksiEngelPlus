@@ -109,6 +109,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":webview"))
     implementation(project(":feature:lists"))
+    implementation(project(":feature:settings"))
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
     implementation(project(":eksi:client"))

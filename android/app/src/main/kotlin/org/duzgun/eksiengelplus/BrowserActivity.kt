@@ -55,6 +55,9 @@ class BrowserActivity : AppCompatActivity() {
     private lateinit var bridge: BridgeHost
     private lateinit var loadingCover: TextView
 
+    /** Latest stored config, so per-request checks do not touch the store. */
+    @Volatile private var currentConfig: EksiConfig = EksiConfig()
+
     /** The run the resume bar is currently offering, if any. */
     private var offered: PausedOperation? = null
 
@@ -93,6 +96,9 @@ class BrowserActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.listsEntry).setOnClickListener {
             startActivity(Intent(this, ListsActivity::class.java))
         }
+        findViewById<TextView>(R.id.settingsEntry).setOnClickListener {
+            startActivity(Intent(this, org.duzgun.eksiengelplus.feature.settings.SettingsActivity::class.java))
+        }
         askForNotificationsOnce()
 
         web.configureForEksi(this)
@@ -105,15 +111,20 @@ class BrowserActivity : AppCompatActivity() {
             onNavigating = ::coverLoad,
         )
 
-        web.webViewClient = EksiWebViewClient(this, allowedHostsFor(base)) { url ->
-            // Only re-probe on pages that can actually change the session; every
-            // page would mean a network round trip per navigation.
-            if (sessionMonitor.shouldReprobe(url)) {
-                lifecycleScope.launch { sessionMonitor.refreshNow() }
-            }
-            bridge.pendingFallbackScript?.let { web.evaluateJavascript(it, null) }
-            loadingCover.visibility = View.GONE
-        }
+        web.webViewClient = EksiWebViewClient(
+            context = this,
+            allowedHosts = allowedHostsFor(base),
+            blockAds = { currentConfig.blockAds },
+            onNavigated = { url: String? ->
+                // Only re-probe on pages that can actually change the session;
+                // every page would mean a network round trip per navigation.
+                if (sessionMonitor.shouldReprobe(url)) {
+                    lifecycleScope.launch { sessionMonitor.refreshNow() }
+                }
+                bridge.pendingFallbackScript?.let { web.evaluateJavascript(it, null) }
+                loadingCover.visibility = View.GONE
+            },
+        )
 
         /*
          * Reconcile before anything reads operation state.
@@ -147,6 +158,7 @@ class BrowserActivity : AppCompatActivity() {
         lifecycleScope.launch {
             var loaded = false
             configRepository.config.collectLatest { config ->
+                currentConfig = config
                 val json = Json.encodeToString(EksiConfig.serializer(), config)
                 if (!loaded) {
                     loaded = true

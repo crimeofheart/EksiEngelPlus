@@ -27,6 +27,7 @@ import org.duzgun.eksiengelplus.ops.engine.OperationOutcome
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.OperationState
 import org.duzgun.eksiengelplus.ops.engine.ReadPacer
+import org.duzgun.eksiengelplus.ops.engine.WaitReason
 
 private val Json = Json { ignoreUnknownKeys = true }
 
@@ -67,9 +68,6 @@ class OperationWorker @AssistedInject constructor(
          * loop worth worrying about.
          */
         private const val COMMAND_POLL_MS = 250L
-
-        /** Waits shorter than this are ordinary pacing, not a cooldown worth showing. */
-        private const val COOLDOWN_VISIBLE_MS = 3_000L
 
         const val UNIQUE_WORK = "eksiengel-operation"
         const val KEY_OPERATION_ID = "operationId"
@@ -293,7 +291,7 @@ class OperationWorker @AssistedInject constructor(
          * already handles both. Safe to abandon a wait: acquire() takes its
          * token after sleeping, never before, so nothing is consumed here.
          */
-        suspend fun responsiveSleep(totalMs: Long) {
+        suspend fun responsiveSleep(totalMs: Long, reason: WaitReason) {
             var remaining = totalMs
             // The bus is polled four times a second; the notification is not.
             // Posting every slice would be ~120 updates on a 30s cooldown, which
@@ -306,11 +304,12 @@ class OperationWorker @AssistedInject constructor(
                     OperationCommand.STOP -> throw StopSignal()
                     null -> Unit
                 }
-                // Only a wait long enough to look like a stall gets a
-                // countdown; the sub-second gaps between ordinary actions would
-                // just make the notification flicker.
+                // Only a penalty is counted down. The bucket's own gap is 5s at
+                // the default 12/min, so counting that down too would have put
+                // "bekleniyor" on screen for most of a healthy run -- a rate
+                // limit dressed up as a cooldown.
                 val second = (remaining + 999) / 1000
-                if (totalMs >= COOLDOWN_VISIBLE_MS && second != shownSecond) {
+                if (reason == WaitReason.PENALTY && second != shownSecond) {
                     shownSecond = second
                     setForeground(
                         ForegroundInfo(

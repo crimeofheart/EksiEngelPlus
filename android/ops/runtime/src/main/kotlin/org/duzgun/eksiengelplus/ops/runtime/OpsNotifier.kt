@@ -70,28 +70,30 @@ class OpsNotifier(private val context: Context) {
         total: Int,
         actionsPerMinute: Int,
         /**
-         * Milliseconds left on a rate-limit wait, or 0 when running.
+         * Milliseconds left on a server-imposed cooldown, or 0 otherwise.
          *
-         * Defaulted and last so existing callers are untouched. During a
-         * cooldown the run genuinely is not progressing, and a notification that
-         * keeps showing an ETA looks stuck -- the extension counts the wait down
-         * instead, so the user can see the pause is deliberate and how long is
-         * left of it.
+         * A 429 only, never the pacer's ordinary turn-taking: at 12 actions a
+         * minute the bucket makes every action wait ~5s, and counting that down
+         * would show a permanent "bekleniyor" that is really just the rate
+         * limit. This is the wait the user cannot predict, which is the one
+         * worth showing.
          */
         cooldownMs: Long = 0L,
     ): Notification {
         val remaining = (total - processed).coerceAtLeast(0)
-        val etaText = when {
-            cooldownMs > 0L -> " · ${(cooldownMs + 999) / 1000} sn bekleniyor"
-            actionsPerMinute > 0 && remaining > 0 ->
-                " · ~${humanDuration((remaining.toDouble() / actionsPerMinute * 60_000).roundToLong())} kaldı"
-            else -> ""
+        val etaText = if (actionsPerMinute > 0 && remaining > 0) {
+            " · ~${humanDuration((remaining.toDouble() / actionsPerMinute * 60_000).roundToLong())} kaldı"
+        } else {
+            ""
         }
+        // Appended, not substituted: the ETA is the answer to "how long is this
+        // run", and a cooldown is a detour within it, not a replacement for it.
+        val waitText = if (cooldownMs > 0L) " · ${(cooldownMs + 999) / 1000} sn bekleniyor" else ""
 
         return NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(title)
-            .setContentText("$processed / $total işlendi$etaText")
+            .setContentText("$processed / $total işlendi$etaText$waitText")
             .setProgress(total.coerceAtLeast(1), processed, total == 0)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

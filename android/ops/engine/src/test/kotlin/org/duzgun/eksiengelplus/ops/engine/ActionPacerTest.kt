@@ -23,7 +23,7 @@ class ActionPacerTest {
         permitsPerMinute = perMinute,
         capacity = capacity,
         clock = { now },
-        sleep = { ms -> sleeps += ms; now += ms },
+        sleep = { ms, _ -> sleeps += ms; now += ms },
         state = InMemoryPacerState(),
     )
 
@@ -100,12 +100,12 @@ class ActionPacerTest {
 
     @Test fun `bucket state survives a restart`() = runTest {
         val shared = InMemoryPacerState()
-        val first = ActionPacer(12, 12, { now }, { ms -> sleeps += ms; now += ms }, shared)
+        val first = ActionPacer(12, 12, { now }, { ms, _ -> sleeps += ms; now += ms }, shared)
         repeat(12) { first.acquire() }
 
         // Process dies and comes back. The server already counted those twelve.
         sleeps.clear()
-        val second = ActionPacer(12, 12, { now }, { ms -> sleeps += ms; now += ms }, shared)
+        val second = ActionPacer(12, 12, { now }, { ms, _ -> sleeps += ms; now += ms }, shared)
         second.acquire()
         assertThat(sleeps).isNotEmpty()
     }
@@ -131,7 +131,7 @@ class ActionPacerTest {
             permitsPerMinute = 12,
             capacity = 1,
             clock = { now },
-            sleep = { throw StopSignal() },
+            sleep = { _, _ -> throw StopSignal() },
         )
 
         // Drains the single token, so the next call has to wait.
@@ -143,5 +143,33 @@ class ActionPacerTest {
         // schedule, exactly one token is there -- not zero.
         now += 60_000L / 12
         pacer.acquire()
+    }
+
+    /**
+     * The bucket's own gap is not a cooldown.
+     *
+     * At the default 12/min every action waits ~5s for its turn, so a UI that
+     * treats any wait as a cooldown shows one permanently. Only the server
+     * saying no is a PENALTY.
+     */
+    @Test
+    fun `an ordinary turn is paced, a rejected one is penalised`() = runTest {
+        val reasons = mutableListOf<WaitReason>()
+        var now = 0L
+        val pacer = ActionPacer(
+            permitsPerMinute = 12,
+            capacity = 1,
+            clock = { now },
+            sleep = { ms, why -> reasons += why; now += ms },
+        )
+
+        pacer.acquire()   // spends the only token
+        pacer.acquire()   // waits for the bucket, not for the server
+        assertThat(reasons).containsExactly(WaitReason.PACE)
+
+        reasons.clear()
+        pacer.penalize(retryAfterSeconds = 60)
+        pacer.acquire()
+        assertThat(reasons).contains(WaitReason.PENALTY)
     }
 }

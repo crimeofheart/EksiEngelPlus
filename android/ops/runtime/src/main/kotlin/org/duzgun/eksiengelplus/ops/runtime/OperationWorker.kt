@@ -306,6 +306,7 @@ class OperationWorker @AssistedInject constructor(
         return when (outcome) {
             OperationOutcome.COMPLETED -> {
                 recordState(OperationState.COMPLETED)
+                archive(request)
                 startNextQueued()
                 notifier.clearProgress()
                 notifier.alert("İşlem tamamlandı", "Tüm hedefler işlendi.")
@@ -324,6 +325,7 @@ class OperationWorker @AssistedInject constructor(
                 Result.success()
             }
             OperationOutcome.STOPPED -> {
+                archive(request)
                 startNextQueued()
                 // recordState only writes if the row is still there, so a run
                 // stopped by cancellation stays deleted rather than coming back
@@ -366,6 +368,36 @@ class OperationWorker @AssistedInject constructor(
      * long is cheap; erring short means the continuation is killed on arrival.
      */
     private fun budgetResetDelayMs(): Long = TimeUnit.HOURS.toMillis(20)
+
+    /**
+     * Moves a finished run into history.
+     *
+     * completed_operation has existed since android-foundations and nothing has
+     * ever written to it, so a run that finished said so in a notification and
+     * then vanished -- the history screen had nothing to show because there was
+     * never anything in the table.
+     *
+     * The checkpoint is removed in the same step: keeping a terminal row would
+     * leave the run in two places, and the live count that gates refresh and
+     * queueing reads that table.
+     */
+    private suspend fun archive(request: OperationRequest) {
+        val cp = db.checkpoints().get(operationId) ?: return
+        db.completedOperations().insert(
+            org.duzgun.eksiengelplus.database.CompletedOperationEntity(
+                banSourcePk = request.source.pk,
+                banModePk = request.mode.pk,
+                processed = cp.processed,
+                successful = cp.successful,
+                failed = cp.failed,
+                startedAt = cp.startedAt,
+                finishedAt = System.currentTimeMillis(),
+                summaryJson = "{}",
+            ),
+        )
+        db.checkpoints().remove(operationId)
+        db.completedOperations().trim()
+    }
 
     /**
      * Starts whatever was waiting behind this run.

@@ -6,6 +6,31 @@
     <string name="ops_queued">sıradakiler</string>
     <string name="ops_remove">kaldır</string>
     <string name="ops_pending">başlamadı</string>
+
+    <!-- Source names, so the screen does not show enum constants. -->
+    <string name="src_single">tek yazar</string>
+    <string name="src_fav">favlayanlar</string>
+    <string name="src_follow">takipçiler</string>
+    <string name="src_list">yazar listesi</string>
+    <string name="src_title">başlıktakiler</string>
+    <string name="src_undobanall">tüm engelleri kaldırma</string>
+    <string name="src_unmuteall">tüm sessizleri kaldırma</string>
+    <string name="src_blocked_muted_titles">başlık engelleme</string>
+    <string name="src_migrate">engelliden sessize taşıma</string>
+    <string name="src_block_muted">sessizleri engelleme</string>
+    <string name="src_date_based">tarih filtresiyle işlem</string>
+    <string name="src_refresh">liste yenileme</string>
+    <string name="src_unknown">işlem</string>
+
+    <!-- And the run's state in the same voice. -->
+    <string name="state_running">sürüyor</string>
+    <string name="state_pausing">duraklatılıyor</string>
+    <string name="state_paused">duraklatıldı</string>
+    <string name="state_paused_auth">giriş bekleniyor</string>
+    <string name="state_paused_budget">arka plan süresi doldu</string>
+    <string name="state_paused_network">bağlantı bekleniyor</string>
+    <string name="state_stopping">durduruluyor</string>
+    <string name="state_interrupted">yarım kaldı</string>
     <string name="ops_clear_pending">başlamayanları temizle</string>
     <string name="ops_finished">tamamlananlar</string>
     <string name="ops_none">yok</string>

@@ -109,7 +109,7 @@ class OperationsActivity : AppCompatActivity() {
             val state = runCatching { OperationState.valueOf(cp.state) }.getOrNull() ?: continue
             val row = section()
             row.addView(
-                label("${sourceName(cp.type)} · ${state.name.lowercase()}", bold = true),
+                label("${sourceName(cp.type)} · ${stateName(state)}", bold = true),
             )
             // Two runs of the same source are otherwise indistinguishable.
             row.addView(label(whenText(cp.startedAt), small = true))
@@ -259,8 +259,48 @@ class OperationsActivity : AppCompatActivity() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    /** The stored type is a BanSource name; shown as itself rather than a pk. */
-    private fun sourceName(raw: String) = raw.lowercase().replace('_', ' ')
+    /**
+     * What the run is, in the language the rest of the app speaks.
+     *
+     * The stored type is a BanSource constant, and showing it raw put "fav" and
+     * "follow" on a Turkish screen.
+     */
+    private fun sourceName(raw: String): String = getString(
+        when (runCatching { BanSource.valueOf(raw) }.getOrNull()) {
+            BanSource.SINGLE -> R.string.src_single
+            BanSource.FAV -> R.string.src_fav
+            BanSource.FOLLOW -> R.string.src_follow
+            BanSource.LIST -> R.string.src_list
+            BanSource.TITLE -> R.string.src_title
+            BanSource.UNDOBANALL -> R.string.src_undobanall
+            BanSource.UNMUTEALL -> R.string.src_unmuteall
+            BanSource.BLOCKED_MUTED_TITLES -> R.string.src_blocked_muted_titles
+            BanSource.MIGRATE_BLOCKED_TO_MUTED -> R.string.src_migrate
+            BanSource.BLOCK_MUTED_USERS -> R.string.src_block_muted
+            BanSource.DATE_BASED_BULK -> R.string.src_date_based
+            BanSource.REFRESH_BLOCKED_LIST,
+            BanSource.REFRESH_MUTED_LIST,
+            BanSource.REFRESH_FOLLOWED_LIST,
+            -> R.string.src_refresh
+            null -> R.string.src_unknown
+        },
+    )
+
+    /** The run's state, likewise. */
+    private fun stateName(state: OperationState): String = getString(
+        when (state) {
+            OperationState.RUNNING -> R.string.state_running
+            OperationState.PAUSING -> R.string.state_pausing
+            OperationState.PAUSED -> R.string.state_paused
+            OperationState.PAUSED_AUTH -> R.string.state_paused_auth
+            OperationState.PAUSED_BUDGET -> R.string.state_paused_budget
+            OperationState.PAUSED_NETWORK -> R.string.state_paused_network
+            OperationState.STOPPING -> R.string.state_stopping
+            OperationState.INTERRUPTED -> R.string.state_interrupted
+            OperationState.IDLE -> R.string.ops_pending
+            OperationState.STOPPED, OperationState.COMPLETED -> R.string.ops_finished
+        },
+    )
 
     private fun whenText(millis: Long): String =
         WHEN_FORMAT.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))

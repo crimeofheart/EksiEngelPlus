@@ -35,19 +35,18 @@ class TargetRunner(
         val targetType = ctx.request.targetType
 
         var i = cursor.index
+        /*
+         * The whole loop, not just ensureActive().
+         *
+         * Durdur and Duraklat now also reach the run from inside a rate-limit
+         * wait, which happens down in performWithRetry -- outside the guard
+         * this used to be. A signal raised there escaped the task and surfaced
+         * as "İşlem başarısız", so pausing during a cooldown looked like a
+         * crash. Every signal parks the run wherever it stands.
+         */
+        try {
         while (i < targets.size) {
-            try {
-                ctx.ensureActive()
-            } catch (e: PauseSignal) {
-                ctx.checkpoint(cursor.copy(index = i))
-                return OperationOutcome.PAUSED
-            } catch (e: StopSignal) {
-                ctx.checkpoint(cursor.copy(index = i))
-                return OperationOutcome.STOPPED
-            } catch (e: BudgetExhaustedSignal) {
-                ctx.checkpoint(cursor.copy(index = i))
-                return OperationOutcome.PAUSED_BUDGET
-            }
+            ctx.ensureActive()
 
             val target = targets[i]
 
@@ -91,9 +90,39 @@ class TargetRunner(
                 OperationProgress(cursor.processed, targets.size, cursor.successful, cursor.failed),
             )
         }
+        } catch (e: PauseSignal) {
+            return park(ctx, cursor, i, OperationOutcome.PAUSED)
+        } catch (e: StopSignal) {
+            return park(ctx, cursor, i, OperationOutcome.STOPPED)
+        } catch (e: BudgetExhaustedSignal) {
+            return park(ctx, cursor, i, OperationOutcome.PAUSED_BUDGET)
+        }
 
         ctx.checkpoint(cursor.copy(index = targets.size))
         return OperationOutcome.COMPLETED
+    }
+
+    /**
+     * Saves where the run stopped and reports why.
+     *
+     * The checkpoint can itself raise StopSignal: RoomOperationContext throws
+     * one when the row is gone, which is how a cancel reaches a live run. A
+     * signal thrown while handling a signal would leave the task as a failure,
+     * so it is absorbed here -- there is nothing to save when the row the state
+     * would go into is exactly what was deleted.
+     */
+    private suspend fun park(
+        ctx: OperationContext,
+        cursor: OperationCursor,
+        at: Int,
+        outcome: OperationOutcome,
+    ): OperationOutcome {
+        try {
+            ctx.checkpoint(cursor.copy(index = at))
+        } catch (e: StopSignal) {
+            return OperationOutcome.STOPPED
+        }
+        return outcome
     }
 
     /**
@@ -113,16 +142,10 @@ class TargetRunner(
         var cursor = ctx.startCursor
         var i = cursor.index
 
+        // Guarded as a whole, for the reason applyToAll spells out.
+        try {
         while (i < targets.size) {
-            try {
-                ctx.ensureActive()
-            } catch (e: PauseSignal) {
-                ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED
-            } catch (e: StopSignal) {
-                ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.STOPPED
-            } catch (e: BudgetExhaustedSignal) {
-                ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED_BUDGET
-            }
+            ctx.ensureActive()
 
             val target = targets[i]
             if (!ctx.allows(target.nick)) {
@@ -163,6 +186,13 @@ class TargetRunner(
             ctx.publishProgress(
                 OperationProgress(cursor.processed, targets.size, cursor.successful, cursor.failed),
             )
+        }
+        } catch (e: PauseSignal) {
+            return park(ctx, cursor, i, OperationOutcome.PAUSED)
+        } catch (e: StopSignal) {
+            return park(ctx, cursor, i, OperationOutcome.STOPPED)
+        } catch (e: BudgetExhaustedSignal) {
+            return park(ctx, cursor, i, OperationOutcome.PAUSED_BUDGET)
         }
 
         ctx.checkpoint(cursor.copy(index = targets.size))

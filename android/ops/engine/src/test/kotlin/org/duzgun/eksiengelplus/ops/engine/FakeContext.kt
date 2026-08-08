@@ -17,6 +17,9 @@ class FakeContext(
     val progress = mutableListOf<OperationProgress>()
     val logs = mutableListOf<String>()
     var actionPermits = 0
+
+    /** Raised from inside the permit wait, the way a real Durdur now arrives. */
+    var permitSignal: (() -> Throwable)? = null
     var readPermits = 0
     val penalties = mutableListOf<Int>()
     private var activeCalls = 0
@@ -32,7 +35,7 @@ class FakeContext(
     }
 
     override suspend fun publishProgress(progress: OperationProgress) { this.progress += progress }
-    override suspend fun awaitActionPermit() { actionPermits++ }
+    override suspend fun awaitActionPermit() { actionPermits++; permitSignal?.let { throw it() } }
     override suspend fun awaitReadPermit() { readPermits++ }
     override suspend fun log(message: String) { logs += message }
     override suspend fun onRateLimited(retryAfterSeconds: Int) { penalties += retryAfterSeconds }

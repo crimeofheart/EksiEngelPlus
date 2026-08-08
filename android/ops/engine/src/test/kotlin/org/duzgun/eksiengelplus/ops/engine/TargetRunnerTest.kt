@@ -157,4 +157,30 @@ class TargetRunnerTest {
         assertThat(c.lastCheckpoint!!.failed).isEqualTo(1)
         assertThat(c.lastCheckpoint!!.successful).isEqualTo(1)
     }
+
+    /**
+     * Durdur pressed during a rate-limit wait.
+     *
+     * The signal is raised from inside the permit wait, which is where a real
+     * one now comes from. It used to escape the runner and be reported as
+     * "İşlem başarısız" -- stopping during a cooldown looked like a crash --
+     * because only ensureActive() was guarded.
+     */
+    @Test fun `a signal from inside the permit wait parks rather than fails`() = runTest {
+        repeat(3) { ok() }
+        val c = ctx()
+        c.permitSignal = { StopSignal() }
+
+        assertThat(runner.applyToAll(c, targets(3))).isEqualTo(OperationOutcome.STOPPED)
+        // Parked at the target it never got to act on, so a resume redoes it.
+        assertThat(c.lastCheckpoint!!.index).isEqualTo(0)
+    }
+
+    @Test fun `a pause from inside the permit wait is still a pause`() = runTest {
+        repeat(3) { ok() }
+        val c = ctx()
+        c.permitSignal = { PauseSignal() }
+
+        assertThat(runner.applyToAll(c, targets(3))).isEqualTo(OperationOutcome.PAUSED)
+    }
 }

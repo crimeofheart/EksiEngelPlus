@@ -39,6 +39,31 @@ class RuntimeTest {
 
     @After fun tearDown() = db.close()
 
+    /**
+     * A run's checkpoint row, as enqueue would have written it.
+     *
+     * checkpoint() treats a missing row as cancellation -- that is what stops a
+     * cancelled run recreating itself as RUNNING -- so a context built straight
+     * in a test has to start from the same state production does.
+     */
+    private suspend fun seedCheckpoint(id: String = "op1") {
+        db.checkpoints().upsert(
+            org.duzgun.eksiengelplus.database.OperationCheckpointEntity(
+                operationId = id,
+                type = BanSource.LIST.name,
+                state = org.duzgun.eksiengelplus.ops.engine.OperationState.RUNNING.name,
+                cursorJson = "{}",
+                processed = 0,
+                total = 0,
+                successful = 0,
+                failed = 0,
+                startedAt = now,
+                updatedAt = now,
+                workRequestId = null,
+            ),
+        )
+    }
+
     private fun context(
         budget: ForegroundBudget = ForegroundBudget(clock = { now }).apply { resume(0) },
     ) = RoomOperationContext(
@@ -54,6 +79,7 @@ class RuntimeTest {
     )
 
     @Test fun checkpointAndEffectsCommitTogether() = runTest {
+        seedCheckpoint()
         val ctx = context()
         ctx.checkpoint(OperationCursor(index = 3, processed = 3, successful = 3)) {
             db.relationUsers().upsert(
@@ -66,16 +92,22 @@ class RuntimeTest {
     }
 
     @Test fun aFailingEffectRollsBackTheCheckpointToo() = runTest {
+        seedCheckpoint()
         val ctx = context()
         runCatching {
             ctx.checkpoint(OperationCursor(index = 9)) { error("effect blew up") }
         }
         // Neither, never one without the other. A cursor ahead of its rows
         // silently skips users; behind, it re-processes them.
-        assertThat(db.checkpoints().get("op1")).isNull()
+        //
+        // The run's row is there because enqueue wrote it, so rolled back means
+        // untouched rather than absent: the cursor must not have advanced to the
+        // position the failed effect was for.
+        assertThat(db.checkpoints().get("op1")?.cursorJson).isEqualTo("{}")
     }
 
     @Test fun pauseCommandSurfacesAtTheNextCheckpoint() = runTest {
+        seedCheckpoint()
         val ctx = context()
         ctx.ensureActive()                       // clean
         commands.post("op1", OperationCommand.PAUSE)
@@ -85,6 +117,7 @@ class RuntimeTest {
     }
 
     @Test fun stopOutranksPause() = runTest {
+        seedCheckpoint()
         commands.post("op1", OperationCommand.PAUSE)
         commands.post("op1", OperationCommand.STOP)
         runCatching { context().ensureActive() }
@@ -92,6 +125,7 @@ class RuntimeTest {
     }
 
     @Test fun aPauseDoesNotDowngradeAnExistingStop() = runTest {
+        seedCheckpoint()
         commands.post("op1", OperationCommand.STOP)
         commands.post("op1", OperationCommand.PAUSE)
         runCatching { context().ensureActive() }
@@ -99,6 +133,7 @@ class RuntimeTest {
     }
 
     @Test fun exhaustedForegroundBudgetStopsTheRun() = runTest {
+        seedCheckpoint()
         val budget = ForegroundBudget(softBudgetMs = 1_000, clock = { now }).apply { resume(0) }
         val ctx = context(budget)
         ctx.ensureActive()          // inside budget
@@ -127,6 +162,7 @@ class RuntimeTest {
     }
 
     @Test fun consumedBudgetIsPersistedOnEveryCheckpoint() = runTest {
+        seedCheckpoint()
         val budget = ForegroundBudget(clock = { now }).apply { resume(0) }
         val ctx = context(budget)
         now += 7_000
@@ -137,6 +173,7 @@ class RuntimeTest {
     }
 
     @Test fun reconcilerMarksAStaleRunningCheckpointInterrupted() = runTest {
+        seedCheckpoint()
         val ctx = context()
         ctx.checkpoint(OperationCursor(index = 2))
         assertThat(db.checkpoints().get("op1")!!.state).isEqualTo("RUNNING")
@@ -152,6 +189,7 @@ class RuntimeTest {
     }
 
     @Test fun budgetWarningFiresOnceAtTheThreshold() = runTest {
+        seedCheckpoint()
         var warnings = 0
         val budget = ForegroundBudget(softBudgetMs = 10_000, warnFraction = 0.8, clock = { now })
             .apply { resume(0) }

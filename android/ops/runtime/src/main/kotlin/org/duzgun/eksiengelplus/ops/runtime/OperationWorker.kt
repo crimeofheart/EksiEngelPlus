@@ -126,12 +126,22 @@ class OperationWorker @AssistedInject constructor(
                 .putString(KEY_OPERATION_ID, operationId)
                 .build()
 
-            // KEEP, not REPLACE: a second request must never cancel a run that is
-            // hours deep. Serial execution is a hard requirement, since the pacer
-            // budget is shared and two concurrent runs would double the rate.
+            /*
+             * REPLACE, now that the queue above is what protects a running run.
+             *
+             * KEEP was doing two jobs: keeping a live run safe, and deciding what
+             * happens to a second request. The check above already handles the
+             * first, so all KEEP could still do was silently discard the request
+             * whenever a stale entry lingered under this name -- an enqueued or
+             * cancelled one from a run that never started. The checkpoint was
+             * written, the work was dropped, and it sat as "başlamadı" forever.
+             *
+             * Reaching here means our own records say nothing is live, so
+             * replacing whatever WorkManager still holds is correct.
+             */
             wm.enqueueUniqueWork(
                 UNIQUE_WORK,
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<OperationWorker>()
                     .setInputData(data)
                     .setConstraints(
@@ -150,9 +160,11 @@ class OperationWorker @AssistedInject constructor(
          * non-suspending for callers like the reconciler's resume offer.
          */
         fun enqueueExisting(wm: WorkManager, operationId: String) {
+            // Resuming a parked run: nothing is executing, so a stale entry must
+            // not be allowed to swallow it either.
             wm.enqueueUniqueWork(
                 UNIQUE_WORK,
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<OperationWorker>()
                     .setInputData(Data.Builder().putString(KEY_OPERATION_ID, operationId).build())
                     .setConstraints(

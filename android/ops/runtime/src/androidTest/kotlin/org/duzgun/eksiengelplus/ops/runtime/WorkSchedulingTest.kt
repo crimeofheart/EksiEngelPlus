@@ -47,13 +47,44 @@ class WorkSchedulingTest {
 
     private val request = OperationRequest(BanSource.LIST, BanMode.BAN, nicks = listOf("a", "b"))
 
-    @Test fun enqueueingTwiceKeepsTheFirstRun() = kotlinx.coroutines.runBlocking {
+    /**
+     * A second request while one is live is queued, not run and not lost.
+     *
+     * This used to rest on ExistingWorkPolicy.KEEP, which protected the running
+     * run by discarding the request entirely -- the user was told "sıraya
+     * alındı" and nothing ever happened. The queue is the protection now, so
+     * only one operation is scheduled and the other is on the table.
+     */
+    @Test fun aSecondRequestIsQueuedRatherThanLost() = kotlinx.coroutines.runBlocking {
         OperationWorker.enqueue(wm, db, "op1", request)
         OperationWorker.enqueue(wm, db, "op2", request)
 
-        val infos = wm.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
-        // KEEP, not REPLACE: a second request must never cancel a run hours deep.
-        assertThat(infos.count { it.state != WorkInfo.State.CANCELLED }).isEqualTo(1)
+        val live = wm.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
+            .count { it.state != WorkInfo.State.CANCELLED }
+        assertThat(live).isEqualTo(1)
+
+        // The second survives as work to do, rather than being discarded.
+        assertThat(db.queuedTasks().next()).isNotNull()
+    }
+
+    /**
+     * And a request that arrives when nothing is live actually starts.
+     *
+     * KEEP also discarded it whenever a stale entry lingered under the unique
+     * name -- an enqueued or cancelled one from a run that never began -- which
+     * left a checkpoint reading "başlamadı" with no work behind it.
+     */
+    @Test fun aRequestIsNotSwallowedByAStaleEntry() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "first", request)
+        wm.cancelUniqueWork(OperationWorker.UNIQUE_WORK)
+        db.checkpoints().remove("first")
+
+        OperationWorker.enqueue(wm, db, "second", request)
+
+        val live = wm.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
+            .filter { it.state != WorkInfo.State.CANCELLED }
+        assertThat(live).hasSize(1)
+        assertThat(db.checkpoints().get("second")).isNotNull()
     }
 
     /**

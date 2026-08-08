@@ -527,12 +527,6 @@
    * a user already looks for those.
    */
   function injectTitleMenu(menu) {
-    console.warn("eksiengel tm: id=" + (menu.id || "-") +
-      " cls=" + (typeof menu.className === "string" ? menu.className : "-") +
-      " kids=" + menu.childElementCount +
-      " isTitle=" + isTitleMenu(menu) +
-      " hasTitleEl=" + !!document.getElementById("title") +
-      " txt=" + (menu.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60));
     if (!isTitleMenu(menu)) {
       /*
        * An empty menu has not been seen yet, only found.
@@ -828,13 +822,29 @@
     { selector: ".profile-buttons", apply: injectProfile }
   ];
 
+  /** Applies the already-handled guard to each part of a selector list. */
+  function markedSelector(selector, mark) {
+    return selector
+      .split(",")
+      .map(function (part) { return part.trim() + ":not([" + mark + '="true"])'; })
+      .join(",");
+  }
+
   function scan() {
     for (var i = 0; i < injectors.length; i++) {
       var inj = injectors[i];
       // Per-injector mark: two injectors share the .dropdown-menu selector, so a
       // single shared mark would let whichever ran first consume the node.
       var mark = MARK + "-" + i;
-      var nodes = document.querySelectorAll(inj.selector + ":not([" + mark + '="true"])');
+      /*
+       * The guard has to be attached to every part of the selector.
+       *
+       * "a, b" + ":not([mark])" parses as "a" and "b:not([mark])" -- the first
+       * part keeps matching however many times it has already been handled. That
+       * turned one injector into an endless loop: inject, mutate, rescan,
+       * inject, with the menu growing by two items every frame.
+       */
+      var nodes = document.querySelectorAll(markedSelector(inj.selector, mark));
       for (var j = 0; j < nodes.length; j++) {
         var node = nodes[j];
         // Marked before applying: an injector that throws must not be retried

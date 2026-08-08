@@ -186,21 +186,29 @@ class RoomOperationContext(
 
     override suspend fun publishProgress(progress: OperationProgress) {
         // The only place the run's size is known, so the checkpoint borrows it.
-        if (progress.total != lastTotal) {
-            lastTotal = progress.total
-            /*
-             * Written through, not just remembered.
-             *
-             * The notification reads this from memory; İşlem durumu reads it
-             * from the row. Leaving the row until the first checkpoint -- five
-             * targets away, and further still if the run opens with a cooldown
-             * -- had the two surfaces disagreeing about the same run, one saying
-             * 0 / 1 and the other 0 / 0.
-             *
-             * One write: the size is discovered once and does not change.
-             */
-            db.checkpoints().setTotal(operationId, progress.total, clock())
-        }
+        lastTotal = progress.total
+        /*
+         * Written through, not just remembered.
+         *
+         * The notification reads these from memory; İşlem durumu reads them from
+         * the row, and nothing wrote the row between checkpoints. The two
+         * surfaces disagreed about the same run -- first 0 / 1 against 0 / 0
+         * before the size was known, then 8 / 13 against 5 / 13 as the counts
+         * moved in steps of five.
+         *
+         * Cheap enough to do per action: the rate limit caps this at twelve
+         * writes a minute, and it is one UPDATE against one row by primary key.
+         * The cursor is deliberately untouched, so what a resume restores is
+         * still decided by checkpoint() alone.
+         */
+        db.checkpoints().setLiveProgress(
+            operationId,
+            processed = progress.processed,
+            total = progress.total,
+            successful = progress.successful,
+            failed = progress.failed,
+            at = clock(),
+        )
         onProgress(progress)
     }
 

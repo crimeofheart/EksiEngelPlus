@@ -121,12 +121,16 @@ Binds the Android client.
 ### Requirement: A run states its size before it acts
 
 The number of targets SHALL be published before the first action, not after it,
-and SHALL be recorded on the checkpoint row at the moment it is published.
+and the published counts — processed, total, successful, failed — SHALL be
+recorded on the checkpoint row each time they change.
 
-The notification reads the size from the worker; İşlem durumu reads it from the
-row. Leaving the row until the first checkpoint — five targets away, further
-still when the run opens with a cooldown — had the two surfaces disagreeing about
-the same run, one reading `0 / 1` and the other `0 / 0`.
+The notification reads them from the worker; İşlem durumu reads them from the
+row, which nothing wrote between checkpoints. The two surfaces disagreed about
+the same run: `0 / 1` against `0 / 0` before the size was known, then `8 / 13`
+against `5 / 13` as the row moved in steps of five.
+
+These writes are display only. The cursor stays the business of `checkpoint()`
+alone, so a resumed run still restores the position it genuinely resumes from.
 Otherwise a run waiting out its first cooldown reads `0 / 0 · API limiti
 bekleniyor` — indistinguishable from a run against nobody, which is how a
 genuine 37-follower run came to look like a minute spent on an empty one.
@@ -136,10 +140,11 @@ writing a checkpoint. Nothing to do costs nothing.
 
 Binds the Android client.
 
-#### Scenario: The notification and the screen agree on the size
+#### Scenario: The notification and the screen agree throughout
 
-- **WHEN** a run's size is published
-- **THEN** the checkpoint row carries the same total the notification shows
+- **WHEN** a run has processed eight of thirteen targets, between checkpoints
+- **THEN** the checkpoint row reads `8 / 13`, the same as the notification —
+  not the `5 / 13` of the last checkpoint
 
 #### Scenario: A run waiting for its first permit says what it will do
 

@@ -59,9 +59,10 @@
       a cooldown does not read `0 / 0` and pass for a run against nobody
 - [x] 4.9 Short-circuit a run with no targets before the pacer and the
       checkpoint — a guard, not a fix: the loop never reached a permit anyway
-- [x] 4.10 Write the size through to the checkpoint row when it is published —
-      the notification read it from memory and the screen from the row, so they
-      disagreed until the first checkpoint
+- [x] 4.10 Write the published counts through to the checkpoint row — the
+      notification reads them from memory and the screen from the row, so they
+      disagreed on the size before the first checkpoint and on the processed
+      count in steps of five after it
 - [x] 4.11 `cd frontend/app && npm run check && npm run package`
 
 ## 5. Fixed-window pacing

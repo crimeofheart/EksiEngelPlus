@@ -191,16 +191,29 @@ interface OperationCheckpointDao {
     suspend fun setState(id: String, state: String, at: Long)
 
     /**
-     * Records how big the run is, as soon as that is known.
+     * Records what the run has done so far, as it does it.
      *
-     * The notification took the total from the worker's own memory while İşlem
-     * durumu read it from this row, which nothing wrote until the first
-     * checkpoint -- five targets in. Until then the same run said "0 / 1" in one
-     * place and "0 / 0" in the other, and the second reads as a run against
-     * nobody.
+     * The notification counts every action; this row only learned on
+     * checkpoint(), which runs every fifth target. So the same run read "8 / 13"
+     * on the notification and "5 / 13" on the screen, in steps of five.
+     *
+     * Display only -- the cursor is untouched. A resumed run therefore snaps
+     * back to its last checkpoint, which is honest: that is the position it
+     * actually resumes from, and those targets are genuinely redone.
      */
-    @Query("UPDATE operation_checkpoint SET total = :total, updatedAt = :at WHERE operationId = :id")
-    suspend fun setTotal(id: String, total: Int, at: Long)
+    @Query(
+        "UPDATE operation_checkpoint SET processed = :processed, total = :total, " +
+            "successful = :successful, failed = :failed, updatedAt = :at " +
+            "WHERE operationId = :id",
+    )
+    suspend fun setLiveProgress(
+        id: String,
+        processed: Int,
+        total: Int,
+        successful: Int,
+        failed: Int,
+        at: Long,
+    )
 
     @Query("DELETE FROM operation_checkpoint WHERE operationId = :id")
     suspend fun remove(id: String)

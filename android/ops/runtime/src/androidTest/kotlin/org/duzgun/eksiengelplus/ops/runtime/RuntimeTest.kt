@@ -88,13 +88,22 @@ class RuntimeTest {
      * surfaces read "0 / 1" and "0 / 0" for the same run, and 0 / 0 is what a
      * run against nobody looks like.
      */
-    @Test fun publishingProgressRecordsTheSizeOnTheRow() = runTest {
+    @Test fun publishingProgressRecordsTheCountsOnTheRow() = runTest {
         seedCheckpoint()
         val ctx = context()
 
         ctx.publishProgress(OperationProgress(processed = 0, total = 37, successful = 0, failed = 0))
-
         assertThat(db.checkpoints().get("op1")!!.total).isEqualTo(37)
+
+        // Between checkpoints, which is where the two surfaces used to diverge.
+        ctx.publishProgress(OperationProgress(processed = 8, total = 13, successful = 7, failed = 1))
+        val row = db.checkpoints().get("op1")!!
+        assertThat(row.processed).isEqualTo(8)
+        assertThat(row.successful).isEqualTo(7)
+        assertThat(row.failed).isEqualTo(1)
+
+        // The cursor stays the checkpoint's business alone.
+        assertThat(row.cursorJson).isEqualTo("{}")
     }
 
     @Test fun checkpointAndEffectsCommitTogether() = runTest {

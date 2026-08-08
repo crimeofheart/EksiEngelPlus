@@ -6,6 +6,7 @@
     <string name="ops_queued">sıradakiler</string>
     <string name="ops_remove">kaldır</string>
     <string name="ops_pending">başlamadı</string>
+    <string name="ops_clear_pending">başlamayanları temizle</string>
     <string name="ops_finished">tamamlananlar</string>
     <string name="ops_none">yok</string>
     <string name="ops_open">işlemler</string>

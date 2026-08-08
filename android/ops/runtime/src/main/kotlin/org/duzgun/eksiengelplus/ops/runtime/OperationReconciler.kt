@@ -35,6 +35,21 @@ class OperationReconciler @Inject constructor(
     suspend fun reconcile(): List<String> {
         val stale = mutableListOf<String>()
 
+        /*
+         * An IDLE row is a run that was scheduled and never started.
+         *
+         * The row is written at enqueue so the worker can read its request back;
+         * if the work never ran, nothing will ever clear it, and it lingers as an
+         * operation at 0/0 that cannot be resumed or stopped because there is
+         * nothing behind it. Deleted rather than marked: there is no state worth
+         * keeping in a run that never began.
+         */
+        if (!isWorkLive()) {
+            for (cp in db.checkpoints().withState(OperationState.IDLE.name)) {
+                db.checkpoints().remove(cp.operationId)
+            }
+        }
+
         for (cp in db.checkpoints().withState(OperationState.RUNNING.name)) {
             if (isWorkLive()) continue
             db.checkpoints().upsert(

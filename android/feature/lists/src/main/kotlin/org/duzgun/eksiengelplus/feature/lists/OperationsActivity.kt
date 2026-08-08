@@ -164,6 +164,16 @@ class OperationsActivity : AppCompatActivity() {
         queuedEmpty.visibility =
             if (all.isEmpty() && pending.isEmpty()) View.VISIBLE else View.GONE
 
+        if (pending.size > 1) {
+            queued.addView(
+                action(R.string.ops_clear_pending) {
+                    lifecycleScope.launch {
+                        pending.forEach { db.checkpoints().remove(it.operationId) }
+                    }
+                },
+            )
+        }
+
         for (cp in pending) {
             val row = section()
             row.addView(label("${sourceName(cp.type)} · ${getString(R.string.ops_pending)}", bold = true))

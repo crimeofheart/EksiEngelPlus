@@ -3,11 +3,10 @@ package org.duzgun.eksiengelplus.ops.engine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Persisted bucket state, so a killed process does not resume with a full budget. */
+/** Persisted window, so a killed process does not resume with a fresh budget. */
 data class PacerSnapshot(
-    val tokens: Double,
-    val lastRefillAt: Long,
-    val intervalMs: Long,
+    val windowStartedAt: Long,
+    val usedInWindow: Int,
     val blockedUntil: Long,
 )
 
@@ -23,60 +22,56 @@ class InMemoryPacerState : PacerState {
 }
 
 /**
- * Proactive token bucket for mutations.
+ * A fixed window of mutations: 12 actions, then a full minute.
  *
- * The extension does not pace: it fires as fast as it can and absorbs the 429s,
- * spending a full cooldown every time it overshoots. It also holds two
- * disagreeing cooldown implementations -- programController.js:615 honours
- * Retry-After over three attempts, background.js:639 hard-codes 62 seconds and
- * ignores the header -- and each only sleeps the caller that was rejected.
+ * This was a leaky bucket refilling one token every 5s, with AIMD widening the
+ * interval after each 429. Two things came of that. The pause between actions
+ * was permanent but small, so the run never had a clean boundary; and a 429 was
+ * honoured for whatever Retry-After said, so the cooldown started from 23 or 24
+ * seconds as often as from 60 -- a partial wait against a window whose start we
+ * cannot see, which lands the next burst inside the same window and trips the
+ * limit again.
  *
- * One shared bucket replaces both, and is what lets a 429 penalise everyone
- * rather than one unlucky caller.
+ * A window matches how the limit is actually expressed
+ * (notificationHandler.js:60, "Dakikada 12 engel limiti bekleniyor"): spend the
+ * twelve as fast as they go, then wait for the window to turn over. Every wait
+ * is therefore the same length and starts from the same number, which is also
+ * what makes the countdown legible.
  *
- * Default 12/min, the limit surfaced to users at notificationHandler.js:60. It is
- * documented rather than measured, which is why AIMD sits on top: a wrong
- * constant degrades gracefully instead of hammering a limit we cannot see.
+ * Retry-After is deliberately ignored. A rejection means the window is spent,
+ * and only a full fresh one is guaranteed to clear it.
  *
  * Not user-configurable upward. A user cannot consent on the server's behalf.
  */
 class ActionPacer(
-    private val permitsPerMinute: Int = DEFAULT_PERMITS_PER_MINUTE,
-    private val capacity: Int = DEFAULT_PERMITS_PER_MINUTE,
+    private val permitsPerWindow: Int = DEFAULT_PERMITS_PER_WINDOW,
     private val clock: () -> Long = System::currentTimeMillis,
     private val sleep: suspend (Long) -> Unit,
     private val state: PacerState = InMemoryPacerState(),
 ) {
     companion object {
         /** notificationHandler.js:60 -- "Dakikada 12 engel limiti bekleniyor". */
-        const val DEFAULT_PERMITS_PER_MINUTE = 12
+        const val DEFAULT_PERMITS_PER_WINDOW = 12
 
-        /** Each 429 multiplies the interval by this, up to the ceiling. */
-        private const val BACKOFF_FACTOR = 1.5
-
-        /** Never slower than one action per 30s, however many 429s arrive. */
-        private const val MAX_INTERVAL_MS = 30_000L
-
-        /** Consecutive successes before the interval decays a step. */
-        private const val DECAY_AFTER_SUCCESSES = 50
-
-        private const val DECAY_FACTOR = 0.9
+        /**
+         * One second past the minute the limit is expressed in.
+         *
+         * Landing exactly on the boundary races the server's own bookkeeping;
+         * the extension pads for the same reason (background.js:639 waits 62s).
+         */
+        const val WINDOW_MS = 61_000L
     }
 
-    private val baseIntervalMs: Long = 60_000L / permitsPerMinute
     private val mutex = Mutex()
 
-    private var tokens: Double
-    private var lastRefillAt: Long
-    private var intervalMs: Long
+    private var windowStartedAt: Long
+    private var usedInWindow: Int
     private var blockedUntil: Long
-    private var consecutiveSuccesses = 0
 
     init {
         val restored = state.load()
-        tokens = restored?.tokens ?: capacity.toDouble()
-        lastRefillAt = restored?.lastRefillAt ?: clock()
-        intervalMs = restored?.intervalMs ?: baseIntervalMs
+        windowStartedAt = restored?.windowStartedAt ?: 0L
+        usedInWindow = restored?.usedInWindow ?: 0
         blockedUntil = restored?.blockedUntil ?: 0L
     }
 
@@ -86,18 +81,26 @@ class ActionPacer(
             val wait = mutex.withLock {
                 val now = clock()
 
-                // A penalty outranks the bucket: every caller waits it out, including
-                // ones that never saw the 429.
+                // A rejection outranks the window: every caller waits it out,
+                // including ones that never saw the 429.
                 if (now < blockedUntil) return@withLock blockedUntil - now
 
-                refill(now)
-                if (tokens >= 1.0) {
-                    tokens -= 1.0
+                // A window that has turned over costs nothing to start.
+                if (now - windowStartedAt >= WINDOW_MS) {
+                    windowStartedAt = now
+                    usedInWindow = 0
+                }
+
+                if (usedInWindow < permitsPerWindow) {
+                    usedInWindow++
                     persist()
                     return@withLock 0L
                 }
-                // Time until the next whole token.
-                (((1.0 - tokens) * intervalMs).toLong()).coerceAtLeast(1L)
+
+                // Spent. Wait for this window to turn over, not for a fraction
+                // of it -- a partial wait is what put the next burst back inside
+                // the same window.
+                (windowStartedAt + WINDOW_MS - now).coerceAtLeast(1L)
             }
             if (wait <= 0L) return
             sleep(wait)
@@ -105,39 +108,27 @@ class ActionPacer(
     }
 
     /**
-     * Applies a server-instructed cooldown to the whole bucket.
+     * The server rejected a request. Wait out a whole fresh window.
      *
-     * Tokens are drained as well as blocked: otherwise the wait expires and the
-     * client immediately bursts a full bucket at a server that just asked it to
-     * slow down.
+     * [retryAfterSeconds] is accepted so callers need not decide whether the
+     * header is trustworthy, and ignored: it describes the remainder of a window
+     * whose start we cannot see, and honouring it is what produced cooldowns of
+     * 23 and 24 seconds that then tripped the limit again.
+     *
+     * The window is reset to begin when the penalty ends, so the run does not
+     * come back and immediately spend twelve more into a window the server still
+     * considers full.
      */
     suspend fun penalize(retryAfterSeconds: Int) = mutex.withLock {
         val now = clock()
-        tokens = 0.0
-        lastRefillAt = now
-        blockedUntil = maxOf(blockedUntil, now + retryAfterSeconds * 1000L)
-        intervalMs = (intervalMs * BACKOFF_FACTOR).toLong().coerceAtMost(MAX_INTERVAL_MS)
-        consecutiveSuccesses = 0
+        blockedUntil = maxOf(blockedUntil, now + WINDOW_MS)
+        windowStartedAt = blockedUntil
+        usedInWindow = 0
         persist()
     }
 
-    /** Sustained success decays the interval back toward the configured rate. */
-    suspend fun onSuccess() = mutex.withLock {
-        if (intervalMs <= baseIntervalMs) return@withLock
-        if (++consecutiveSuccesses < DECAY_AFTER_SUCCESSES) return@withLock
-        consecutiveSuccesses = 0
-        intervalMs = (intervalMs * DECAY_FACTOR).toLong().coerceAtLeast(baseIntervalMs)
-        persist()
-    }
-
-    private fun refill(now: Long) {
-        val elapsed = now - lastRefillAt
-        if (elapsed <= 0) return
-        tokens = (tokens + elapsed.toDouble() / intervalMs).coerceAtMost(capacity.toDouble())
-        lastRefillAt = now
-    }
-
-    private fun persist() = state.save(PacerSnapshot(tokens, lastRefillAt, intervalMs, blockedUntil))
+    private fun persist() =
+        state.save(PacerSnapshot(windowStartedAt, usedInWindow, blockedUntil))
 }
 
 /**

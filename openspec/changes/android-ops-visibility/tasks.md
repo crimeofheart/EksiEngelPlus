@@ -51,22 +51,33 @@
       carries `weight = 1`, correct in a row and wrong in a column
 - [x] 4.6 `cd frontend/app && npm run check && npm run package`
 
-## 5. Browsing shell
+## 5. Fixed-window pacing
 
-- [x] 5.1 Restore `ensureLayer`, `preloadTab` and `warmNeighbours` in
+- [x] 5.1 Replace the leaky bucket and its AIMD with a fixed 12-per-61s window,
+      so every wait is a whole window and starts from the same number
+- [x] 5.2 Ignore `Retry-After`; a rejection costs one full window, and the next
+      window begins when the penalty ends
+- [x] 5.3 Migrate the persisted snapshot from tokens/interval to window state
+- [x] 5.4 Rewrite `ActionPacerTest` for the window model; verify the
+      Retry-After rule by restoring the header and watching it fail
+- [x] 5.5 `cd frontend/app && npm run check && npm run package`
+
+## 6. Browsing shell
+
+- [x] 6.1 Restore `ensureLayer`, `preloadTab` and `warmNeighbours` in
       `bridge.js`; they were called from three places and defined nowhere
-- [x] 5.2 `node --check bridge.js`
-- [x] 5.3 `cd frontend/app && npm run check && npm run package`
+- [x] 6.2 `node --check bridge.js`
+- [x] 6.3 `cd frontend/app && npm run check && npm run package`
 
-## 6. Verification
+## 7. Verification
 
-- [x] 6.1 Full `./gradlew test` and `:app:assembleDebug` clean
-- [x] 6.2 Every new test verified by breaking the code it covers
-- [ ] 6.3 Run the instrumented suites on a device — NOT RUN: no device was
+- [x] 7.1 Full `./gradlew test` and `:app:assembleDebug` clean
+- [x] 7.2 Every new test verified by breaking the code it covers
+- [ ] 7.3 Run the instrumented suites on a device — NOT RUN: no device was
       attached when these were written, so `WiringTest.theShowOperationsActionResolvesToAnActivity`
       and `aRunThatHasStartedIsLiveBeforeItsFirstCheckpoint` have never executed
-- [ ] 6.4 Confirm on device that the in-app countdown ticks alongside the
+- [ ] 7.4 Confirm on device that the in-app countdown ticks alongside the
       notification — the one behaviour resting on `OperationWaits` being a single
       instance across worker and UI
-- [ ] 6.5 Run `openspec validate android-ops-visibility` clean, then
+- [ ] 7.5 Run `openspec validate android-ops-visibility` clean, then
       `openspec archive android-ops-visibility`

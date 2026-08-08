@@ -7,10 +7,9 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
- * Written before the implementation. The pacer is the one component that can
- * quietly get a user's account rate-limited, and every failure mode here is
- * invisible at runtime -- too fast just looks like 429s, too slow looks like the
- * app being sluggish.
+ * The pacer is the one component that can quietly get a user's account
+ * rate-limited, and every failure mode here is invisible at runtime -- too fast
+ * just looks like 429s, too slow looks like the app being sluggish.
  *
  * A virtual clock throughout: real time would make this suite take minutes.
  */
@@ -19,129 +18,117 @@ class ActionPacerTest {
     private var now = 0L
     private val sleeps = mutableListOf<Long>()
 
-    private fun pacer(perMinute: Int = 12, capacity: Int = 12) = ActionPacer(
-        permitsPerMinute = perMinute,
-        capacity = capacity,
+    private fun pacer(perWindow: Int = 12, state: PacerState = InMemoryPacerState()) = ActionPacer(
+        permitsPerWindow = perWindow,
         clock = { now },
         sleep = { ms -> sleeps += ms; now += ms },
-        state = InMemoryPacerState(),
+        state = state,
     )
 
-    @Test fun `a fresh bucket releases up to capacity immediately`() = runTest {
+    @Test fun `a fresh window releases its whole allowance immediately`() = runTest {
         val p = pacer()
         repeat(12) { p.acquire() }
         assertThat(sleeps).isEmpty()
     }
 
-    @Test fun `the thirteenth action waits for a refill`() = runTest {
+    /**
+     * The window, not a fraction of it.
+     *
+     * The old bucket dribbled a token back every 5s, so the run never had a
+     * clean boundary and the wait shown to the user was a different number each
+     * time.
+     */
+    @Test fun `the thirteenth action waits out the whole window`() = runTest {
         val p = pacer()
         repeat(12) { p.acquire() }
+
         p.acquire()
-        // 12/min is one token per 5000 ms.
-        assertThat(sleeps).containsExactly(5_000L)
+
+        assertThat(sleeps).containsExactly(ActionPacer.WINDOW_MS)
     }
 
-    @Test fun `sustained rate never exceeds the configured permits per minute`() = runTest {
-        val p = pacer(perMinute = 12, capacity = 1)
+    @Test fun `the allowance returns once the window turns over`() = runTest {
+        val p = pacer()
+        repeat(12) { p.acquire() }
+        now += ActionPacer.WINDOW_MS
+
+        repeat(12) { p.acquire() }
+
+        assertThat(sleeps).isEmpty()
+    }
+
+    @Test fun `sustained rate never exceeds the allowance per window`() = runTest {
+        val p = pacer()
         val start = now
-        repeat(13) { p.acquire() }
-        // 13 actions from a one-token bucket spans at least 12 intervals.
-        assertThat(now - start).isAtLeast(12 * 5_000L)
+        repeat(25) { p.acquire() }
+        // 25 actions is three windows' worth: two full waits at least.
+        assertThat(now - start).isAtLeast(2 * ActionPacer.WINDOW_MS)
     }
 
-    @Test fun `idle time refills the bucket up to capacity but no further`() = runTest {
+    /**
+     * Retry-After is ignored on purpose.
+     *
+     * The server sent 23 and 24 as often as 60, because the header describes
+     * what is left of a window whose start we cannot see. Waiting that fraction
+     * put the next burst back inside the same window and tripped the limit
+     * again -- and the countdown started from a different number each time.
+     */
+    @Test fun `a rejection costs a full window whatever Retry-After says`() = runTest {
         val p = pacer()
-        repeat(12) { p.acquire() }
-        now += 60 * 60 * 1000          // an hour idle
+        p.penalize(retryAfterSeconds = 23)
+
+        p.acquire()
+
+        assertThat(sleeps).containsExactly(ActionPacer.WINDOW_MS)
+    }
+
+    @Test fun `a rejection does not release a fresh allowance the moment it expires`() = runTest {
+        val p = pacer()
+        p.penalize(retryAfterSeconds = 23)
+        p.acquire()          // waits out the penalty
         sleeps.clear()
-        repeat(12) { p.acquire() }     // capacity, not an hour's worth
+
+        // The window began when the penalty ended, so the twelve are spent from
+        // there rather than immediately colliding with the server's own window.
+        repeat(11) { p.acquire() }
         assertThat(sleeps).isEmpty()
         p.acquire()
-        assertThat(sleeps).isNotEmpty()
+        assertThat(sleeps).containsExactly(ActionPacer.WINDOW_MS)
     }
 
-    @Test fun `a penalty blocks every caller, not just the one that hit it`() = runTest {
-        val p = pacer()
-        p.acquire()
-        p.penalize(retryAfterSeconds = 30)
-        sleeps.clear()
-        // A different caller, which never saw the 429, must still wait.
-        p.acquire()
-        assertThat(sleeps.sum()).isAtLeast(30_000L)
-    }
-
-    @Test fun `a penalty drains tokens so the bucket cannot burst afterwards`() = runTest {
-        val p = pacer()
-        p.penalize(retryAfterSeconds = 10)
-        sleeps.clear()
-        p.acquire()          // pays the penalty
-        sleeps.clear()
-        p.acquire()          // and then the normal interval, not a free burst
-        assertThat(sleeps.sum()).isAtLeast(5_000L)
-    }
-
-    @Test fun `repeated penalties widen the interval`() = runTest {
-        val p = pacer(capacity = 1)
-        val baseline = intervalAfter(p)
-        repeat(4) { p.penalize(1) ; p.acquire() }
-        assertThat(intervalAfter(p)).isGreaterThan(baseline)
-    }
-
-    @Test fun `sustained success decays the interval back toward the configured rate`() = runTest {
-        val p = pacer(capacity = 1)
-        val baseline = intervalAfter(p)
-        repeat(4) { p.penalize(1); p.acquire() }
-        val widened = intervalAfter(p)
-        repeat(200) { p.acquire(); p.onSuccess() }
-        val recovered = intervalAfter(p)
-        assertThat(recovered).isLessThan(widened)
-        assertThat(recovered).isAtLeast(baseline)   // never faster than configured
-    }
-
-    @Test fun `bucket state survives a restart`() = runTest {
+    @Test fun `the window survives a restart`() = runTest {
         val shared = InMemoryPacerState()
-        val first = ActionPacer(12, 12, { now }, { ms -> sleeps += ms; now += ms }, shared)
-        repeat(12) { first.acquire() }
+        repeat(12) { pacer(state = shared).acquire() }
 
         // Process dies and comes back. The server already counted those twelve.
         sleeps.clear()
-        val second = ActionPacer(12, 12, { now }, { ms -> sleeps += ms; now += ms }, shared)
-        second.acquire()
-        assertThat(sleeps).isNotEmpty()
-    }
+        pacer(state = shared).acquire()
 
-    private suspend fun intervalAfter(p: ActionPacer): Long {
-        sleeps.clear()
-        p.acquire()
-        return sleeps.sum()
+        assertThat(sleeps).isNotEmpty()
     }
 
     /**
      * A wait must be abandonable.
      *
      * Durdur and Duraklat are delivered by the injected sleep throwing, which is
-     * only sound if acquire() has not already spent the token it was waiting
-     * for -- otherwise stopping a run would silently consume budget the next run
-     * has to wait out again.
+     * only sound if acquire() has not already spent the permit it was waiting
+     * for -- otherwise stopping a run would consume allowance the next run has
+     * to wait out again.
      */
     @Test
-    fun `a signal thrown from the wait escapes without spending a token`() = runTest {
-        var now = 0L
-        val pacer = ActionPacer(
-            permitsPerMinute = 12,
-            capacity = 1,
+    fun `a signal thrown from the wait escapes without spending a permit`() = runTest {
+        val p = ActionPacer(
+            permitsPerWindow = 1,
             clock = { now },
             sleep = { throw StopSignal() },
         )
+        p.acquire()   // spends the only permit
 
-        // Drains the single token, so the next call has to wait.
-        pacer.acquire()
+        assertThrows(StopSignal::class.java) { runBlocking { p.acquire() } }
 
-        assertThrows(StopSignal::class.java) { runBlocking { pacer.acquire() } }
-
-        // The interrupted wait took nothing: once the bucket refills on its own
-        // schedule, exactly one token is there -- not zero.
-        now += 60_000L / 12
-        pacer.acquire()
+        // The interrupted wait took nothing: once the window turns over, the
+        // whole allowance is there.
+        now += ActionPacer.WINDOW_MS
+        p.acquire()
     }
 }

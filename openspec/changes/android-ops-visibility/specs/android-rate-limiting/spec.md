@@ -19,17 +19,47 @@ it, which is why a stop there waits out the cooldown.
 
 #### Scenario: An abandoned wait costs no budget
 
-- **GIVEN** a bucket with no tokens, so the next `acquire()` must wait
+- **GIVEN** a spent window, so the next `acquire()` must wait
 - **WHEN** the sleep raises a stop signal and the run ends
-- **THEN** the bucket refills on its ordinary schedule and the next run finds the
-  token it would have found had the abandoned call never happened
+- **THEN** the window turns over on its ordinary schedule and the next run finds
+  the whole allowance it would have found had the abandoned call never happened
 
 #### Scenario: The remaining wait is published while it counts down
 
-- **WHEN** a caller is waiting for the rate limit, whether for the bucket's own
-  turn (~5s at 12/min) or a 429 penalty
+- **WHEN** a caller is waiting for the rate limit, whether because the window is
+  spent or because a request was rejected
 - **THEN** the milliseconds remaining are observable once a second by the
   notification and by any screen showing the run
+
+### Requirement: Mutations are paced as a fixed window, and every wait is a whole one
+
+The limit SHALL be enforced as 12 actions per 61-second window, spent as fast as
+they go and then waited out in full — not as a leaky bucket returning one permit
+every 5s.
+
+`Retry-After` SHALL be ignored. The header describes the remainder of a window
+whose start the client cannot see, so honouring it produced cooldowns of 23 and
+24 seconds that placed the next burst back inside the same window and tripped
+the limit again. A rejection SHALL cost one whole fresh window, and the window
+SHALL be treated as beginning when that penalty ends.
+
+61 seconds rather than 60: landing exactly on the boundary races the server's own
+bookkeeping. The extension pads for the same reason (`background.js:639` waits
+62s).
+
+Binds the Android client. The extension does not pace proactively at all.
+
+#### Scenario: A spent window waits out the whole minute
+
+- **GIVEN** twelve actions already performed in the current window
+- **WHEN** a thirteenth is requested
+- **THEN** the caller waits the full 61 seconds, not a fraction of it
+
+#### Scenario: A rejection costs a full window whatever the header says
+
+- **WHEN** the server rejects a request with `Retry-After: 23`
+- **THEN** the cooldown is 61 seconds, and the next window is counted from its
+  end
 
 ### Requirement: A whole-run ETA is not derived from the rate limit
 

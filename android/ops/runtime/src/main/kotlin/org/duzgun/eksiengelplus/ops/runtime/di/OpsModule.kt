@@ -71,20 +71,18 @@ object OpsModule {
             private val prefs = context.getSharedPreferences("pacer", Context.MODE_PRIVATE)
 
             override fun load(): PacerSnapshot? {
-                if (!prefs.contains("tokens")) return null
+                if (!prefs.contains("windowStartedAt")) return null
                 return PacerSnapshot(
-                    tokens = prefs.getFloat("tokens", 0f).toDouble(),
-                    lastRefillAt = prefs.getLong("lastRefillAt", 0),
-                    intervalMs = prefs.getLong("intervalMs", 5_000),
+                    windowStartedAt = prefs.getLong("windowStartedAt", 0),
+                    usedInWindow = prefs.getInt("usedInWindow", 0),
                     blockedUntil = prefs.getLong("blockedUntil", 0),
                 )
             }
 
             override fun save(snapshot: PacerSnapshot) {
                 prefs.edit()
-                    .putFloat("tokens", snapshot.tokens.toFloat())
-                    .putLong("lastRefillAt", snapshot.lastRefillAt)
-                    .putLong("intervalMs", snapshot.intervalMs)
+                    .putLong("windowStartedAt", snapshot.windowStartedAt)
+                    .putInt("usedInWindow", snapshot.usedInWindow)
                     .putLong("blockedUntil", snapshot.blockedUntil)
                     .apply()
             }

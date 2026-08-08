@@ -206,7 +206,7 @@ class HarnessActivity : AppCompatActivity() {
             val readPacer = org.duzgun.eksiengelplus.ops.engine.ReadPacer(
                 sleep = { kotlinx.coroutines.delay(it) },
             )
-            out("pacer configured at ${org.duzgun.eksiengelplus.ops.engine.ActionPacer.DEFAULT_PERMITS_PER_MINUTE}/min")
+            out("pacer allows ${org.duzgun.eksiengelplus.ops.engine.ActionPacer.DEFAULT_PERMITS_PER_WINDOW} actions per ${org.duzgun.eksiengelplus.ops.engine.ActionPacer.WINDOW_MS / 1000}s window")
 
             if (!realMutations) {
                 // Prove pacing without touching anyone: 13 permits from a 12-token

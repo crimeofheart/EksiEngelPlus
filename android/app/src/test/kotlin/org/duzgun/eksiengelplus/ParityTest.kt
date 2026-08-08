@@ -1,0 +1,158 @@
+package org.duzgun.eksiengelplus
+
+import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
+import java.io.File
+import org.junit.Test
+
+/**
+ * Parity with the extension, checked against the extension.
+ *
+ * The app and the extension share a backend and a user, so a setting that
+ * differs or a source that is missing is a real divergence rather than a
+ * cosmetic one -- and both have happened: enableMute and
+ * enableProtectFollowedUsers shipped false here while config.js had them true,
+ * and OpsModule returned null for six of the fourteen ban sources.
+ *
+ * These read the extension's own files, so the extension changing is what makes
+ * them fail. A hand-maintained list would drift exactly like the code did.
+ */
+class ParityTest {
+
+    private val repo = File("../..").canonicalFile
+    private fun read(path: String) = File(repo, path).readText()
+
+    // ------------------------------------------------------------- settings
+
+    /** Every default in config.js, as name to literal. */
+    private fun extensionDefaults(): Map<String, String> =
+        Regex(""""(\w+)"\s*:\s*(true|false)""")
+            .findAll(read("frontend/app/assets/js/config.js"))
+            .associate { it.groupValues[1] to it.groupValues[2] }
+
+    private fun androidDefaults(): Map<String, String> =
+        Regex("""val\s+(\w+)\s*:\s*Boolean\s*=\s*(true|false)""")
+            .findAll(read("android/core/datastore/src/main/kotlin/org/duzgun/eksiengelplus/datastore/Config.kt"))
+            .associate { it.groupValues[1] to it.groupValues[2] }
+
+    /**
+     * Settings the app deliberately does not carry.
+     *
+     * Named rather than silently absent, so dropping one is a decision someone
+     * wrote down instead of an omission nobody noticed.
+     */
+    private val notPorted = setOf(
+        "enableLog",     // console logging; the app logs through logcat
+        "logConsole",    // same
+    )
+
+    @Test fun `every extension setting exists here`() {
+        val missing = extensionDefaults().keys - androidDefaults().keys - notPorted
+
+        assertWithMessage("settings in config.js with no EksiConfig field")
+            .that(missing)
+            .isEmpty()
+    }
+
+    @Test fun `and carries the same default`() {
+        val android = androidDefaults()
+        val differing = extensionDefaults()
+            .filterKeys { it in android.keys }
+            .filter { (name, value) -> android[name] != value }
+
+        assertWithMessage("defaults that disagree with config.js")
+            .that(differing)
+            .isEmpty()
+    }
+
+    // ---------------------------------------------------------- ban sources
+
+    @Test fun `every ban source the extension defines is handled`() {
+        val sources = Regex("""(\w+)\s*:\s*\d+""")
+            .findAll(read("frontend/app/assets/js/enums.js").substringAfter("BanSource").substringBefore("}"))
+            .map { it.groupValues[1] }
+            .toSet()
+
+        val factory = read("android/ops/runtime/src/main/kotlin/org/duzgun/eksiengelplus/ops/runtime/di/OpsModule.kt")
+        val unhandled = sources.filterNot { factory.contains("BanSource.$it") }
+
+        assertWithMessage("ban sources with no branch in the task factory")
+            .that(unhandled)
+            .isEmpty()
+    }
+
+    // ------------------------------------------------------- author actions
+
+    @Test fun `the author list offers what the extension's page offers`() {
+        val buttons = Regex("""id="(start\w+)"""")
+            .findAll(read("frontend/app/assets/html/authorListPage.html"))
+            .map { it.groupValues[1] }
+            .toSet()
+
+        // Each extension button maps to a run action in the dialog.
+        val activity = read(
+            "android/feature/lists/src/main/kotlin/org/duzgun/eksiengelplus/feature/lists/AuthorListActivity.kt",
+        )
+        val expected = mapOf(
+            "startBan" to "runBlock",
+            "startUndoban" to "runUnblock",
+            "startFollow" to "runFollow",
+            "startUnfollow" to "runUnfollow",
+            "startUnblockFollow" to "runUnblockFollow",
+            "startUnmuteFollow" to "runUnmuteFollow",
+        )
+
+        val missing = buttons.mapNotNull { expected[it] }.filterNot { activity.contains(it) }
+
+        assertWithMessage("author list actions present in the extension but not here")
+            .that(missing)
+            .isEmpty()
+    }
+
+    // ----------------------------------------------------------- app hygiene
+
+    /**
+     * textAllCaps uppercases with the default locale, and Turkish maps i to İ,
+     * so the platform rendered "işlem" as "IŞLEM".
+     */
+    @Test fun `no layout or style asks the platform to uppercase Turkish`() {
+        val offenders = File(repo, "android").walkTopDown()
+            .filter { it.isFile && it.extension == "xml" && "/build/" !in it.path }
+            .filter { it.readText().contains("textAllCaps\">true") || it.readText().contains("textAllCaps=\"true\"") }
+            .map { it.relativeTo(repo).path }
+            .toList()
+
+        assertThat(offenders).isEmpty()
+    }
+
+    /**
+     * A table nothing writes to is a feature that silently does nothing.
+     *
+     * queued_task, completed_operation and telemetry_outbox each existed for
+     * weeks with no writer: operations were dropped instead of queued, history
+     * was empty by construction, and telemetry never left the device.
+     */
+    @Test fun `every table has a writer and a reader`() {
+        val production = File(repo, "android").walkTopDown()
+            .filter { it.isFile && it.extension == "kt" && "/build/" !in it.path }
+            .filter { "/src/main/" in it.path }
+            .filterNot { "/database/" in it.path }   // the DAOs themselves are not use
+            .joinToString("\n") { it.readText() }
+
+        val accessors = mapOf(
+            "relationUsers" to "relation_user",
+            "listSyncState" to "list_sync_state",
+            "registrationDates" to "registration_date_cache",
+            "queuedTasks" to "queued_task",
+            "checkpoints" to "operation_checkpoint",
+            "completedOperations" to "completed_operation",
+            "authorList" to "author_list",
+        )
+
+        val unused = accessors.filterNot { (accessor, _) -> production.contains("$accessor()") }
+
+        assertWithMessage("tables no production code touches")
+            .that(unused.values)
+            .isEmpty()
+    }
+}

@@ -131,13 +131,27 @@ dependencies {
     implementation(libs.hilt.work)
     ksp(libs.hilt.work.compiler)
 
-    // The wiring tests live here because this is the only module that knows how
-    // the app is actually assembled.
+    // Parity and wiring tests live here because this is the only module that
+    // knows how the app is actually assembled.
+    testImplementation(libs.junit)
+    testImplementation(libs.truth)
+
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.truth)
     androidTestImplementation(libs.work.testing)
+}
+
+/*
+ * The parity tests read the repository directly -- config.js, enums.js, the
+ * layouts -- and Gradle cannot see those as inputs. Left to its own judgement it
+ * reports the task up to date after exactly the edits these tests exist to
+ * catch, which is how a textAllCaps reintroduction passed a scan that was
+ * looking for it.
+ */
+tasks.withType<Test>().configureEach {
+    outputs.upToDateWhen { false }
 }
 
 /** Lets CI assert the derivation without parsing build output. */

@@ -23,6 +23,16 @@ after a reinstall, and cancellation reported to the user as a failed operation.
   wait.
 - The wait itself is counted down, replacing the whole-run ETA — in the
   notification and, via `OperationWaits`, in the İşlem durumu running row.
+- Pacing becomes a fixed window rather than a leaky bucket: 12 actions per 62s,
+  spaced 50ms apart, matching the extension's own constants. `Retry-After` is
+  ignored, and every cooldown is a whole window measured from the moment the
+  allowance runs out — the previous arithmetic produced 61s then 56s, and
+  honouring the header produced 23s and 24s.
+- The İşlem durumu ticks retext the running rows instead of rebuilding them.
+  Rebuilding destroyed Duraklat and Durdur under the user's finger for the
+  length of a cooldown.
+- `resolveId` stops swallowing pause and stop signals; its catch-all was
+  charging the user's Durdur to the target as an unresolvable nick.
 - Both places that announce a run offer a **Göster** action through to İşlem
   durumu; so does the completion notification.
 - The signal guard covers the whole runner loop, not just `ensureActive()`, so a
@@ -60,18 +70,23 @@ than introducing a new capability.
   run, including inside a wait; the queue must drain whenever nothing is live,
   including at startup.
 - `android-rate-limiting`: a wait must be observable and interruptible — the
-  pacer reports how long is left and abandons a wait without spending the token
-  it was waiting for.
+  pacer reports how long is left and abandons a wait without spending the permit
+  it was waiting for; and the limit is enforced as a fixed 12-per-62s window
+  with a 50ms floor between mutations, with no 60-second span of traffic ever
+  exceeding twelve.
 
 ## Impact
 
-- `:ops:engine` — `ActionPacer`/`ReadPacer` sleep contract; `TargetRunner` signal
-  guard and the new `park()`.
+- `:ops:engine` — `ActionPacer` rewritten from a token bucket with AIMD to a
+  fixed window; `ReadPacer` sleep contract; `TargetRunner` signal guard, the new
+  `park()`, and `resolveId` no longer swallowing signals.
 - `:ops:runtime` — `OperationWorker` interruptible sleep and RUNNING marking,
   `OperationWaits` (new), `OpsNotifier` countdown/actions/content intents,
   `OperationReconciler` startup drain.
 - `:core:database` — `checkpoints().setState`.
 - `:feature:lists` — `UiMessage`, `showMessage` (Snackbar), İşlem durumu running
-  row, `OperationsActivity` intent-filter.
+  row and its in-place retexting, `OperationsActivity` intent-filter.
+- `:ops:runtime` persisted pacer snapshot changes shape (tokens and interval give
+  way to window state); the old SharedPreferences keys are simply not read.
 - `:webview` — `bridge.js` restored functions.
 - `frontend/app/` runtime code is **not** touched.

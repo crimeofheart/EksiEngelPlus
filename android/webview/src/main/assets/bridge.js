@@ -509,14 +509,55 @@
     return null;
   }
 
-  /** An anchor shaped like the row's own, rather than a dropdown's list item. */
-  function rowItem(label) {
-    var a = document.createElement("a");
-    a.setAttribute(ITEM_MARK, "true");
-    a.className = "expandable";
-    a.style.cssText = "cursor:pointer;margin-left:8px;white-space:nowrap";
-    a.textContent = label;
-    return a;
+  /**
+   * One entry in the row that opens the pair, rather than two entries.
+   *
+   * Mirrors the shape the site uses beside it -- a wrapper holding a toggle
+   * anchor and a list -- so it sits in the row as one item instead of widening
+   * it with two long labels.
+   */
+  function titleSubmenu(label, options) {
+    var wrap = document.createElement("div");
+    wrap.setAttribute(ITEM_MARK, "true");
+    wrap.style.cssText = "display:inline-block;position:relative";
+
+    var toggle = document.createElement("a");
+    toggle.className = "expandable";
+    toggle.style.cssText = "cursor:pointer;margin-left:8px;white-space:nowrap";
+    toggle.textContent = label;
+
+    var list = document.createElement("ul");
+    list.style.cssText = [
+      "display:none", "position:absolute", "right:0", "top:100%", "z-index:100",
+      "margin:4px 0 0", "padding:6px 0", "list-style:none", "min-width:210px",
+      "background:#fff", "color:#333", "border-radius:4px",
+      "box-shadow:0 2px 10px rgba(0,0,0,0.25)"
+    ].join(";");
+
+    options.forEach(function (opt) {
+      var li = document.createElement("li");
+      var a = document.createElement("a");
+      a.textContent = opt.label;
+      a.style.cssText = "display:block;padding:7px 14px;white-space:nowrap;cursor:pointer";
+      a.onclick = function () {
+        list.style.display = "none";
+        opt.run();
+      };
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+
+    toggle.onclick = function () {
+      list.style.display = list.style.display === "block" ? "none" : "block";
+    };
+    // Any tap elsewhere closes it, the way the site's own menus behave.
+    document.addEventListener("click", function (e) {
+      if (!wrap.contains(e.target)) list.style.display = "none";
+    });
+
+    wrap.appendChild(toggle);
+    wrap.appendChild(list);
+    return wrap;
   }
 
   function injectTitleMenu(container) {
@@ -525,9 +566,6 @@
     var slug = title.getAttribute("data-slug");
     var id = title.getAttribute("data-id");
     if (!slug || !id) return false;
-
-    var last24 = rowItem(muteWord("başlıktakileri engelle (24s)", "başlıktakileri sessize al (24s)"));
-    var all = rowItem(muteWord("başlıktakileri engelle (tümü)", "başlıktakileri sessize al (tümü)"));
 
     function enqueueTitle(spec) {
       enqueue({
@@ -539,19 +577,20 @@
       });
     }
 
-    last24.onclick = function () { enqueueTitle(TimeSpecifier.LAST_24_H); };
-    all.onclick = function () { enqueueTitle(TimeSpecifier.ALL); };
+    var menu = titleSubmenu(muteWord("engelle", "sessize al"), [
+      {
+        label: muteWord("başlıktakileri engelle (24s)", "başlıktakileri sessize al (24s)"),
+        run: function () { enqueueTitle(TimeSpecifier.LAST_24_H); }
+      },
+      {
+        label: muteWord("başlıktakileri engelle (tümü)", "başlıktakileri sessize al (tümü)"),
+        run: function () { enqueueTitle(TimeSpecifier.ALL); }
+      }
+    ]);
 
-    // After takip et and before başlığı açan when the site has rendered them;
-    // appended otherwise, since those two arrive later and only when logged in.
     var anchor = titleRowAnchor(container);
-    if (anchor) {
-      container.insertBefore(last24, anchor);
-      container.insertBefore(all, anchor);
-    } else {
-      container.appendChild(last24);
-      container.appendChild(all);
-    }
+    if (anchor) container.insertBefore(menu, anchor);
+    else container.appendChild(menu);
   }
 
   /**

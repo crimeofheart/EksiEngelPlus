@@ -120,18 +120,33 @@ class ListsActivity : AppCompatActivity() {
             val target: TargetType,
         )
 
-        val actions = listOf(
-            Bulk(R.string.bulk_migrate, ListType.BLOCKED, BanSource.MIGRATE_BLOCKED_TO_MUTED, BanMode.UNDOBAN, TargetType.USER),
-            Bulk(R.string.bulk_block_muted, ListType.MUTED, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER),
-            Bulk(R.string.bulk_block_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.BAN, TargetType.TITLE),
-            Bulk(R.string.bulk_unblock_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.UNDOBAN, TargetType.TITLE),
-            Bulk(R.string.bulk_undoban_all, ListType.BLOCKED, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER),
-            Bulk(R.string.bulk_unmute_all, ListType.MUTED, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE),
-            Bulk(R.string.bulk_date_based, ListType.BLOCKED, BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER),
+        val groups = listOf(
+            R.string.bulk_group_relations to listOf(
+                Bulk(R.string.bulk_migrate, ListType.BLOCKED, BanSource.MIGRATE_BLOCKED_TO_MUTED, BanMode.UNDOBAN, TargetType.USER),
+                Bulk(R.string.bulk_block_muted, ListType.MUTED, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER),
+                Bulk(R.string.bulk_undoban_all, ListType.BLOCKED, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER),
+                Bulk(R.string.bulk_unmute_all, ListType.MUTED, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE),
+            ),
+            R.string.bulk_group_titles to listOf(
+                Bulk(R.string.bulk_block_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.BAN, TargetType.TITLE),
+                Bulk(R.string.bulk_unblock_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.UNDOBAN, TargetType.TITLE),
+            ),
+            R.string.bulk_group_date to listOf(
+                Bulk(R.string.bulk_date_based, ListType.BLOCKED, BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER),
+            ),
         )
 
         val container = findViewById<android.view.ViewGroup>(R.id.bulkActions)
-        for (a in actions) {
+        for ((headingRes, actions) in groups) {
+            container.addView(
+                TextView(this).apply {
+                    text = getString(headingRes)
+                    textSize = 12f
+                    alpha = 0.6f
+                    setPadding(0, (12 * resources.displayMetrics.density).toInt(), 0, 0)
+                },
+            )
+            for (a in actions) {
             val b = com.google.android.material.button.MaterialButton(
                 this,
                 null,
@@ -147,8 +162,9 @@ class ListsActivity : AppCompatActivity() {
                 android.widget.LinearLayout.LayoutParams(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = (4 * resources.displayMetrics.density).toInt() },
-            )
+                    ).apply { topMargin = (4 * resources.displayMetrics.density).toInt() },
+                )
+            }
         }
     }
 

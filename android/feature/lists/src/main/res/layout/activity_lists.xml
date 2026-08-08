@@ -14,6 +14,14 @@
             android:background="#ffd166" android:textColor="#000000"
             android:text="@string/lists_operation_running"/>
 
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/section_lists"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.08" android:alpha="0.75"
+            android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="16dp" android:paddingBottom="2dp"/>
+
         <include android:id="@+id/rowBlocked" layout="@layout/view_list_row"/>
         <include android:id="@+id/rowMuted" layout="@layout/view_list_row"/>
         <include android:id="@+id/rowFollowed" layout="@layout/view_list_row"/>
@@ -32,6 +40,14 @@
             android:orientation="vertical"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:paddingStart="16dp" android:paddingEnd="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/section_other"
+            android:textStyle="bold" android:textSize="13sp"
+            android:letterSpacing="0.08" android:alpha="0.75"
+            android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:paddingTop="20dp" android:paddingBottom="4dp"/>
 
         <View
             android:layout_width="match_parent" android:layout_height="1dp"

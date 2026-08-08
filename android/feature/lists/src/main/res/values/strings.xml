@@ -7,6 +7,11 @@
     <string name="ops_none">yok</string>
     <string name="ops_open">işlemler</string>
     <string name="bulk_title">toplu işlemler</string>
+    <string name="section_lists">listeler</string>
+    <string name="section_other">diğer</string>
+    <string name="bulk_group_relations">engelleme ve sessize alma</string>
+    <string name="bulk_group_titles">başlıklar</string>
+    <string name="bulk_group_date">tarih bazlı</string>
     <string name="bulk_migrate">engelli kullanıcıları sessize al</string>
     <string name="bulk_block_muted">sessiz kullanıcıları engelle</string>
     <string name="bulk_block_titles">engellilerin başlıklarını da engelle</string>

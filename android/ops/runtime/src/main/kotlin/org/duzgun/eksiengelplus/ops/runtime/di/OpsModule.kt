@@ -16,7 +16,7 @@ import org.duzgun.eksiengelplus.ops.engine.FavActionTask
 import org.duzgun.eksiengelplus.ops.engine.FollowActionTask
 import org.duzgun.eksiengelplus.ops.engine.ListActionTask
 import org.duzgun.eksiengelplus.ops.engine.MigrateBlockedToMutedTask
-import org.duzgun.eksiengelplus.ops.engine.PreresolvedListTask
+import org.duzgun.eksiengelplus.ops.engine.RelationListTask
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.OperationTask
 import org.duzgun.eksiengelplus.ops.engine.PacerSnapshot
@@ -25,6 +25,7 @@ import org.duzgun.eksiengelplus.ops.engine.TargetRunner
 import org.duzgun.eksiengelplus.ops.engine.TitleActionTask
 import org.duzgun.eksiengelplus.ops.engine.UndoBanAllTask
 import org.duzgun.eksiengelplus.model.BanSource
+import org.duzgun.eksiengelplus.model.TargetType
 import org.duzgun.eksiengelplus.ops.runtime.InMemoryCommandBus
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommandBus
 import org.duzgun.eksiengelplus.ops.runtime.OperationTaskFactory
@@ -99,13 +100,15 @@ object OpsModule {
                 BanSource.UNDOBANALL -> UndoBanAllTask(runner, scrape)
 
                 // Resolved before the run and carried in the request, like LIST.
-                BanSource.BLOCKED_MUTED_TITLES,
-                BanSource.BLOCK_MUTED_USERS,
-                BanSource.DATE_BASED_BULK,
-                BanSource.UNMUTEALL,
-                -> PreresolvedListTask(request.source, runner)
+                // Which list each reads is part of what the source means.
+                BanSource.BLOCKED_MUTED_TITLES ->
+                    RelationListTask(request.source, TargetType.USER, runner, scrape)
+                BanSource.BLOCK_MUTED_USERS, BanSource.UNMUTEALL ->
+                    RelationListTask(request.source, TargetType.MUTE, runner, scrape)
+                BanSource.DATE_BASED_BULK ->
+                    RelationListTask(request.source, TargetType.USER, runner, scrape)
 
-                BanSource.MIGRATE_BLOCKED_TO_MUTED -> MigrateBlockedToMutedTask(runner)
+                BanSource.MIGRATE_BLOCKED_TO_MUTED -> MigrateBlockedToMutedTask(runner, scrape)
 
                 // Refreshes are ListSyncWorker's job, not an operation: they make
                 // no mutations and must not draw down the foreground budget.

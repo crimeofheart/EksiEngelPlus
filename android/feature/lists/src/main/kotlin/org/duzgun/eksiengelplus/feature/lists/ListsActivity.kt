@@ -164,90 +164,26 @@ class ListsActivity : AppCompatActivity() {
     private fun askBulkAction() {
         data class Bulk(
             val labelRes: Int,
-            val list: ListType,
             val source: BanSource,
             val mode: BanMode,
             val target: TargetType,
         )
 
         val actions = listOf(
-            Bulk(R.string.bulk_migrate, ListType.BLOCKED, BanSource.MIGRATE_BLOCKED_TO_MUTED, BanMode.UNDOBAN, TargetType.USER),
-            Bulk(R.string.bulk_block_muted, ListType.MUTED, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER),
-            Bulk(R.string.bulk_undoban_all, ListType.BLOCKED, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER),
-            Bulk(R.string.bulk_unmute_all, ListType.MUTED, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE),
-            Bulk(R.string.bulk_block_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.BAN, TargetType.TITLE),
-            Bulk(R.string.bulk_unblock_titles, ListType.BLOCKED, BanSource.BLOCKED_MUTED_TITLES, BanMode.UNDOBAN, TargetType.TITLE),
-            Bulk(R.string.bulk_date_based, ListType.BLOCKED, BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER),
+            Bulk(R.string.bulk_migrate, BanSource.MIGRATE_BLOCKED_TO_MUTED, BanMode.UNDOBAN, TargetType.USER),
+            Bulk(R.string.bulk_block_muted, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER),
+            Bulk(R.string.bulk_undoban_all, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER),
+            Bulk(R.string.bulk_unmute_all, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE),
+            Bulk(R.string.bulk_block_titles, BanSource.BLOCKED_MUTED_TITLES, BanMode.BAN, TargetType.TITLE),
+            Bulk(R.string.bulk_unblock_titles, BanSource.BLOCKED_MUTED_TITLES, BanMode.UNDOBAN, TargetType.TITLE),
+            Bulk(R.string.bulk_date_based, BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER),
         )
 
         AlertDialog.Builder(this)
             .setTitle(R.string.bulk_title)
             .setItems(actions.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
                 val a = actions[which]
-                model.runOnList(a.list, a.source, a.mode, a.target)
-            }
-            .setNegativeButton(R.string.author_list_cancel, null)
-            .show()
-    }
-
-    /**
-     * What can be done with a list depends on which list it is.
-     *
-     * Offering "sessizden çıkar" for the blocked list would be an action with no
-     * meaning, so each list shows only its own migrations.
-     */
-    private fun askListAction(listType: ListType) {
-        data class Choice(val labelRes: Int, val run: () -> Unit)
-
-        val choices = when (listType) {
-            ListType.BLOCKED -> listOf(
-                Choice(R.string.lists_run_migrate) {
-                    model.runOnList(
-                        listType,
-                        BanSource.MIGRATE_BLOCKED_TO_MUTED,
-                        BanMode.UNDOBAN,
-                        TargetType.USER,
-                    )
-                },
-                Choice(R.string.lists_run_unblock_all) {
-                    model.runOnList(listType, BanSource.UNDOBANALL, BanMode.UNDOBAN, TargetType.USER)
-                },
-                Choice(R.string.lists_run_titles) {
-                    model.runOnList(
-                        listType,
-                        BanSource.BLOCKED_MUTED_TITLES,
-                        BanMode.BAN,
-                        TargetType.TITLE,
-                    )
-                },
-            )
-            ListType.MUTED -> listOf(
-                Choice(R.string.lists_run_block_muted) {
-                    model.runOnList(listType, BanSource.BLOCK_MUTED_USERS, BanMode.BAN, TargetType.USER)
-                },
-                Choice(R.string.lists_run_unmute_all) {
-                    model.runOnList(listType, BanSource.UNMUTEALL, BanMode.UNDOBAN, TargetType.MUTE)
-                },
-                Choice(R.string.lists_run_titles) {
-                    model.runOnList(
-                        listType,
-                        BanSource.BLOCKED_MUTED_TITLES,
-                        BanMode.BAN,
-                        TargetType.TITLE,
-                    )
-                },
-            )
-            ListType.FOLLOWED -> listOf(
-                Choice(R.string.author_list_mode_unfollow) {
-                    model.runOnList(listType, BanSource.LIST, BanMode.UNDOBAN, TargetType.FOLLOW)
-                },
-            )
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.lists_run_title)
-            .setItems(choices.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
-                choices[which].run()
+                model.runOnList(a.source, a.mode, a.target)
             }
             .setNegativeButton(R.string.author_list_cancel, null)
             .show()

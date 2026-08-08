@@ -197,27 +197,23 @@ class ListsViewModel @Inject constructor(
      * rows in the shared backend and reporting a migration as a list run would
      * make the two clients disagree about what happened.
      */
-    fun runOnList(listType: ListType, source: BanSource, mode: BanMode, targetType: TargetType) {
+    /**
+     * Starts a bulk operation on the account's own list.
+     *
+     * No nicks are passed and no local list is consulted: the task fetches the
+     * list when it runs. Reading our synced copy meant refusing with "list is
+     * empty" whenever the user had not pressed refresh first, which described
+     * our cache rather than their account.
+     */
+    fun runOnList(source: BanSource, mode: BanMode, targetType: TargetType) {
         viewModelScope.launch {
-            val nicks = withContext(Dispatchers.IO) {
-                db.relationUsers().get(listType).map { it.nick }
-            }
-            if (nicks.isEmpty()) {
-                messages.tryEmit(string(R.string.lists_run_empty))
-                return@launch
-            }
             OperationWorker.enqueue(
                 WorkManager.getInstance(getApplication()),
                 db = db,
                 operationId = java.util.UUID.randomUUID().toString(),
-                request = OperationRequest(
-                    source = source,
-                    mode = mode,
-                    targetType = targetType,
-                    nicks = nicks,
-                ),
+                request = OperationRequest(source = source, mode = mode, targetType = targetType),
             )
-            messages.tryEmit(string(R.string.lists_run_enqueued, nicks.size))
+            messages.tryEmit(string(R.string.lists_run_started))
         }
     }
 

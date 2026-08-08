@@ -349,20 +349,29 @@ class UndoBanAllTask(
 
 
 /**
- * The sources whose target set is resolved before the run and carried in the
- * request, exactly as LIST is.
+ * The sources that act on a relation list the account actually has.
  *
- * ban_source 7, 9, 12 and 13 differ from each other only in which list they were
- * built from and what the backend should call them -- the work itself is the
- * same loop, so they share it rather than each growing their own copy the way
- * background.js did.
+ * The list is fetched when the run starts, not read from our synced copy. These
+ * are operations on the user's real blocked and muted lists, so requiring a
+ * manual refresh first -- and refusing with "list is empty" when none had
+ * happened -- described our cache rather than their account.
+ *
+ * ban_source 7, 9, 12 and 13 differ only in which list they read and what the
+ * backend should call them, so they share one loop rather than each growing a
+ * copy the way background.js did.
  */
-class PreresolvedListTask(
+class RelationListTask(
     override val source: BanSource,
+    private val listOf: TargetType,
     private val runner: TargetRunner,
+    private val scrape: ScrapeClient,
 ) : OperationTask {
-    override suspend fun run(ctx: OperationContext): OperationOutcome =
-        runner.applyToAll(ctx, ctx.request.nicks.map { Target(it.toEksiSlug(), null) })
+    override suspend fun run(ctx: OperationContext): OperationOutcome {
+        ctx.awaitReadPermit()
+        val page = scrape.allRelations(listOf)
+        val targets = page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) }
+        return runner.applyToAll(ctx, targets, checkpointEvery = 1)
+    }
 }
 
 /**
@@ -372,13 +381,19 @@ class PreresolvedListTask(
  * mute. A user left half-migrated would be in neither state, so the mute only
  * follows a successful unblock.
  */
-class MigrateBlockedToMutedTask(private val runner: TargetRunner) : OperationTask {
+class MigrateBlockedToMutedTask(
+    private val runner: TargetRunner,
+    private val scrape: ScrapeClient,
+) : OperationTask {
     override val source = BanSource.MIGRATE_BLOCKED_TO_MUTED
-    override suspend fun run(ctx: OperationContext): OperationOutcome =
-        runner.applyPairToAll(
+    override suspend fun run(ctx: OperationContext): OperationOutcome {
+        ctx.awaitReadPermit()
+        val page = scrape.allRelations(TargetType.USER)
+        return runner.applyPairToAll(
             ctx,
-            ctx.request.nicks.map { Target(it.toEksiSlug(), null) },
+            page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) },
             first = org.duzgun.eksiengelplus.model.BanMode.UNDOBAN to TargetType.USER,
             second = org.duzgun.eksiengelplus.model.BanMode.BAN to TargetType.MUTE,
         )
+    }
 }

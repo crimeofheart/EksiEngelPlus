@@ -494,85 +494,63 @@
   // ------------------------------------------------------------- injectors
 
   /**
-   * The title's own dropdown, identified by an item only it carries.
+   * The row of controls under a title: şükela, başlıkta ara, takip et,
+   * başlığı açan.
    *
-   * "başlığı açan" appears in the title menu and nowhere else, which is what
-   * separates it from the per-entry menus that share the .dropdown-menu class.
+   * Not a dropdown, which is what three attempts at this got wrong. It is
+   * .sub-title-menu, a row of plain anchors, and most of its items are added by
+   * the site's own script after load -- only şükela is in the served HTML.
    */
-  function isTitleMenu(menu) {
-    // The in-topic options menu is the title menu by identity, whatever it
-    // happens to contain. Requiring "başlığı açan" alone meant a layout without
-    // that item got no title actions at all, rather than getting them elsewhere.
-    if (menu.id === "in-topic-search-options") return true;
-    var text = (menu.textContent || "").toLowerCase();
-    if (text.indexOf("başlığı açan") !== -1) return true;
-    // Failing both, a menu on a page that has a title and offers following it.
-    return !!document.getElementById("title") && text.indexOf("takip et") !== -1;
-  }
-
-  /** The item our two sit above, so they land inside the existing group. */
-  function titleAnchorItem(menu) {
-    var items = menu.querySelectorAll("li");
-    for (var i = 0; i < items.length; i++) {
-      if ((items[i].textContent || "").toLowerCase().indexOf("başlığı açan") !== -1) return items[i];
+  function titleRowAnchor(container) {
+    var kids = container.children;
+    for (var i = 0; i < kids.length; i++) {
+      if ((kids[i].textContent || "").toLowerCase().indexOf("başlığı açan") !== -1) return kids[i];
     }
     return null;
   }
 
-  /**
-   * Title actions, mirroring script.js:184-265.
-   *
-   * Placed in the site's own menu between "takip et" and "başlığı açan" rather
-   * than in a strip of their own: they are title actions, and the menu is where
-   * a user already looks for those.
-   */
-  function injectTitleMenu(menu) {
-    if (!isTitleMenu(menu)) {
-      /*
-       * An empty menu has not been seen yet, only found.
-       *
-       * Ekşi fills these when they are opened, so at scan time there is nothing
-       * to recognise -- and marking it done would mean never looking again once
-       * it filled. "Not ready" keeps it eligible; a populated menu that is
-       * simply not the title menu is marked and left alone.
-       */
-      return menu.childElementCount === 0 ? false : undefined;
-    }
+  /** An anchor shaped like the row's own, rather than a dropdown's list item. */
+  function rowItem(label) {
+    var a = document.createElement("a");
+    a.setAttribute(ITEM_MARK, "true");
+    a.className = "expandable";
+    a.style.cssText = "cursor:pointer;margin-left:8px;white-space:nowrap";
+    a.textContent = label;
+    return a;
+  }
+
+  function injectTitleMenu(container) {
     var title = document.getElementById("title");
     if (!title) return false;
     var slug = title.getAttribute("data-slug");
     var id = title.getAttribute("data-id");
-    if (!slug || !id) return;
+    if (!slug || !id) return false;
 
-    var last24 = item(muteWord("başlıktakileri engelle (24s)", "başlıktakileri sessize al (24s)"), true);
-    var all = item(muteWord("başlıktakileri engelle (tümü)", "başlıktakileri sessize al (tümü)"), true);
+    var last24 = rowItem(muteWord("başlıktakileri engelle (24s)", "başlıktakileri sessize al (24s)"));
+    var all = rowItem(muteWord("başlıktakileri engelle (tümü)", "başlıktakileri sessize al (tümü)"));
 
-    last24.onclick = function () {
+    function enqueueTitle(spec) {
       enqueue({
         banSource: BanSource.TITLE, banMode: BanMode.BAN,
         targetType: CONFIG.enableMute ? TargetType.MUTE : TargetType.USER,
         clickSource: ClickSource.TITLE,
         titleName: slug, titleId: Number(id),
-        timeSpecifier: TimeSpecifier.LAST_24_H
+        timeSpecifier: spec
       });
-    };
-    all.onclick = function () {
-      enqueue({
-        banSource: BanSource.TITLE, banMode: BanMode.BAN,
-        targetType: CONFIG.enableMute ? TargetType.MUTE : TargetType.USER,
-        clickSource: ClickSource.TITLE,
-        titleName: slug, titleId: Number(id),
-        timeSpecifier: TimeSpecifier.ALL
-      });
-    };
+    }
 
-    var anchor = titleAnchorItem(menu);
+    last24.onclick = function () { enqueueTitle(TimeSpecifier.LAST_24_H); };
+    all.onclick = function () { enqueueTitle(TimeSpecifier.ALL); };
+
+    // After takip et and before başlığı açan when the site has rendered them;
+    // appended otherwise, since those two arrive later and only when logged in.
+    var anchor = titleRowAnchor(container);
     if (anchor) {
-      menu.insertBefore(last24, anchor);
-      menu.insertBefore(all, anchor);
+      container.insertBefore(last24, anchor);
+      container.insertBefore(all, anchor);
     } else {
-      menu.appendChild(last24);
-      menu.appendChild(all);
+      container.appendChild(last24);
+      container.appendChild(all);
     }
   }
 
@@ -816,7 +794,7 @@
   }
 
   var injectors = [
-    { selector: "#in-topic-search-options, .dropdown-menu", apply: injectTitleMenu },
+    { selector: ".sub-title-menu", apply: injectTitleMenu },
     { selector: ".dropdown-menu", apply: injectEntryMenu },
     { selector: ".dropdown-menu", apply: injectShareMenu },
     { selector: ".profile-buttons", apply: injectProfile }

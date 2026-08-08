@@ -68,6 +68,11 @@ class SettingsActivity : AppCompatActivity() {
                 { it.enableOnlyRequiredActions },
                 { c, v -> c.copy(enableOnlyRequiredActions = v) },
             ),
+            bind(
+                R.id.switchAnalysis,
+                { it.enableAnalysisBeforeOperation },
+                { c, v -> c.copy(enableAnalysisBeforeOperation = v) },
+            ),
             bind(R.id.switchPremiumIcons, { it.banPremiumIcons }, { c, v -> c.copy(banPremiumIcons = v) }),
             bind(R.id.switchAppPromo, { it.hideAppPromo }, { c, v -> c.copy(hideAppPromo = v) }),
             bind(R.id.switchBlockAds, { it.blockAds }, { c, v -> c.copy(blockAds = v) }),

@@ -15,6 +15,8 @@
     <string name="settings_protect_hint">takip ettiğiniz yazarlar toplu işlemlerin dışında bırakılır</string>
     <string name="settings_only_required">yalnızca gerekli işlemleri yap</string>
     <string name="settings_only_required_hint">zaten uygulanmış olan işlemler tekrar denenmez</string>
+    <string name="settings_analysis">işlemden önce durumu kontrol et</string>
+    <string name="settings_analysis_hint">her yazarın mevcut durumu okunur, gereksiz istek gönderilmez</string>
 
     <string name="settings_group_appearance">görünüm</string>
     <string name="settings_premium_icons">premium rozetlerini gizle</string>

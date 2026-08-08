@@ -12,11 +12,24 @@ class ConfigTest {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
+    /**
+     * Checked against config.js line by line rather than by memory.
+     *
+     * enableMute and enableProtectFollowedUsers were both false here while the
+     * extension shipped them true, and this test asserted the wrong value for
+     * one of them -- so it confirmed the drift instead of catching it.
+     */
     @Test fun `defaults match the extension`() {
         val c = EksiConfig()
         assertThat(c.eksiSozlukUrl).isEqualTo("https://eksisozluk.com")
-        assertThat(c.enableNoobBan).isTrue()      // config.js:29
-        assertThat(c.enableMute).isFalse()
+        assertThat(c.enableNoobBan).isTrue()                  // config.js:29
+        assertThat(c.enableMute).isTrue()                     // config.js:30
+        assertThat(c.enableTitleBan).isFalse()                // config.js:31
+        assertThat(c.enableAnalysisBeforeOperation).isTrue()  // config.js:32
+        assertThat(c.enableOnlyRequiredActions).isFalse()     // config.js:33
+        assertThat(c.enableProtectFollowedUsers).isTrue()     // config.js:34
+        assertThat(c.banPremiumIcons).isFalse()               // config.js:35
+        assertThat(c.enableDateFilter).isFalse()              // config.js:36
         // Deliberate parity with config.js:25-26, not an oversight. Defaulting
         // these off makes the dashboard report the client as near-dead, since
         // nobody enables telemetry by hand. See openspec/specs/android-persistence.

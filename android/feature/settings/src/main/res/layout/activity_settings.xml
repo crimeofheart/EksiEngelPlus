@@ -93,6 +93,19 @@
             android:textSize="12sp" android:alpha="0.6"
             android:paddingBottom="6dp"/>
 
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchAnalysis"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="10dp"
+            android:textSize="15sp"
+            android:text="@string/settings_analysis"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/settings_analysis_hint"
+            android:textSize="12sp" android:alpha="0.6"
+            android:paddingBottom="6dp"/>
+
         <TextView
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_appearance"

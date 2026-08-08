@@ -5,7 +5,9 @@ import kotlinx.serialization.Serializable
 /**
  * Ported from frontend/app/assets/js/config.js.
  *
- * Defaults match the extension EXCEPT the two telemetry flags -- see below. The
+ * Defaults are taken from config.js:25-36 and verified against it, not assumed.
+ * enableMute and enableProtectFollowedUsers were both wrong here until that
+ * check was actually done. The
  * shared API key is deliberately absent: it belongs in BuildConfig, not in a file
  * the user's backup could carry off the device.
  */
@@ -13,11 +15,13 @@ import kotlinx.serialization.Serializable
 data class EksiConfig(
     val eksiSozlukUrl: String = DEFAULT_BASE_URL,
 
-    val enableMute: Boolean = false,
+    val enableMute: Boolean = true,
     val enableTitleBan: Boolean = false,
     val enableNoobBan: Boolean = true,
-    val enableProtectFollowedUsers: Boolean = false,
+    val enableProtectFollowedUsers: Boolean = true,
     val enableOnlyRequiredActions: Boolean = false,
+    /** config.js:32. Checks the existing relation before acting on it. */
+    val enableAnalysisBeforeOperation: Boolean = true,
     val banPremiumIcons: Boolean = false,
 
     /**

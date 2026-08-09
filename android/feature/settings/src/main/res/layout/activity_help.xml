@@ -1,22 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Text and nothing else, on purpose.
+    The site's shell: a green gradient with white cards floating on it.
 
-    faq.html carries screenshots of a browser UI. Ported here they would be
-    pictures of a different program, and they would not scale with the user's
-    font size or read aloud. One TextView of marked-up text does both.
+    Text and nothing else inside them, on purpose. faq.html carries screenshots
+    of a browser UI; ported here they would be pictures of a different program,
+    and they would not scale with the user's font size or read aloud.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:background="@drawable/bg_help_page"
+    android:fillViewport="true"
+    android:clipToPadding="false">
 
-    <TextView
-        android:id="@+id/helpBody"
+    <LinearLayout
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:textSize="15sp"
-        android:lineSpacingMultiplier="1.15"
-        android:textIsSelectable="true"/>
+        android:padding="16dp">
+
+        <!--
+            The app's theme is NoActionBar, so without this the screen arrives
+            with no heading at all. White on the gradient rather than the site's
+            white header card, which would be a card holding one line.
+        -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/help_title"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:paddingBottom="16dp"/>
+
+        <LinearLayout
+            android:id="@+id/helpCards"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
 </ScrollView>

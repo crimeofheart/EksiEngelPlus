@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    .feature { background: #f8f9fa; border-radius: 10px; border-left: 4px solid #4CAF50 }
+
+    Two layers: the accent painted across the whole shape, then the fill laid
+    over it from 4dp in. What is left showing is a 4dp strip down the left edge,
+    which is what the site's border-left comes to.
+
+    A stroke would have been the obvious tool and is the wrong one, because it
+    goes all the way round and the site's border is on one edge.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <solid android:color="@color/help_green"/>
+            <corners android:radius="10dp"/>
+        </shape>
+    </item>
+    <item android:left="4dp">
+        <shape>
+            <solid android:color="@color/help_note_bg"/>
+            <corners android:radius="10dp"/>
+        </shape>
+    </item>
+</layer-list>

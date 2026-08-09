@@ -63,43 +63,60 @@
     <string name="notes_version">sürüm %1$s</string>
     <string name="notes_dismiss">tamam</string>
 
-    <string name="help_body"><![CDATA[
-<h3>Ekşi Sözlük üzerinden</h3>
-<p>Uygulama Ekşi Sözlük\'ü kendi içinde açar ve sayfadaki menülere kendi maddelerini ekler.</p>
-<ul>
-<li><b>Entry menüsü</b> — yazarı engelle, favlayanları engelle, takipçilerini engelle.</li>
-<li><b>Yazar sayfası</b> — engelle, başlıklarını engelle, takipçilerini engelle.</li>
-<li><b>Başlık menüsü</b> — başlıktakileri engelle (son 24 saat veya tümü).</li>
-</ul>
-<p>Ayarlarda <b>engellemek yerine sessize al</b> açıksa bu maddeler engelleme yerine sessize alma yapar ve menüdeki yazı da buna göre değişir.</p>
+    <!--
+        One card per section, mirroring the site's .card blocks.
 
-<h3>İşlem durumu</h3>
-<p>Devam eden işlem bir bildirimle gösterilir. Bildirimden veya işlem durumu ekranından duraklatabilir, kaldığı yerden devam ettirebilir veya durdurabilirsiniz. Duraklatılan bir işlem uygulama kapansa da kaybolmaz; kaldığı yerden sürer.</p>
-<p>Ekşi Sözlük dakikada sınırlı sayıda işleme izin verir. Uygulama bu sınırın altında kalacak hızda çalışır, sınıra takılırsa bekler ve kendiliğinden devam eder.</p>
-
-<h3>Listeler</h3>
-<ul>
-<li><b>Engellenenler, sessize alınanlar, takip edilenler</b> — her biri yenilenebilir ve CSV olarak dışa aktarılabilir. CSV kayıt tarihlerini de içerir.</li>
-<li><b>Toplu işlemler</b> — engellileri sessize al, sessizleri engelle, başlık engellerini kur veya kaldır, tüm engelleri kaldır, tüm sessizleri kaldır.</li>
-<li>Bir liste üzerinde toplu işlem yapmadan önce listeyi yenilemek gerekir; işlem elinizdeki liste üzerinden yürür.</li>
-</ul>
-
-<h3>Yazar listesi</h3>
-<p>Kendi listenizi yazabilir veya bir CSV yükleyebilirsiniz. Her satır bir nick.</p>
-<ul>
-<li>CSV biçimi: <tt>Username,RegistrationDate</tt>. Yalnızca <tt>Username</tt> içeren eski biçim de kabul edilir.</li>
-<li>Kayıt tarihi <tt>YYYY-MM-DD</tt> olmalıdır, örneğin <tt>2018-12-01</tt>.</li>
-<li>İçe aktarma sonunda kaç satır okundu, kaçı tekrar eden nickti ve kaçı listeye girdi ayrı ayrı bildirilir.</li>
-</ul>
-<p>Liste üzerinde engelle, engel kaldır, takip et, engel kaldır ve takip et, sessizden çıkar ve takip et işlemleri yapılabilir.</p>
-
-<h3>Tarih filtresi</h3>
-<p>Kurallar yazarın Ekşi Sözlük\'e kayıt tarihine bakar ve bir işlemin kime dokunacağını daraltır.</p>
-<p><b>Bu uygulamada tarih filtresi varsayılan olarak açıktır ve tarayıcı eklentisinden farklı çalışır.</b> Burada <i>açık olan her kural</i> geçilmelidir; bir kurala bile uymayan yazar işleme alınmaz. Eklentide ise hiçbir kurala uymayan yazar yine de işleme girer. Aynı kural listesi iki tarafta farklı sonuç verir; eklentideki alışkanlığınıza göre değil, buradaki davranışa göre kurun.</p>
-<p>Varsayılan kural on yıldan yeni hesapları kapsar, yani on yıldan eski hesaplara dokunulmaz. İstemiyorsanız kuralı kapatabilir veya silebilirsiniz.</p>
-<p>Kayıt tarihi bilinmeyen bir yazar işleme <b>alınmaz</b>. Tarih bilinmiyorsa uygulama işlem sırasında yazarın sayfasından okur ve 30 gün önbellekte tutar. Bu okuma işlem hakkınızı harcamaz.</p>
-
-<h3>Depolama</h3>
-<p>Ayarların altında önbelleğin kaç kayıt tuttuğu, kaçının süresinin dolduğu ve veritabanının boyutu görünür. Önbelleği temizlemek güvenlidir; tarihler gerektiğinde yeniden okunur. <b>Verileri temizle</b> ise listeleri, yazar listesini ve işlem geçmişini siler — ayarlarınıza dokunmaz ve devam eden bir işlem varken çalışmaz.</p>
+        Bullets are literal "•" with <br> rather than <ul><li>: Html.fromHtml
+        renders list markup differently across API levels and drops the marker
+        on some, which would leave a run-on paragraph where a list was meant.
+    -->
+    <string name="help_browsing_title">Ekşi Sözlük üzerinden</string>
+    <string name="help_browsing_body"><![CDATA[
+Uygulama Ekşi Sözlük\'ü kendi içinde açar ve sayfadaki menülere kendi maddelerini ekler.<br><br>
+• <b>Entry menüsü</b> — yazarı engelle, favlayanları engelle, takipçilerini engelle.<br>
+• <b>Yazar sayfası</b> — engelle, başlıklarını engelle, takipçilerini engelle.<br>
+• <b>Başlık menüsü</b> — başlıktakileri engelle (son 24 saat veya tümü).<br><br>
+Ayarlarda <b>engellemek yerine sessize al</b> açıksa bu maddeler engelleme yerine sessize alma yapar ve menüdeki yazı da buna göre değişir.
 ]]></string>
+
+    <string name="help_operations_title">İşlem durumu</string>
+    <string name="help_operations_body"><![CDATA[
+Devam eden işlem bir bildirimle gösterilir. Bildirimden veya işlem durumu ekranından duraklatabilir, kaldığı yerden devam ettirebilir veya durdurabilirsiniz. Duraklatılan bir işlem uygulama kapansa da kaybolmaz; kaldığı yerden sürer.
+]]></string>
+    <string name="help_operations_note"><![CDATA[
+Ekşi Sözlük dakikada sınırlı sayıda işleme izin verir. Uygulama bu sınırın altında kalacak hızda çalışır, sınıra takılırsa bekler ve kendiliğinden devam eder. Bu yüzden büyük bir liste beklediğinizden uzun sürebilir.
+]]></string>
+
+    <string name="help_lists_title">Listeler</string>
+    <string name="help_lists_body"><![CDATA[
+• <b>Engellenenler, sessize alınanlar, takip edilenler</b> — her biri yenilenebilir ve CSV olarak dışa aktarılabilir. CSV kayıt tarihlerini de içerir.<br>
+• <b>Toplu işlemler</b> — engellileri sessize al, sessizleri engelle, başlık engellerini kur veya kaldır, tüm engelleri kaldır, tüm sessizleri kaldır.<br><br>
+Bir liste üzerinde toplu işlem yapmadan önce listeyi yenilemek gerekir; işlem elinizdeki liste üzerinden yürür.
+]]></string>
+
+    <string name="help_author_list_title">Yazar listesi</string>
+    <string name="help_author_list_body"><![CDATA[
+Kendi listenizi yazabilir veya bir CSV yükleyebilirsiniz. Her satır bir nick.<br><br>
+• CSV biçimi: <tt>Username,RegistrationDate</tt>. Yalnızca <tt>Username</tt> içeren eski biçim de kabul edilir.<br>
+• Kayıt tarihi <tt>YYYY-MM-DD</tt> olmalıdır, örneğin <tt>2018-12-01</tt>.<br>
+• İçe aktarma sonunda kaç satır okundu, kaçı tekrar eden nickti ve kaçı listeye girdi ayrı ayrı bildirilir.<br><br>
+Liste üzerinde engelle, engel kaldır, takip et, engel kaldır ve takip et, sessizden çıkar ve takip et işlemleri yapılabilir.
+]]></string>
+
+    <string name="help_date_filter_title">Tarih filtresi</string>
+    <string name="help_date_filter_body"><![CDATA[
+Kurallar yazarın Ekşi Sözlük\'e kayıt tarihine bakar ve bir işlemin kime dokunacağını daraltır.<br><br>
+Varsayılan kural on yıldan yeni hesapları kapsar, yani on yıldan eski hesaplara dokunulmaz. İstemiyorsanız kuralı kapatabilir veya silebilirsiniz.<br><br>
+Kayıt tarihi bilinmeyen bir yazar işleme <b>alınmaz</b>. Tarih bilinmiyorsa uygulama işlem sırasında yazarın sayfasından okur ve 30 gün önbellekte tutar. Bu okuma işlem hakkınızı harcamaz.
+]]></string>
+    <string name="help_date_filter_note"><![CDATA[
+<b>Tarayıcı eklentisinden farklı çalışır.</b> Burada tarih filtresi varsayılan olarak açıktır ve <i>açık olan her kural</i> geçilmelidir; bir kurala bile uymayan yazar işleme alınmaz. Eklentide ise hiçbir kurala uymayan yazar yine de işleme girer. Aynı kural listesi iki tarafta farklı sonuç verir; eklentideki alışkanlığınıza göre değil, buradaki davranışa göre kurun.
+]]></string>
+
+    <string name="help_storage_title">Depolama</string>
+    <string name="help_storage_body"><![CDATA[
+Ayarların altında önbelleğin kaç kayıt tuttuğu, kaçının süresinin dolduğu ve veritabanının boyutu görünür. Önbelleği temizlemek güvenlidir; tarihler gerektiğinde yeniden okunur.<br><br>
+<b>Verileri temizle</b> ise listeleri, yazar listesini ve işlem geçmişini siler — ayarlarınıza dokunmaz ve devam eden bir işlem varken çalışmaz.
+]]></string>
+
 </resources>

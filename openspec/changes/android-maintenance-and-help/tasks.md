@@ -23,6 +23,9 @@
 - [x] 3.3 Cover: acting from the browsing UI, the lists screen, bulk operations, the date filter and its rules, the author list and its CSV format
 - [x] 3.4 State the date-filter divergence explicitly — on by default here, and every enabled rule must pass
 - [x] 3.5 All copy in `strings.xml`, no screenshots, text that scales
+- [x] 3.7 Style it like `eksiengelplus.duzgun.org` — green gradient ground, white cards, headings in `#2E7D32` over a `#4CAF50` rule, the site's callout block for the two notes. Palette read from the site's stylesheet, not sampled from a screenshot.
+- [x] 3.8 Split the guide into per-section strings and inflate a repeated card, so the card's metrics live in one layout
+- [x] 3.9 Give the screen its own heading — the app's theme is `NoActionBar`, so it arrived with none
 - [x] 3.6 Declare the activity in the module manifest — a screen reached by intent and declared nowhere is the exact defect `android-device-hardening` was written for
 
 ## 4. Release notes

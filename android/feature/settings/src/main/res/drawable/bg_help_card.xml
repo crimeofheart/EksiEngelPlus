@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- .card { background: rgba(255,255,255,0.95); border-radius: 15px } -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/help_card"/>
+    <corners android:radius="15dp"/>
+</shape>

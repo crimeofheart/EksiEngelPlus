@@ -48,6 +48,43 @@ pictures of the wrong program.
 - **WHEN** a documented behaviour differs from the extension's
 - **THEN** the help states the app's behaviour and that it differs
 
+### Requirement: The guide is dressed like the project's own site
+
+The help screen SHALL use the palette and layout of
+`eksiengelplus.duzgun.org`: the green gradient ground, white cards with rounded
+corners, section headings in the dark green over an accent rule, and the site's
+callout block for the notes that need to stand apart.
+
+Colours SHALL be taken from the site's stylesheet rather than sampled from a
+screenshot, and recorded as named resources with that provenance. A palette
+approximated by eye drifts from the thing it is copying at the first redesign,
+and nobody can tell whether a near-miss was a decision.
+
+This screen alone SHALL commit to the site's light palette in both themes. Its
+cards carry their own background and their own text colours, so nothing on it
+depends on the surrounding theme resolving as this screen expects. Every other
+screen stays DayNight — the exception is bought by the screen whose job is to
+look like the documentation, and is not a licence to light-mode anything else.
+
+Sections SHALL be built from a repeated card layout rather than written out one
+by one, so the card's metrics live in one place and adding a section is adding
+its text.
+
+#### Scenario: The screen reads as the project's documentation
+
+- **WHEN** the help screen is opened
+- **THEN** it shows white cards on the site's green gradient, with headings in the site's dark green
+
+#### Scenario: A note that must not be missed
+
+- **WHEN** a section carries a warning, such as the date filter's divergence
+- **THEN** it is rendered in the site's callout block rather than as another paragraph
+
+#### Scenario: The palette is traceable
+
+- **WHEN** a colour on this screen is looked up
+- **THEN** it resolves to a named resource whose value is the site's own
+
 ### Requirement: An upgrading user is told what changed
 
 On the first launch after an install or an upgrade, the app SHALL show the

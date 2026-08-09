@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The site's palette, read from the stylesheet at eksiengelplus.duzgun.org
+    rather than eyeballed from a screenshot.
+
+    Used by the help screen only. It is the one screen whose job is to look like
+    the project's own documentation, so it commits to the site's light palette in
+    both themes: the cards carry their own white background and their own dark
+    text, so nothing here depends on the surrounding theme resolving the way this
+    screen expects. Every other screen stays DayNight.
+-->
+<resources>
+    <color name="help_green">#4CAF50</color>
+    <color name="help_green_dark">#2E7D32</color>
+    <!-- rgba(255,255,255,0.95) as the site writes it. -->
+    <color name="help_card">#F2FFFFFF</color>
+    <color name="help_text">#333333</color>
+    <color name="help_text_muted">#555555</color>
+    <color name="help_note_bg">#F8F9FA</color>
+</resources>

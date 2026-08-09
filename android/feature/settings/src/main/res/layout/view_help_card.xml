@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One .card from the site: white panel, 15dp corners, a heading in the dark
+    green over a 3dp accent rule.
+
+    Inflated per section rather than repeated in the screen's layout, so the
+    card's metrics live in one file and a section is a pair of strings.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="16dp"
+    android:background="@drawable/bg_help_card"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/cardTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="19sp"
+        android:textStyle="bold"
+        android:textColor="@color/help_green_dark"
+        android:paddingBottom="8dp"/>
+
+    <!-- .card h2 { border-bottom: 3px solid #4CAF50 } -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="@color/help_green"
+        android:layout_marginBottom="14dp"/>
+
+    <TextView
+        android:id="@+id/cardBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="15sp"
+        android:textColor="@color/help_text"
+        android:lineSpacingMultiplier="1.6"
+        android:textIsSelectable="true"/>
+
+    <!-- .feature: the callout, shown only for the sections that carry one. -->
+    <TextView
+        android:id="@+id/cardNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_help_note"
+        android:paddingStart="16dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:textSize="14sp"
+        android:textColor="@color/help_text_muted"
+        android:lineSpacingMultiplier="1.5"
+        android:textIsSelectable="true"/>
+</LinearLayout>

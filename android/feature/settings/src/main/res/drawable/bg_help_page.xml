@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- body { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) } -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:type="linear"
+        android:angle="315"
+        android:startColor="@color/help_green"
+        android:endColor="@color/help_green_dark"/>
+</shape>

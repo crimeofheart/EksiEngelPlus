@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Text and nothing else, on purpose.
+
+    faq.html carries screenshots of a browser UI. Ported here they would be
+    pictures of a different program, and they would not scale with the user's
+    font size or read aloud. One TextView of marked-up text does both.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <TextView
+        android:id="@+id/helpBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:textSize="15sp"
+        android:lineSpacingMultiplier="1.15"
+        android:textIsSelectable="true"/>
+</ScrollView>

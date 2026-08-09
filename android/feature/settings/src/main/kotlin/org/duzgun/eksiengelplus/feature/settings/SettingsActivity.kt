@@ -86,6 +86,17 @@ class SettingsActivity : AppCompatActivity() {
         rulesEmpty = findViewById(R.id.rulesEmpty)
         findViewById<android.widget.Button>(R.id.rulesAdd).setOnClickListener { addRule() }
 
+        cacheStats = findViewById(R.id.cacheStats)
+        dbStats = findViewById(R.id.dbStats)
+        findViewById<android.widget.Button>(R.id.clearCache).setOnClickListener { clearCache() }
+        findViewById<android.widget.Button>(R.id.clearData).setOnClickListener { confirmClearData() }
+        findViewById<android.widget.Button>(R.id.openHelp).setOnClickListener {
+            startActivity(android.content.Intent(this, HelpActivity::class.java))
+        }
+        findViewById<android.widget.Button>(R.id.openReleaseNotes).setOnClickListener {
+            startActivity(ReleaseNotesActivity.intent(this, appVersion()))
+        }
+
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 configRepository.config.collect { config ->
@@ -238,6 +249,87 @@ class SettingsActivity : AppCompatActivity() {
             start.dayOfMonth,
         ).show()
     }
+
+    // ----------------------------------------------------------- maintenance
+
+    @Inject lateinit var maintenance: Maintenance
+
+    private lateinit var cacheStats: android.widget.TextView
+    private lateinit var dbStats: android.widget.TextView
+
+    /**
+     * Re-read on every resume rather than observed.
+     *
+     * The numbers change from a worker in another process-lifetime, not from
+     * this screen, and a user only ever compares them before and after pressing
+     * a button. A Flow over three counts would be more machinery than a screen
+     * that is open for ten seconds needs.
+     */
+    override fun onResume() {
+        super.onResume()
+        refreshStats()
+    }
+
+    private fun refreshStats() {
+        lifecycleScope.launch {
+            val stats = maintenance.stats()
+            cacheStats.text = getString(
+                R.string.settings_cache_stats,
+                stats.cacheTotal,
+                stats.cacheExpired,
+            )
+            dbStats.text = getString(
+                R.string.settings_db_stats,
+                android.text.format.Formatter.formatShortFileSize(
+                    this@SettingsActivity,
+                    stats.databaseBytes,
+                ),
+            )
+        }
+    }
+
+    private fun clearCache() {
+        lifecycleScope.launch {
+            maintenance.clearCache()
+            refreshStats()
+            toast(R.string.settings_cache_cleared)
+        }
+    }
+
+    /**
+     * Names what it deletes before it deletes it.
+     *
+     * The refusal is checked again after the confirmation, not only before it:
+     * the dialog can sit open while the user starts a run from the notification.
+     */
+    private fun confirmClearData() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.settings_clear_data_title)
+            .setMessage(R.string.settings_clear_data_body)
+            .setPositiveButton(R.string.settings_clear_data_confirm) { _, _ -> clearData() }
+            .setNegativeButton(R.string.settings_clear_data_cancel, null)
+            .show()
+    }
+
+    private fun clearData() {
+        lifecycleScope.launch {
+            when (maintenance.clearStoredData()) {
+                is Maintenance.ClearResult.Cleared -> {
+                    refreshStats()
+                    toast(R.string.settings_data_cleared)
+                }
+                is Maintenance.ClearResult.RefusedRunning ->
+                    toast(R.string.settings_clear_refused)
+            }
+        }
+    }
+
+    private fun toast(res: Int) =
+        android.widget.Toast.makeText(this, res, android.widget.Toast.LENGTH_SHORT).show()
+
+    private fun appVersion(): String = runCatching {
+        packageManager.getPackageInfo(packageName, 0).versionName
+    }.getOrNull().orEmpty()
 
     private fun bind(
         id: Int,

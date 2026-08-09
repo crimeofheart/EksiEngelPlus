@@ -48,6 +48,7 @@ class BrowserActivity : AppCompatActivity() {
     @Inject lateinit var configRepository: ConfigRepository
     @Inject lateinit var reconciler: OperationReconciler
     @Inject lateinit var db: org.duzgun.eksiengelplus.database.EksiDatabase
+    @Inject lateinit var identityRepository: org.duzgun.eksiengelplus.datastore.IdentityRepository
 
     private lateinit var web: WebView
     private lateinit var sessionBar: TextView
@@ -139,6 +140,7 @@ class BrowserActivity : AppCompatActivity() {
         // Before the config is first read, so a corrected default is what the
         // screens and the engine see rather than the stale stored value.
         lifecycleScope.launch { configRepository.migrate() }
+        showReleaseNotesOnce(savedInstanceState)
         // Drains anything the last run recorded. Inert without a key.
         org.duzgun.eksiengelplus.ops.runtime.TelemetryWorker.enqueue(
             WorkManager.getInstance(applicationContext),
@@ -333,6 +335,34 @@ class BrowserActivity : AppCompatActivity() {
             putExtra(Intent.EXTRA_SUBJECT, title)
         }
         startActivity(Intent.createChooser(send, null))
+    }
+
+    /**
+     * Shows what changed, on the first launch after an install or an upgrade.
+     *
+     * The extension opens welcome.html on both INSTALL and UPDATE
+     * (background.js:1095-1101); an Android user takes an unattended Play update
+     * and would otherwise be told nothing at all.
+     *
+     * Skipped on a recreate -- a rotation is not a launch, and the claim itself
+     * would swallow the notes rather than show them twice. The claim is what
+     * makes it once-per-version, and it is atomic, so two entry points racing
+     * cannot both win.
+     */
+    private fun showReleaseNotesOnce(savedInstanceState: Bundle?) {
+        if (savedInstanceState != null) return
+        val version = runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        }.getOrNull().orEmpty()
+
+        lifecycleScope.launch {
+            if (identityRepository.claimReleaseNotes(version)) {
+                startActivity(
+                    org.duzgun.eksiengelplus.feature.settings.ReleaseNotesActivity
+                        .intent(this@BrowserActivity, version),
+                )
+            }
+        }
     }
 
     private fun enqueue(request: OperationRequest) {

@@ -94,6 +94,33 @@ class IdentityRepository(private val store: DataStore<Identity>) {
     }
 
     /**
+     * Whether the release notes for [version] still need showing, marking them
+     * shown if so.
+     *
+     * Read and write in one `updateData` on purpose. Two launches racing -- the
+     * activity restarting under a configuration change is the ordinary case --
+     * would otherwise both read the old version and both show the notes.
+     *
+     * A fresh install has a blank `lastNotesVersion`, which differs from every
+     * real version, so it sees the notes for what it installed. That is the
+     * extension's behaviour too: background.js:1096 fires on INSTALL as well as
+     * UPDATE.
+     */
+    suspend fun claimReleaseNotes(version: String): Boolean {
+        if (version.isBlank()) return false
+        var claimed = false
+        store.updateData { current ->
+            if (current.lastNotesVersion == version) {
+                current
+            } else {
+                claimed = true
+                current.copy(lastNotesVersion = version)
+            }
+        }
+        return claimed
+    }
+
+    /**
      * Remembers who the user is on Ekşi Sözlük.
      *
      * Overwrites rather than fills a blank: the account behind the WebView

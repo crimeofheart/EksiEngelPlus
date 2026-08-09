@@ -164,6 +164,39 @@ class ParityTest {
      * weeks with no writer: operations were dropped instead of queued, history
      * was empty by construction, and telemetry never left the device.
      */
+    /**
+     * A DAO method nothing calls is a policy nobody enforces.
+     *
+     * `trimExpired` and `size` sat on RegistrationDateCacheDao with no caller
+     * for the cache's whole life. Every read filtered expired rows out, so the
+     * 30-day TTL looked implemented and was in fact only a read filter: nothing
+     * ever deleted a row, and an author list may carry 10,000 nicks. It passed
+     * every test, because the tests called the methods.
+     *
+     * Narrower than "every DAO method", deliberately. Some exist for one caller
+     * that has not been written yet, and a blanket rule here would be answered
+     * by deleting the check rather than by wiring the method.
+     */
+    @Test fun `maintenance methods are reachable from production code`() {
+        val production = File(repo, "android").walkTopDown()
+            .filter { it.isFile && it.extension == "kt" && "/build/" !in it.path }
+            .filter { "/src/main/" in it.path }
+            .filterNot { "/database/" in it.path }   // the declarations themselves
+            .joinToString("\n") { it.readText() }
+
+        val required = listOf(
+            "trimExpired",     // bounds the registration-date cache
+            "expiredCount",    // reports what a prune would delete
+            "liveCount",       // guards destructive maintenance
+        )
+
+        val orphaned = required.filterNot { production.contains("$it(") }
+
+        assertWithMessage("declared but called only from tests")
+            .that(orphaned)
+            .isEmpty()
+    }
+
     @Test fun `every table has a writer and a reader`() {
         val production = File(repo, "android").walkTopDown()
             .filter { it.isFile && it.extension == "kt" && "/build/" !in it.path }

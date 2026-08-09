@@ -5,5 +5,13 @@
             android:name="org.duzgun.eksiengelplus.feature.settings.SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title"/>
+        <activity
+            android:name="org.duzgun.eksiengelplus.feature.settings.HelpActivity"
+            android:exported="false"
+            android:label="@string/help_title"/>
+        <activity
+            android:name="org.duzgun.eksiengelplus.feature.settings.ReleaseNotesActivity"
+            android:exported="false"
+            android:label="@string/notes_title"/>
     </application>
 </manifest>

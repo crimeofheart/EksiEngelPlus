@@ -118,6 +118,26 @@ interface RegistrationDateCacheDao {
 
     @Query("SELECT COUNT(*) FROM registration_date_cache")
     suspend fun size(): Int
+
+    /**
+     * How many rows [trimExpired] would delete, for the same cutoff.
+     *
+     * Shown next to the total in Settings so "temizle" has a visible cost. The
+     * predicate is deliberately the mirror of trimExpired's -- if the two ever
+     * disagree the screen reports a number the button does not act on.
+     */
+    @Query("SELECT COUNT(*) FROM registration_date_cache WHERE fetchedAt < :minFetchedAt")
+    suspend fun expiredCount(minFetchedAt: Long): Int
+
+    /**
+     * Everything, expired or not.
+     *
+     * Safe in a way no other clear here is: the table holds nothing but dates
+     * that can be fetched again, so the worst this costs is one profile read
+     * per nick the next time a date filter runs.
+     */
+    @Query("DELETE FROM registration_date_cache")
+    suspend fun clear()
 }
 
 @Dao

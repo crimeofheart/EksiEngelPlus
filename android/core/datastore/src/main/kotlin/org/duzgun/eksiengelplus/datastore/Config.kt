@@ -219,4 +219,11 @@ data class Identity(
      */
     val eksiNick: String = "",
     val eksiUserId: Long = 0,
+    /**
+     * The version whose release notes have already been shown.
+     *
+     * Blank on a fresh install, which differs from every real version, so a new
+     * install sees the notes for what it installed rather than nothing.
+     */
+    val lastNotesVersion: String = "",
 )

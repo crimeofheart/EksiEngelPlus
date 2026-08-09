@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
+import org.duzgun.eksiengelplus.database.RegistrationDateCacheEntity
 import org.duzgun.eksiengelplus.ops.engine.PauseSignal
 import org.duzgun.eksiengelplus.ops.engine.StopSignal
 import org.duzgun.eksiengelplus.ops.engine.ActionPacer
@@ -282,6 +283,25 @@ class OperationWorker @AssistedInject constructor(
 
         notifier.ensureChannels()
         setForeground(getForegroundInfo())
+
+        /*
+         * Bound the registration-date cache before anything reads it.
+         *
+         * The TTL governed only whether a row was *used*: getFresh filtered
+         * expired rows out of every read while trimExpired sat with no caller at
+         * all, so a nick resolved once stayed on disk for good. An author list
+         * may carry 10,000 of them.
+         *
+         * Here rather than on a schedule, because this is the moment the cache
+         * is about to be used and it costs one DELETE. A periodic job would be
+         * one more thing that can quietly stop running -- which is precisely how
+         * the table got into this state.
+         */
+        runCatching {
+            db.registrationDates().trimExpired(
+                System.currentTimeMillis() - RegistrationDateCacheEntity.TTL_MS,
+            )
+        }
 
         /*
          * The same string the İşlem durumu screen shows for this run.

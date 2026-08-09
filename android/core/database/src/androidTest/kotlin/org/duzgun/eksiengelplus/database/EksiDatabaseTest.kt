@@ -96,6 +96,34 @@ class EksiDatabaseTest {
         assertThat(dao.size()).isEqualTo(1)
     }
 
+    @Test fun expiredCountAgreesWithWhatTrimDeletes() = runTest {
+        // The screen shows one number and the button acts on another if these
+        // two predicates ever drift apart.
+        val dao = db.registrationDates()
+        val now = 1_000_000_000L
+        val cutoff = now - RegistrationDateCacheEntity.TTL_MS
+        dao.upsert(RegistrationDateCacheEntity("fresh", 1, 100, now))
+        dao.upsert(RegistrationDateCacheEntity("stale", 2, 200, cutoff - 1))
+        dao.upsert(RegistrationDateCacheEntity("staler", 3, 300, 0))
+
+        val predicted = dao.expiredCount(cutoff)
+        assertThat(predicted).isEqualTo(2)
+        assertThat(dao.trimExpired(cutoff)).isEqualTo(predicted)
+        // Pruning never costs a refetch: the fresh row is untouched.
+        assertThat(dao.getFresh("fresh", cutoff)).isNotNull()
+        assertThat(dao.size()).isEqualTo(1)
+    }
+
+    @Test fun clearingTheCacheTakesTheFreshRowsToo() = runTest {
+        val dao = db.registrationDates()
+        dao.upsert(RegistrationDateCacheEntity("a", 1, 100, System.currentTimeMillis()))
+        dao.upsert(RegistrationDateCacheEntity("b", 2, 200, System.currentTimeMillis()))
+
+        dao.clear()
+
+        assertThat(dao.size()).isEqualTo(0)
+    }
+
     @Test fun aKnownAbsentRegistrationDateIsStillCached() = runTest {
         // "looked up, genuinely unknown" must not trigger a refetch every run.
         val dao = db.registrationDates()

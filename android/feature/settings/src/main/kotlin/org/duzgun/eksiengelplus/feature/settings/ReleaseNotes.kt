@@ -21,6 +21,9 @@ object ReleaseNotes {
     const val FALLBACK = "Bu sürüm için ayrıntılı not girilmemiş."
 
     private val notes: Map<String, List<String>> = mapOf(
+        "0.1.8" to listOf(
+            "Bir başlıktaki yazarlar taranırken son sayfadan sonrası hata sayılıyor, işlem kimseye dokunmadan yarıda kesiliyordu. Artık son sayfada düzgün duruyor.",
+        ),
         "0.1.7" to listOf(
             "Tarih filtresi artık varsayılan olarak açık: on yıldan eski hesaplara dokunulmuyor.",
             "Kayıt tarihi bilinmeyen yazarlar için tarih, işlem sırasında tek tek çözülüyor.",

@@ -3,6 +3,13 @@
 // `npm run version:patch|minor|major` bumps the version, otherwise the welcome
 // page falls back to a generic line.
 export const releaseNotes = {
+  "0.1.8": [
+    "Bu sürümde eklentide bir değişiklik yok. Android uygulamasında bir başlıktaki yazarlar taranırken son sayfadan sonrası hata sayılıyor ve işlem yarıda kesiliyordu; giderildi."
+  ],
+  "0.1.7": [
+    "Android uygulaması yayında: eklentideki işlemlerin tamamı, listeler ve CSV aktarımı ile birlikte.",
+    "Eklentide bir değişiklik yok."
+  ],
   "0.1.6": [
     "Bu sayfa artık yüklü sürümü ve o sürüme ait notları otomatik gösteriyor."
   ],

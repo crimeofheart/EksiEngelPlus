@@ -142,7 +142,7 @@ class BrowserActivity : AppCompatActivity() {
         // Drains anything the last run recorded. Inert without a key.
         org.duzgun.eksiengelplus.ops.runtime.TelemetryWorker.enqueue(
             WorkManager.getInstance(applicationContext),
-            BuildConfig.TELEMETRY_KEY,
+            org.duzgun.eksiengelplus.ops.runtime.BuildConfig.TELEMETRY_KEY,
         )
 
         lifecycleScope.launch {

@@ -101,6 +101,19 @@ interface OperationContext {
 
     suspend fun publishProgress(progress: OperationProgress)
 
+    /**
+     * Notes a target the run is about to act on, for the action report.
+     *
+     * The backend ranks users by plaintext nick and id (api/views.py:44-65), and
+     * openspec/specs/android-persistence records sending them as a weighed
+     * decision that must not be quietly reversed -- so the engine has to offer
+     * them, since it is the only place that sees a nick and its id together.
+     *
+     * A no-op by default: a context that does not report is unaffected, and the
+     * engine stays ignorant of what reporting is.
+     */
+    suspend fun recordTarget(nick: String, id: Long) {}
+
     /** Waits for a pacer permit before a mutation. */
     suspend fun awaitActionPermit()
 

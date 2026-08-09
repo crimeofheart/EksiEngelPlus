@@ -158,4 +158,15 @@ data class Identity(
     val firstRunAtMillis: Long = 0,
     /** Bumped when the consent copy changes, so consent is re-requested. */
     val consentVersion: Int = 0,
+    /**
+     * Who the user is on Ekşi Sözlük, once resolved.
+     *
+     * Reporting requires it -- the backend keys every action to an
+     * eksi_engel_user -- and resolving it costs a homepage fetch plus a profile
+     * fetch, so it is cached here exactly as commHandler.js caches it in
+     * chrome.storage. Blank means "not resolved yet", which is also what a
+     * logged-out install looks like.
+     */
+    val eksiNick: String = "",
+    val eksiUserId: Long = 0,
 )

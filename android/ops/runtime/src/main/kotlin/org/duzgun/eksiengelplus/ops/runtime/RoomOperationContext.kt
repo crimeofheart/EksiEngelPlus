@@ -228,4 +228,29 @@ class RoomOperationContext(
     }
 
     fun logs(): List<String> = logBuffer.toList()
+
+    /**
+     * Who the run acted on, for the action report.
+     *
+     * Held in memory for the length of the run, as the extension does: it is what
+     * the backend's most_banned rankings are built from, and the alternative --
+     * reporting an empty list -- would make every Android run invisible to them
+     * while still counting as telemetry.
+     *
+     * Capped at the serializer's own limit (api/serializers.py:184). Past that
+     * the whole report is rejected, so keeping more would cost the report rather
+     * than enlarge it.
+     */
+    private val targetBuffer = ArrayList<Pair<String, Long>>()
+
+    override suspend fun recordTarget(nick: String, id: Long) {
+        if (targetBuffer.size >= MAX_REPORTED_TARGETS) return
+        targetBuffer.add(nick to id)
+    }
+
+    fun targets(): List<Pair<String, Long>> = targetBuffer.toList()
+
+    private companion object {
+        const val MAX_REPORTED_TARGETS = 10_000
+    }
 }

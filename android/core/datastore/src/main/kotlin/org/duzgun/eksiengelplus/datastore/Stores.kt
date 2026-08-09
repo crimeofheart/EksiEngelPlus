@@ -83,6 +83,18 @@ class IdentityRepository(private val store: DataStore<Identity>) {
     suspend fun acceptConsent(version: Int) {
         store.updateData { it.copy(consentVersion = version) }
     }
+
+    /**
+     * Remembers who the user is on Ekşi Sözlük.
+     *
+     * Overwrites rather than fills a blank: the account behind the WebView
+     * session can change, and reporting a run against the previous nick would be
+     * worse than not reporting it.
+     */
+    suspend fun rememberEksiUser(nick: String, userId: Long) {
+        if (nick.isBlank()) return
+        store.updateData { it.copy(eksiNick = nick, eksiUserId = userId) }
+    }
 }
 
 object Stores {
@@ -96,6 +108,10 @@ object Stores {
      * otherwise force the dependency onto every module that only wants config.
      */
     fun configRepository(context: Context): ConfigRepository = ConfigRepository(config(context))
+
+    /** As above: the caller gets a repository without having to name DataStore. */
+    fun identityRepository(context: Context): IdentityRepository =
+        IdentityRepository(identity(context))
 
     fun identity(context: Context): DataStore<Identity> = DataStoreFactory.create(
         serializer = JsonSerializer(Identity.serializer(), Identity()),

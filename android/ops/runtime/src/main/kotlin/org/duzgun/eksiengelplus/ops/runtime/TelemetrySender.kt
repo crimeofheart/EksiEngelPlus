@@ -106,7 +106,12 @@ class TelemetryWorker @AssistedInject constructor(
     private fun post(row: TelemetryOutboxEntity, key: String): Boolean {
         val request = Request.Builder()
             .url(row.endpoint)
-            .addHeader("Authorization", key)
+            // X-API-Key, not Authorization. SharedAPIKeyAuthentication reads
+            // HTTP_X_API_KEY and raises "X-API-Key header required" for anything
+            // else, so every post this worker made was a 401 -- and a 401 is not
+            // isSuccessful, so each report was retried five times and abandoned.
+            .addHeader("X-API-Key", key)
+            .addHeader("Accept", "application/json")
             .post(row.bodyJson.toRequestBody(JSON))
             .build()
         return http.newCall(request).execute().use { it.isSuccessful }

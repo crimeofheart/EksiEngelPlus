@@ -229,3 +229,51 @@ Binds the Android client.
 
 - **WHEN** tüm engelleri kaldırma runs, or a list of forty names
 - **THEN** the row reads `tüm engelleri kaldırma` with nothing in brackets
+
+### Requirement: A finished run is reported to the backend
+
+The app SHALL post every completed and stopped run to `POST /api/action/` in the
+payload shape `commHandler.js` uses — `{"action": {...}, "action_config": {...}}`
+— authenticated with the `X-API-Key` header, so the endpoint needs no branch for
+which client is calling.
+
+The report SHALL carry the user's Ekşi identity as `eksi_engel_user`. The
+serializer keys every record to one and rejects a report without it, so a run
+that cannot be attributed SHALL be dropped rather than sent. Identity is resolved
+once from the homepage and profile and cached, as `scrapingHandler.js:73-104`
+caches it.
+
+The report SHALL name its origin as `client: "ANDROID"`. Neither the payload nor
+the user agent distinguished the app from the extension — the WebView reports a
+mobile Chrome UA — so the server had no way to tell them apart.
+
+The shared API key SHALL be a build-time constant with an env override, not a
+value read at runtime from a source no caller populates.
+
+`author_list` SHALL carry every target the run acted on, matching the decision
+recorded in `android-persistence`. Only the slice a single worker ran is
+reported: the buffer does not survive process death, and persisting targets for
+the sake of a report would cost more than the report is worth.
+
+Binds the Android client and the Django backend.
+
+#### Scenario: A completed run reaches the server against the user's account
+
+- **WHEN** a run finishes with `sendData` on and a resolved identity
+- **THEN** the action appears on the server keyed to that Ekşi user, with the
+  run's planned, performed and successful counts
+
+#### Scenario: An app run is distinguishable from an extension run
+
+- **WHEN** the app and the extension both report
+- **THEN** the rows differ by `client`, and the admin can filter on it
+
+#### Scenario: A logged-out install reports nothing rather than something wrong
+
+- **WHEN** a run finishes but the identity cannot be resolved
+- **THEN** no report is written, rather than one filed against an empty user
+
+#### Scenario: The extension's payload is unaffected
+
+- **WHEN** the shipped extension posts its existing body, with no `client` field
+- **THEN** it validates as before and is recorded as `EXTENSION`

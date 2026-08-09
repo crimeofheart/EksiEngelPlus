@@ -50,14 +50,23 @@ class OperationWorker @AssistedInject constructor(
     private val taskFactory: OperationTaskFactory,
     private val pacerState: PacerStateStore,
     private val configRepository: org.duzgun.eksiengelplus.datastore.ConfigRepository,
+    private val identityRepository: org.duzgun.eksiengelplus.datastore.IdentityRepository,
+    private val scrape: org.duzgun.eksiengelplus.eksi.client.ScrapeClient,
 ) : CoroutineWorker(appContext, params) {
 
-    /** Supplied by the build; blank in a developer build, which then never posts. */
+    /*
+     * Input data first, BuildConfig second.
+     *
+     * The input-data path exists so a test can point the worker at a local
+     * server. It used to be the ONLY path, and nothing anywhere put the keys
+     * into a Data.Builder -- so the key was unconditionally blank, and every
+     * report was dropped before it was written. A build-time default is what
+     * makes reporting actually happen.
+     */
     private val telemetryKey: String
-        get() = inputData.getString(KEY_TELEMETRY_KEY).orEmpty()
+        get() = inputData.getString(KEY_TELEMETRY_KEY) ?: BuildConfig.TELEMETRY_KEY
     private val telemetryUrl: String
-        get() = inputData.getString(KEY_TELEMETRY_URL)
-            ?: "https://eksiengelplus.duzgun.org/api/action/"
+        get() = inputData.getString(KEY_TELEMETRY_URL) ?: BuildConfig.TELEMETRY_URL
 
     companion object {
         /**
@@ -449,7 +458,7 @@ class OperationWorker @AssistedInject constructor(
             OperationOutcome.COMPLETED -> {
                 recordState(OperationState.COMPLETED)
                 val done = db.checkpoints().get(operationId)
-                archive(request)
+                archive(request, ctx.logs(), ctx.targets())
 
                 /*
                  * One run finishing is not everything finishing.
@@ -499,7 +508,7 @@ class OperationWorker @AssistedInject constructor(
                 Result.success()
             }
             OperationOutcome.STOPPED -> {
-                archive(request)
+                archive(request, ctx.logs(), ctx.targets())
                 startNextQueued()
                 // recordState only writes if the row is still there, so a run
                 // stopped by cancellation stays deleted rather than coming back
@@ -555,7 +564,11 @@ class OperationWorker @AssistedInject constructor(
      * leave the run in two places, and the live count that gates refresh and
      * queueing reads that table.
      */
-    private suspend fun archive(request: OperationRequest) {
+    private suspend fun archive(
+        request: OperationRequest,
+        logLines: List<String>,
+        targets: List<Pair<String, Long>>,
+    ) {
         val cp = db.checkpoints().get(operationId) ?: return
         db.completedOperations().insert(
             org.duzgun.eksiengelplus.database.CompletedOperationEntity(
@@ -577,32 +590,82 @@ class OperationWorker @AssistedInject constructor(
         db.completedOperations().trim()
 
         /*
-         * Reported in the extension's own shape (commHandler.js:47-93), so the
-         * backend cannot tell the two clients apart, and only with consent.
+         * Reported in the extension's own shape (commHandler.js:47-113), so the
+         * backend needs no Android branch, and only with consent.
          *
          * Written to the outbox rather than posted here: a report must never be
          * able to fail the run that produced it.
          */
         val config = configRepository.config.first()
+        if (!config.sendData) return
+
+        // Who the user is on Ekşi. The backend keys every action to one, so a run
+        // reported without it is rejected outright rather than filed anonymously.
+        val me = resolveEksiUser()
+        if (me == null) {
+            // Logged out, or the homepage did not parse. Dropping the report is
+            // the only honest option: a run cannot be attributed to a guess.
+            return
+        }
+
         TelemetryReporter(db, endpoint = telemetryUrl, apiKey = telemetryKey).record(
-            sendData = config.sendData,
-            bodyJson = Json.encodeToString(
-                kotlinx.serialization.json.JsonObject.serializer(),
-                kotlinx.serialization.json.buildJsonObject {
-                    put("ban_source", kotlinx.serialization.json.JsonPrimitive(request.source.pk))
-                    put("ban_mode", kotlinx.serialization.json.JsonPrimitive(request.mode.pk))
-                    put("target_type", kotlinx.serialization.json.JsonPrimitive(request.targetType.pk))
-                    put("planned_action", kotlinx.serialization.json.JsonPrimitive(cp.total))
-                    put("performed_action", kotlinx.serialization.json.JsonPrimitive(cp.processed))
-                    put("successful_action", kotlinx.serialization.json.JsonPrimitive(cp.successful))
-                    put("author_list_size", kotlinx.serialization.json.JsonPrimitive(request.nicks.size))
-                    put("is_early_stopped", kotlinx.serialization.json.JsonPrimitive(cp.processed < cp.total))
-                },
+            sendData = true,
+            bodyJson = ActionReport.body(
+                request = request,
+                config = config,
+                nick = me.first,
+                userId = me.second,
+                version = appVersion(),
+                userAgent = userAgent(),
+                plannedAction = cp.total,
+                performedAction = cp.processed,
+                successfulAction = cp.successful,
+                isEarlyStopped = cp.processed < cp.total,
+                logLines = logLines,
+                targets = targets,
             ),
             now = System.currentTimeMillis(),
         )
         TelemetryWorker.enqueue(WorkManager.getInstance(applicationContext), telemetryKey)
     }
+
+    /**
+     * The user's nick and id, cached after the first resolution.
+     *
+     * Two page fetches -- the homepage for the nick, the profile for the id --
+     * which is why it is not repeated per run. Re-resolved whenever the cache is
+     * empty, so logging in after installing eventually fills it without any
+     * explicit "sign in" step, exactly as the extension does
+     * (scrapingHandler.js:73-104).
+     *
+     * These reads go through the pacer's read budget nowhere, because they happen
+     * after the run is over and cost two requests at most, once.
+     */
+    private suspend fun resolveEksiUser(): Pair<String, Long>? {
+        val cached = identityRepository.identity.first()
+        if (cached.eksiNick.isNotBlank() && cached.eksiUserId > 0) {
+            return cached.eksiNick to cached.eksiUserId
+        }
+
+        val nick = runCatching { scrape.ownNick() }.getOrNull()?.takeIf { it.isNotBlank() }
+            ?: return null
+        val id = runCatching { scrape.authorProfile(nick).authorId }.getOrNull()
+            ?.takeIf { it > 0 }
+            ?: return null
+
+        identityRepository.rememberEksiUser(nick, id)
+        return nick to id
+    }
+
+    /** Both of these back model columns declared blank=False, so neither may be empty. */
+    private fun appVersion(): String = runCatching {
+        applicationContext.packageManager
+            .getPackageInfo(applicationContext.packageName, 0)
+            .versionName
+    }.getOrNull().orEmpty().ifBlank { "unknown" }
+
+    private fun userAgent(): String =
+        System.getProperty("http.agent").orEmpty().ifBlank { "Android" }
 
     /**
      * Starts whatever was waiting behind this run.

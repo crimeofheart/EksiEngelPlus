@@ -82,6 +82,10 @@ class TargetRunner(
                 i++
                 continue
             }
+            // Attempted, which is exactly what the extension reports: it builds
+            // author_list from the planned list minus everyone whose id came back
+            // 0 -- the same set that reaches here.
+            ctx.recordTarget(target.nick, id)
 
             when (val outcome = performWithRetry(ctx, mode, targetType, id)) {
                 is Applied.Ok ->
@@ -186,6 +190,10 @@ class TargetRunner(
                 i++
                 continue
             }
+            // Attempted, which is exactly what the extension reports: it builds
+            // author_list from the planned list minus everyone whose id came back
+            // 0 -- the same set that reaches here.
+            ctx.recordTarget(target.nick, id)
 
             when (performWithRetry(ctx, first.first, first.second, id)) {
                 is Applied.SessionGone -> {

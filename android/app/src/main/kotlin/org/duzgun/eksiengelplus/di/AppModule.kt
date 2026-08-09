@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import org.duzgun.eksiengelplus.datastore.ConfigRepository
+import org.duzgun.eksiengelplus.datastore.IdentityRepository
 import org.duzgun.eksiengelplus.datastore.Stores
 
 /**
@@ -22,4 +23,9 @@ object AppModule {
     @Provides @Singleton
     fun configRepository(@ApplicationContext context: Context): ConfigRepository =
         Stores.configRepository(context)
+
+    /** Holds the resolved Ekşi identity, which every report has to be keyed to. */
+    @Provides @Singleton
+    fun identityRepository(@ApplicationContext context: Context): IdentityRepository =
+        Stores.identityRepository(context)
 }

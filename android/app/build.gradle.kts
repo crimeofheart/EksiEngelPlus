@@ -89,22 +89,9 @@ android {
         buildConfig = true
     }
 
-    /*
-     * The shared telemetry key.
-     *
-     * Empty unless CI supplies it, and the sender treats empty as "do not send",
-     * so a developer build never posts and the key never enters the repository.
-     */
-    val telemetryKey = System.getenv("EKSIENGEL_API_KEY").orEmpty()
-
-    defaultConfig {
-        buildConfigField("String", "TELEMETRY_KEY", "\"" + telemetryKey + "\"")
-        buildConfigField(
-            "String",
-            "TELEMETRY_URL",
-            "\"https://eksiengelplus.duzgun.org/api/action/\"",
-        )
-    }
+    // The telemetry key and endpoint now live in :ops:runtime's BuildConfig, next
+    // to the only code that posts with them. Two copies could disagree, and did:
+    // this one defaulted to empty, which the sender reads as "do not send".
 
     buildTypes {
         release {

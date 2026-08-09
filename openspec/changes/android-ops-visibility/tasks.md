@@ -121,3 +121,26 @@
       round-trip through the summary, and the `{}` rows already archived
 - [x] 8.7 `./gradlew test` and `:app:assembleDebug` clean
 - [x] 8.8 `cd frontend/app && npm run check && npm run package`
+
+## 9. Reporting a run
+
+- [x] 9.1 Post the body the endpoint actually expects — nested under `action` and
+      `action_config`, not the flat eight-key object that was rejected before any
+      field was read
+- [x] 9.2 Send `X-API-Key`; `Authorization` was answered with 401 and retried
+      five times before being abandoned
+- [x] 9.3 Carry `eksi_engel_user`: resolve the nick and id once, cache them in the
+      identity store, and drop the report rather than guess when logged out
+- [x] 9.4 Take the shared key from `:ops:runtime` BuildConfig with an
+      `EKSIENGEL_API_KEY` override, and delete :app's second copy — it was read
+      from WorkManager input data that no caller ever set, so the key was always
+      blank and every report was discarded unsent
+- [x] 9.5 Record targets through a new `OperationContext.recordTarget`, so
+      `author_list` matches the extension as android-persistence requires
+- [x] 9.6 Backend: `Action.client` and `EksiSozlukUser.last_activity_client`,
+      defaulting to EXTENSION so existing rows and the shipped extension are
+      unaffected; both surfaced as admin filters
+- [x] 9.7 Verify against the real serializer, not a reading of it: both bodies
+      accepted, `makemigrations --check` clean
+- [x] 9.8 `./gradlew test` and `:app:assembleDebug` clean
+- [x] 9.9 `cd frontend/app && npm run check && npm run package`

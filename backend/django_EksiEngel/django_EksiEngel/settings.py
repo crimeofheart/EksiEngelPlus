@@ -152,9 +152,43 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Shared API Key for authentication
 SHARED_API_KEY = env("SHARED_API_KEY")
 
-# Rate limiting settings
-RATELIMIT_USE_CACHE = 'default'
-RATELIMIT_DEFAULT_RATE = '100/m'
+# Rate limiting.
+#
+# CollectActionDataView has declared throttle_classes since the security pass,
+# but nothing ever set a rate. DRF ships DEFAULT_THROTTLE_RATES as
+# {'user': None, 'anon': None}, and SimpleRateThrottle.allow_request returns True
+# immediately when rate is None -- so the declaration was inert and the endpoint
+# took unlimited writes from anyone holding the shared key.
+#
+# The two settings that used to live here, RATELIMIT_USE_CACHE and
+# RATELIMIT_DEFAULT_RATE, belong to django-ratelimit, which is not in
+# requirements.txt, not in INSTALLED_APPS, and not decorating anything. They
+# configured nothing and read as though rate limiting were handled.
+#
+# Only /api/action/ names throttle_classes, so only it is limited. Both throttles
+# key on IP here: the shared key authenticates without a user, so request.user is
+# None and each falls back to get_ident(). The lower rate is therefore the one
+# that binds.
+#
+# 200/hour is deliberately generous. A report is one POST per finished run, and
+# mobile users -- most of the Android client -- sit behind carrier NAT, so a tight
+# per-IP limit would drop legitimate reports from people who share an address
+# with strangers. It bounds a naive flood without punishing them. It does not
+# stop a determined attacker, who would rotate addresses; the key's exposure is
+# the reason that matters, not this setting.
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '200/hour',
+        'user': '1000/hour',
+    },
+}
+
+# Throttle counters live in the default cache, which is LocMemCache: per process,
+# and cleared on restart. With N gunicorn workers the real ceiling is up to N
+# times the rate above. Making it exact needs a shared cache (Redis, memcached,
+# or Django's database backend via createcachetable) -- worth doing if abuse ever
+# materialises, but a per-worker bound is still a bound, and this endpoint had
+# none at all.
 
 # Security settings
 SECURE_BROWSER_XSS_FILTER = True

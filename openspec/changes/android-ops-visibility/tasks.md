@@ -89,6 +89,18 @@
 
 ## 7. Verification
 
+- [ ] 7.6 **Field finding, from a real run — decide, do not silently fix.** A run
+      whose targets were all excluded by the date filter reports
+      `processed = N, successful = 0`, which is byte-identical to a run where
+      every mutation failed. `TargetRunner.applyToAll` increments `processed` for
+      a target `ctx.allows` rejects and then moves on, so "spared" and "failed"
+      are the same number on screen. It cost a user a bug report against the
+      engine before the default `PROTECT_OLD_ACCOUNTS` rule was identified as the
+      cause — the rule working exactly as designed. Options: a third count for
+      skipped, or a line in the summary naming the filter. Not attempted here,
+      because the counters are read by the notification, the İşlem durumu screen
+      and the history row, and changing what `processed` means touches all three.
+
 - [x] 7.1 Full `./gradlew test` and `:app:assembleDebug` clean
 - [x] 7.2 Every new test verified by breaking the code it covers
 - [ ] 7.3 Run the instrumented suites on a device — NOT RUN: no device has been

@@ -36,8 +36,9 @@
 - [x] 4.3 Add the `android` job to `check.yml`, needing `verify`, path-filtered to `android/**`, using `actions/setup-java@v4` (temurin 17) and `gradle/actions/setup-gradle@v4`, running `./gradlew :app:assembleDebug lintDebug testDebugUnitTest`
 - [x] 4.4 Add the Room schema-drift guard to the `android` job — fail if `android/core/database/schemas/` is dirty after the build (a no-op until Room exists, wired now so it is never retrofitted)
 - [x] 4.5 Delete `.github/workflows/extension-check.yml` in the same commit as 4.1–4.4
-- [ ] 4.6 Verify on a branch: push an extension-only change and confirm `verify` + `extension` run and `android` is skipped
-- [ ] 4.7 Verify on a branch: push an `android/**`-only change and confirm `verify` + `android` run and `extension` is skipped
+- [x] 4.8 Verify the both-trees case: a push touching `android/**` and `frontend/app/**` runs `Detect touched trees`, `Version consistency`, `Android debug build` and `Chrome + Firefox zips`. Confirmed on runs 31338945392 and 31340061678.
+- [ ] 4.6 Verify on a branch: push an extension-only change and confirm `verify` + `extension` run and `android` is skipped — the *skip* is the half that is untested. Every push so far has touched both trees, so the filter has only ever been observed saying yes.
+- [ ] 4.7 Verify on a branch: push an `android/**`-only change and confirm `verify` + `android` run and `extension` is skipped — same gap. A filter that never skips is indistinguishable from no filter, and both would look green.
 
 ## 5. Release workflow
 
@@ -49,8 +50,10 @@
 - [x] 5.6 Add the `workflow_dispatch` input gating Play submission, with a step using `r0adkll/upload-google-play@v1` and `PLAY_SERVICE_ACCOUNT_JSON` that runs only when the input is set
 - [x] 5.7 Make the Play step fail explicitly when submission is requested but signing secrets are absent — never upload an unsigned or debug artifact
 - [x] 5.8 Delete `.github/workflows/extension-release.yml` in the same commit as 5.1–5.7
-- [ ] 5.9 Verify end to end on a fork: push a throwaway tag with no signing secrets configured, confirm the Release carries both zips plus an unsigned APK and that the log says so
-- [ ] 5.10 Verify the guard: push a tag whose name disagrees with the recorded version and confirm the workflow fails before building anything
+- [x] 5.11 Verify the signed path end to end on a real tag — **not in the original list, and the one that actually matters.** Done twice: `v0.1.7` (run 31338945349) and `v0.1.8` (run 31340061706). Every job green, all four assets attached, and neither Android file carries the `-unsigned` suffix, which is the workflow's own evidence that it detected the keystore and ran `bundleRelease assembleRelease` rather than degrading. The first of the two was also the first use of the keystore, so `signingConfigs` was exercised against real secrets rather than skipped.
+- [x] 5.12 Confirm Play submission stays opt-in: it was skipped on both releases without being asked for
+- [ ] 5.9 Verify end to end on a fork: push a throwaway tag with no signing secrets configured, confirm the Release carries both zips plus an unsigned APK and that the log says so — STILL OPEN, and note what did *not* verify it: the repository had no secrets at all until minutes before `v0.1.7`, but no tag was pushed in that window, so the degradation path has never run
+- [ ] 5.10 Verify the guard: push a tag whose name disagrees with the recorded version and confirm the workflow fails before building anything — the agreeing case has now passed twice, which says nothing about the disagreeing one
 
 ## 6. Documentation
 

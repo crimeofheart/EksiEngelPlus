@@ -29,7 +29,13 @@ class ConfigTest {
         assertThat(c.enableOnlyRequiredActions).isFalse()     // config.js:33
         assertThat(c.enableProtectFollowedUsers).isTrue()     // config.js:34
         assertThat(c.banPremiumIcons).isFalse()               // config.js:35
-        assertThat(c.enableDateFilter).isFalse()              // config.js:36
+        // Deliberate divergence from config.js:36, which ships this off. The
+        // extension's own default rule cannot protect anyone -- utils.js:238
+        // blocks every user who matched no rule, so a decade-old account falls
+        // through it and is blocked anyway. Here every enabled rule must pass,
+        // and the engine resolves a missing registration date rather than
+        // treating it as a reason to skip, so on is both meaningful and safe.
+        assertThat(c.enableDateFilter).isTrue()
         // Deliberate parity with config.js:25-26, not an oversight. Defaulting
         // these off makes the dashboard report the client as near-dead, since
         // nobody enables telemetry by hand. See openspec/specs/android-persistence.
@@ -66,6 +72,48 @@ class ConfigTest {
         )
         assertThat(back.sendData).isFalse()
         assertThat(back.sendLog).isFalse()
+    }
+
+    @Test fun `a fresh install already protects decade-old accounts`() {
+        val rule = EksiConfig().dateFilterRules.single()
+
+        // The extension's values, field for field (config.js:43-55).
+        assertThat(rule.id).isEqualTo("block-new-users")
+        assertThat(rule.criteria).isEqualTo(DateCriteria.NEWER_THAN)
+        assertThat(rule.days).isEqualTo(3650)
+        assertThat(rule.enabled).isTrue()
+    }
+
+    @Test fun `the default rule spares an eleven-year-old account and acts on a young one`() {
+        // The rule is only worth shipping if it decides these two the right way
+        // round, which is the half a value check cannot cover.
+        val rules = EksiConfig().dateFilterRules
+        val today = 20_000L
+
+        assertThat(DateFilter.allows(rules, today - 4015, today)).isFalse()  // ~11 years
+        assertThat(DateFilter.allows(rules, today - 400, today)).isTrue()    // ~1 year
+    }
+
+    @Test fun `upgrading adds the rule without touching the user's own`() {
+        val mine = DateFilterRule("mine", DateCriteria.OLDER_THAN, days = 30)
+
+        val after = DateFilterRule.withDefault(listOf(mine))
+
+        assertThat(after).containsExactly(mine, DateFilterRule.PROTECT_OLD_ACCOUNTS).inOrder()
+    }
+
+    @Test fun `upgrading twice does not stack two copies of the rule`() {
+        val once = DateFilterRule.withDefault(emptyList())
+
+        assertThat(DateFilterRule.withDefault(once)).isEqualTo(once)
+    }
+
+    @Test fun `a rule the user edited is left as they left it`() {
+        // Same id, different value: matching on the id is what stops the
+        // migration reverting someone's deliberate change to five years.
+        val edited = DateFilterRule.PROTECT_OLD_ACCOUNTS.copy(days = 1825)
+
+        assertThat(DateFilterRule.withDefault(listOf(edited))).containsExactly(edited)
     }
 
     @Test fun `rule list round trips`() {

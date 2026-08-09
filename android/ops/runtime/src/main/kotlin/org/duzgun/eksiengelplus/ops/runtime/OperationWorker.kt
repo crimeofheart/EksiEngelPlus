@@ -397,8 +397,11 @@ class OperationWorker @AssistedInject constructor(
                 if (activeRules.none { it.enabled }) {
                     true
                 } else {
-                    val cached = db.registrationDates().get(nick)?.registrationEpochDay
-                    org.duzgun.eksiengelplus.datastore.DateFilter.allows(activeRules, cached, today)
+                    org.duzgun.eksiengelplus.datastore.DateFilter.allows(
+                        activeRules,
+                        registrationDay(nick, readPacer),
+                        today,
+                    )
                 }
             },
             operationId = operationId,
@@ -655,6 +658,60 @@ class OperationWorker @AssistedInject constructor(
 
         identityRepository.rememberEksiUser(nick, id)
         return nick to id
+    }
+
+    /**
+     * When the account was registered, fetched if the cache cannot say.
+     *
+     * The filter reads an absent date as "skip", so a cache-only lookup made an
+     * enabled filter skip essentially everyone: nothing but the CSV import ever
+     * wrote that table, and a run over favouriters or followers meets nicks it
+     * has never seen. That is why the filter could not be switched on by
+     * default until this existed.
+     *
+     * One profile read per uncached nick, through the READ pacer -- not the
+     * action pacer, so resolving dates never spends the mutation budget the run
+     * exists to use. Cached for 30 days either way, including a genuine "no
+     * date on the profile", which is worth remembering so it is not re-fetched
+     * per run. The extension does the same thing up front in
+     * fetchRegistrationDates; here it is lazy, so a run stopped early pays only
+     * for the targets it reached.
+     *
+     * A failed fetch returns null and caches nothing. Null means the target is
+     * skipped -- matching the extension, whose unknown bucket is dropped -- and
+     * not writing it means a network blip does not harden into 30 days of
+     * "unknown" for that user.
+     */
+    private suspend fun registrationDay(nick: String, readPacer: ReadPacer): Long? {
+        val fresh = db.registrationDates().getFresh(
+            nick,
+            System.currentTimeMillis() -
+                org.duzgun.eksiengelplus.database.RegistrationDateCacheEntity.TTL_MS,
+        )
+        if (fresh != null) return fresh.registrationEpochDay
+
+        // Outside the try: a pause or stop raised while waiting for a permit is
+        // the user talking, and must not be swallowed as a failed lookup.
+        readPacer.acquire()
+
+        val profile = try {
+            scrape.authorProfile(nick)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return null
+        }
+
+        val day = profile.registrationDate?.toEpochDay()
+        db.registrationDates().upsert(
+            org.duzgun.eksiengelplus.database.RegistrationDateCacheEntity(
+                nick = nick,
+                authorId = profile.authorId,
+                registrationEpochDay = day,
+                fetchedAt = System.currentTimeMillis(),
+            ),
+        )
+        return day
     }
 
     /** Both of these back model columns declared blank=False, so neither may be empty. */

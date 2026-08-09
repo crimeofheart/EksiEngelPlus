@@ -46,6 +46,24 @@ class ParityTest {
         "logConsole",    // same
     )
 
+    /**
+     * Settings the app deliberately defaults differently, and why.
+     *
+     * Separate from [notPorted] because the field exists and is compared for
+     * everything else -- only the default is allowed to differ, and only with a
+     * reason written here. Adding a name to this set is the decision; leaving it
+     * out is what makes drift fail the build.
+     */
+    private val deliberatelyDifferentDefault = mapOf(
+        "enableDateFilter" to
+            "On here, off in config.js:36. The extension's default rule cannot " +
+            "protect anyone -- utils.js:238 blocks every user who matched no " +
+            "rule, so a decade-old account falls through it and is blocked " +
+            "anyway. This client requires every enabled rule to pass and " +
+            "resolves a missing registration date rather than skipping, so the " +
+            "rule does what it says and is safe to have on.",
+    )
+
     @Test fun `every extension setting exists here`() {
         val missing = extensionDefaults().keys - androidDefaults().keys - notPorted
 
@@ -58,10 +76,24 @@ class ParityTest {
         val android = androidDefaults()
         val differing = extensionDefaults()
             .filterKeys { it in android.keys }
+            .filterKeys { it !in deliberatelyDifferentDefault }
             .filter { (name, value) -> android[name] != value }
 
         assertWithMessage("defaults that disagree with config.js")
             .that(differing)
+            .isEmpty()
+    }
+
+    @Test fun `a divergence is only excused while it is still a divergence`() {
+        // Otherwise the exemption outlives the reason for it: config.js changing
+        // to match would leave a permanent licence to differ, silently.
+        val android = androidDefaults()
+        val agreeing = extensionDefaults()
+            .filterKeys { it in deliberatelyDifferentDefault }
+            .filter { (name, value) -> android[name] == value }
+
+        assertWithMessage("exempted in deliberatelyDifferentDefault but no longer differing")
+            .that(agreeing.keys)
             .isEmpty()
     }
 

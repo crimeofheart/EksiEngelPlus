@@ -63,6 +63,15 @@ class ConfigRepository(private val store: DataStore<EksiConfig>) {
                 current.copy(
                     enableMute = true,
                     enableProtectFollowedUsers = true,
+                    // Switched on for existing installs too. A stored false
+                    // beats a corrected default, so without this an upgrade
+                    // would keep acting on decade-old accounts while a fresh
+                    // install spared them. The direction is the safe one: the
+                    // filter only ever narrows what a run touches.
+                    enableDateFilter = true,
+                    // Version 2 adds the ten-year rule, without disturbing rules
+                    // the user wrote. See DateFilterRule.withDefault.
+                    dateFilterRules = DateFilterRule.withDefault(current.dateFilterRules),
                     configVersion = EksiConfig.CURRENT_VERSION,
                 )
             }

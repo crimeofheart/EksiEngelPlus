@@ -67,14 +67,29 @@ data class EksiConfig(
     val sendData: Boolean = true,
     val sendLog: Boolean = true,
 
-    val enableDateFilter: Boolean = false,
-    val dateFilterRules: List<DateFilterRule> = emptyList(),
+    /**
+     * On, unlike the extension, and only because this client can honour it.
+     *
+     * config.js seeds the same rule with the filter switched off, and switching
+     * it on there protects nobody anyway: utils.js:238 blocks every user who
+     * matched no rule, so an account older than ten years falls through the
+     * default rule and is blocked regardless. The rule reads as protection and
+     * is not.
+     *
+     * Here the semantics are the ones the rule describes -- every enabled rule
+     * must pass -- so defaulting it on means a fresh install does not touch
+     * decade-old accounts. That is only safe because the engine now resolves a
+     * missing registration date instead of treating it as a reason to skip
+     * everyone; see OperationWorker's allowTarget.
+     */
+    val enableDateFilter: Boolean = true,
+    val dateFilterRules: List<DateFilterRule> = listOf(DateFilterRule.PROTECT_OLD_ACCOUNTS),
 ) {
     companion object {
         const val DEFAULT_BASE_URL = "https://eksisozluk.com"
 
         /** Raise this, and add a step to ConfigRepository.migrate, together. */
-        const val CURRENT_VERSION = 1
+        const val CURRENT_VERSION = 2
     }
 }
 
@@ -92,7 +107,42 @@ data class DateFilterRule(
     val epochDay: Long? = null,
     val description: String = "",
     val enabled: Boolean = true,
-)
+) {
+    companion object {
+        /**
+         * The default rule, ported from config.js:43-55.
+         *
+         * Same id, same criteria, same 3650 days, and the same sentence, so a
+         * user who has seen the extension's settings recognises this one.
+         *
+         * The boundary differs by a day on purpose-free grounds: the extension
+         * matches `age < 3650` and DateFilter uses `age <= days`, so an account
+         * exactly 3650 days old is acted on here and spared there. Left as it
+         * is rather than churned, because a rule about decades should not turn
+         * on which side of one midnight a comparison falls.
+         */
+        val PROTECT_OLD_ACCOUNTS = DateFilterRule(
+            id = "block-new-users",
+            criteria = DateCriteria.NEWER_THAN,
+            days = 3650,
+            description = "Yapılacak işlem 10 yıldan yeni hesapları kapsar",
+        )
+
+        /**
+         * The rule list an upgrading install should end up with.
+         *
+         * Appended, never assigned: an existing install may have rules of its
+         * own, and introducing a default by replacing the list would throw away
+         * the user's work. Keyed on the id so it cannot be added twice.
+         *
+         * A function rather than three lines inside the migration so the part
+         * that can lose data is testable without a DataStore.
+         */
+        fun withDefault(rules: List<DateFilterRule>): List<DateFilterRule> =
+            if (rules.any { it.id == PROTECT_OLD_ACCOUNTS.id }) rules
+            else rules + PROTECT_OLD_ACCOUNTS
+    }
+}
 
 enum class DateCriteria {
     NEWER_THAN,

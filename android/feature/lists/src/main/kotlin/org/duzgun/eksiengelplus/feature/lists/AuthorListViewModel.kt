@@ -66,9 +66,7 @@ class AuthorListViewModel @Inject constructor(
     val nicks: StateFlow<List<String>> =
         repository.nicks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun save(text: String) = apply(text, replace = true)
-
-    fun append(text: String) = apply(text, replace = false)
+    fun save(text: String) = apply(text)
 
     fun clear() = launchBusy {
         repository.clear()
@@ -82,7 +80,7 @@ class AuthorListViewModel @Inject constructor(
      * replace atomic: a malformed line at row 900 cannot leave the user with 899
      * authors and no way back.
      */
-    fun importFrom(replace: Boolean, open: () -> InputStream?) {
+    fun importFrom(open: () -> InputStream?) {
         launchBusy {
             val text = runCancellable {
                 withContext(Dispatchers.IO) {
@@ -93,19 +91,19 @@ class AuthorListViewModel @Inject constructor(
                 return@launchBusy
             }
             // null is a dismissed picker, not a failure.
-            if (text != null) write(text, replace)
+            if (text != null) write(text)
         }
     }
 
-    private fun apply(text: String, replace: Boolean) = launchBusy { write(text, replace) }
+    private fun apply(text: String) = launchBusy { write(text) }
 
-    private suspend fun write(text: String, replace: Boolean) {
+    private suspend fun write(text: String) {
         // Parsing is off the main thread with the write: a large pasted list is
         // enough work to drop frames, and it is the half that runs before anything
         // is committed.
         val result = withContext(Dispatchers.IO) { CsvCodec.parseImport(text) }
         runCancellable {
-            if (replace) repository.replaceAll(result.rows) else repository.append(result.rows)
+            repository.replaceAll(result.rows)
         }.fold(
             onSuccess = {
                 say(

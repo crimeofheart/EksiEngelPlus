@@ -34,17 +34,14 @@ class AuthorListRepository @Inject constructor(
      * one. Parsing happens before this is ever called, which is what makes that
      * guarantee cheap.
      */
-    suspend fun replaceAll(rows: List<CsvCodec.Row>) = write(rows, clearFirst = true)
-
-    /** Adds to the list, keeping what is already there. Duplicate nicks are ignored. */
-    suspend fun append(rows: List<CsvCodec.Row>) = write(rows, clearFirst = false)
+    suspend fun replaceAll(rows: List<CsvCodec.Row>) = write(rows)
 
     suspend fun clear() = db.withTransaction { db.authorList().clear() }
 
-    private suspend fun write(rows: List<CsvCodec.Row>, clearFirst: Boolean) {
+    private suspend fun write(rows: List<CsvCodec.Row>) {
         val base = now()
         db.withTransaction {
-            if (clearFirst) db.authorList().clear()
+            db.authorList().clear()
             rows.forEachIndexed { index, row ->
                 // base + index, not now(): a hundred rows landing in the same
                 // millisecond would otherwise order arbitrarily, and insertion order

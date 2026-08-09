@@ -74,7 +74,7 @@ class AuthorListBusyStateTest {
 
     @Test
     fun busyRisesAndClearsAroundASuccessfulImport() {
-        val seen = observingBusy { model.importFrom(replace = true) { stream("birisi\nbaskasi") } }
+        val seen = observingBusy { model.importFrom { stream("birisi\nbaskasi") } }
 
         assertThat(seen).contains(true)
         assertThat(model.busy.value).isFalse()
@@ -84,7 +84,7 @@ class AuthorListBusyStateTest {
     @Test
     fun busyClearsAfterAFailedRead() {
         // The flag must clear even though the work threw, or the screen stays dead.
-        val seen = observingBusy { model.importFrom(replace = true) { throw IOException("cannot open") } }
+        val seen = observingBusy { model.importFrom { throw IOException("cannot open") } }
 
         assertThat(seen).contains(true)
         assertThat(model.busy.value).isFalse()
@@ -93,9 +93,9 @@ class AuthorListBusyStateTest {
 
     @Test
     fun aDismissedPickerIsNotAFailureAndLeavesTheListAlone() {
-        observingBusy { model.importFrom(replace = true) { stream("birisi") } }
+        observingBusy { model.importFrom { stream("birisi") } }
 
-        observingBusy { model.importFrom(replace = true) { null } }
+        observingBusy { model.importFrom { null } }
 
         assertThat(model.busy.value).isFalse()
         assertThat(nicks()).containsExactly("birisi")
@@ -103,7 +103,7 @@ class AuthorListBusyStateTest {
 
     @Test
     fun clearAlsoSettlesTheFlag() {
-        observingBusy { model.importFrom(replace = true) { stream("birisi") } }
+        observingBusy { model.importFrom { stream("birisi") } }
 
         observingBusy { model.clear() }
 

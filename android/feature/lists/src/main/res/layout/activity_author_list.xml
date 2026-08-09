@@ -40,16 +40,9 @@
 
         <com.google.android.material.button.MaterialButton android:id="@+id/authorSave"
             style="@style/Widget.EksiEngel.Button.Primary"
-            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/author_list_save"/>
-
-        <com.google.android.material.button.MaterialButton android:id="@+id/authorAppend"
-            style="@style/Widget.EksiEngel.Button"
-            android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="@string/author_list_append"/>
     </LinearLayout>
 
     <LinearLayout

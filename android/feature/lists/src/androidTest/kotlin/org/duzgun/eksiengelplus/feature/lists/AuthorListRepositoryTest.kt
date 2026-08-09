@@ -44,13 +44,6 @@ class AuthorListRepositoryTest {
         assertThat(repo.nicksNow()).containsExactly("birisi")
     }
 
-    @Test fun appendKeepsWhatIsAlreadyThere() = runTest {
-        repo.replaceAll(rows("birisi"))
-        repo.append(rows("baskasi", "birisi"))
-
-        assertThat(repo.nicksNow()).containsExactly("birisi", "baskasi").inOrder()
-    }
-
     @Test fun replaceDropsThePreviousList() = runTest {
         repo.replaceAll(rows("eski"))
         repo.replaceAll(rows("yeni"))

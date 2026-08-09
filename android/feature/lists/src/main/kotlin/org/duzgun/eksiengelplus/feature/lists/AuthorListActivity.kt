@@ -37,9 +37,6 @@ class AuthorListActivity : AppCompatActivity() {
     /** Every button that must not be tapped twice into a half-applied list. */
     private lateinit var mutators: List<Button>
 
-    /** True when the picked file should replace the list rather than extend it. */
-    private var importReplaces = true
-
     /**
      * Set by the Clear button so an empty list wipes the draft too.
      *
@@ -52,7 +49,7 @@ class AuthorListActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
-        model.importFrom(importReplaces) { contentResolver.openInputStream(uri) }
+        model.importFrom { contentResolver.openInputStream(uri) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,22 +62,17 @@ class AuthorListActivity : AppCompatActivity() {
         spinner = findViewById(R.id.authorSpinner)
 
         val save = findViewById<Button>(R.id.authorSave)
-        val append = findViewById<Button>(R.id.authorAppend)
         val clear = findViewById<Button>(R.id.authorClear)
         val import = findViewById<Button>(R.id.authorImport)
         val run = findViewById<Button>(R.id.authorRun)
-        mutators = listOf(save, append, clear, import, run)
+        mutators = listOf(save, clear, import, run)
 
         save.setOnClickListener { model.save(text.text.toString()) }
-        append.setOnClickListener { model.append(text.text.toString()) }
         clear.setOnClickListener {
             clearedByUser = true
             model.clear()
         }
-        import.setOnClickListener {
-            importReplaces = true
-            openDocument.launch(IMPORT_MIME_TYPES)
-        }
+        import.setOnClickListener { openDocument.launch(IMPORT_MIME_TYPES) }
         run.setOnClickListener { askMode() }
 
         lifecycleScope.launch {

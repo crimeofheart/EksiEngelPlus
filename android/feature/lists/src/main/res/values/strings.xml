@@ -87,7 +87,6 @@
     <string name="author_list_title">yazar listesi</string>
     <string name="author_list_hint">her satıra bir yazar adı</string>
     <string name="author_list_save">kaydet</string>
-    <string name="author_list_append">ekle</string>
     <string name="author_list_clear">temizle</string>
     <string name="author_list_import">dosyadan al</string>
     <string name="author_list_run">bu listeyi çalıştır</string>

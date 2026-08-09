@@ -7,7 +7,6 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -51,15 +50,18 @@ def _optional_int(value):
 @permission_classes([AllowAny])
 def upload(request):
     if request.method == 'POST':
-        data = None
-        if request.POST:
-            data = request.POST
-        elif request.body:
-            try:
-                data = json.loads(request.body)
-            except:
-                return Response('An Error Occurred', status=status.HTTP_400_BAD_REQUEST)
-        else:
+        # request.data, not request.POST then request.body.
+        #
+        # Touching request.POST consumes the input stream, so the fallthrough to
+        # request.body raised RawPostDataException -- a 500 -- for every JSON
+        # post. Only form-encoded bodies, which populate request.POST and never
+        # reach the second branch, could get through at all.
+        #
+        # DRF has already parsed both encodings by this point, and @api_view
+        # turns a malformed body into a 400 before the view is entered, which is
+        # what the hand-rolled json.loads was for.
+        data = request.data
+        if not data:
             return Response('Empty Request', status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -101,7 +103,15 @@ def analytics(request):
     if request.method == 'GET':
         # Analytics live on the admin dashboard now. The POST branch below is untouched:
         # it is the endpoint the extension writes to.
-        if not request.user.is_authenticated or not request.user.is_staff:
+        #
+        # request.user may be None, not AnonymousUser: SharedAPIKeyAuthentication
+        # returns (None, key), so a request carrying the shared key authenticates
+        # without a user at all and `request.user.is_authenticated` raised
+        # AttributeError -- a 500 where a 403 was meant. It failed closed, so it
+        # never granted anything, but a key holder could crash the endpoint at
+        # will.
+        user = request.user
+        if not (user and user.is_authenticated and user.is_staff):
             return Response('Bu sayfaya erişim yetkiniz yok', status=status.HTTP_403_FORBIDDEN)
         return redirect('admin:index')
 

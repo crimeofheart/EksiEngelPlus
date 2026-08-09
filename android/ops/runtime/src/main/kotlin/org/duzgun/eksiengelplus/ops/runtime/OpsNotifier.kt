@@ -142,6 +142,21 @@ class OpsNotifier(private val context: Context) {
             .build()
 
     fun showPaused(operationId: String, label: String, processed: Int, total: Int) {
+        // Same permission gate as alert() and budgetWarning(), and inlined for the
+        // same reason: lint cannot follow the test through canPost(), and this
+        // call was the one place it was missing -- :ops:runtime:lintDebug has been
+        // failing on it, unnoticed while the Android CI job was being skipped.
+        //
+        // Denial degrades rather than blocks, as everywhere else here: the run
+        // stays paused and resumable from İşlem durumu, the user just loses the
+        // notification that would have offered it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        if (!manager.areNotificationsEnabled()) return
         manager.notify(NOTIFICATION_ID_PROGRESS, paused(operationId, label, processed, total))
     }
 

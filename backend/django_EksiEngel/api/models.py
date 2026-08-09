@@ -61,6 +61,19 @@ class EksiSozlukEntry(models.Model):
     def __str__(self):
         return f"{self.eksisozluk_id} {self.eksisozluk_title}"
 
+# Which build reported an action. Two clients now post to the same endpoint with
+# the same shared key and the same payload shape -- deliberately, so neither is a
+# special case -- which left no way to tell an Android run from an extension one.
+# User agents cannot answer it either: the app's WebView sends a mobile Chrome UA
+# indistinguishable from the extension running on mobile Chrome.
+CLIENT_EXTENSION = "EXTENSION"
+CLIENT_ANDROID = "ANDROID"
+CLIENT_CHOICES = [
+    (CLIENT_EXTENSION, "browser extension"),
+    (CLIENT_ANDROID, "Android app"),
+]
+
+
 class EksiSozlukUser(models.Model):
     eksisozluk_name = models.CharField(max_length=96, blank=False, null=False)
     eksisozluk_id = models.IntegerField(blank=False, null=False)
@@ -69,6 +82,12 @@ class EksiSozlukUser(models.Model):
     last_activity_date = models.DateTimeField(blank=True, null=True)
     last_activity_user_agent = models.CharField(max_length=1024, blank=True, null=True)
     last_activity_version = models.CharField(max_length=16, blank=True, null=True)
+    # Answers "which of my users are on the app" without joining through actions.
+    # Last-write-wins on purpose: someone who moves to the app shows as an app
+    # user, and someone running both shows as whichever they used last.
+    last_activity_client = models.CharField(
+        max_length=16, choices=CLIENT_CHOICES, blank=True, null=True,
+    )
     class Meta:
         verbose_name = "Ekşi Sözlük user"
         verbose_name_plural = "Ekşi Sözlük users"
@@ -80,6 +99,12 @@ class Action(models.Model):
     date = models.DateTimeField(auto_now_add=True, blank=True, null=False)
     version = models.CharField(max_length=16, blank=False, null=False)
     user_agent = models.CharField(max_length=1024, blank=False, null=False)
+    # blank=True with a default, so DRF makes it optional: the shipped extension
+    # does not send it and every row already in the table predates it. Both read
+    # as EXTENSION, which is what they are.
+    client = models.CharField(
+        max_length=16, choices=CLIENT_CHOICES, default=CLIENT_EXTENSION, blank=True,
+    )
     ban_source = models.ForeignKey(BanSource, on_delete=models.PROTECT, blank=False, null=False)
     ban_mode = models.ForeignKey(BanMode, on_delete=models.PROTECT, blank=False, null=False)
     author_list = models.ManyToManyField(EksiSozlukUser, related_name="author_list_in_action", blank=False)

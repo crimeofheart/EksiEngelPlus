@@ -103,11 +103,13 @@ class ActionAdmin(SafeSearchMixin, admin.ModelAdmin):
     ordering = ("-id",)
     list_select_related = ("eksi_engel_user", "ban_source", "ban_mode", "log_level")
     list_display = (
-        "id", "date", "eksi_engel_user", "actor_on_eksi", "ban_source", "ban_mode",
+        "id", "date", "eksi_engel_user", "actor_on_eksi", "client", "ban_source", "ban_mode",
         "funnel", "success_rate", "target_link", "is_early_stopped", "log_level", "version",
     )
+    # client sits second: "which of these came from the app" is the question the
+    # extension and the app posting to one endpoint made impossible to answer.
     list_filter = (
-        OutcomeFilter, "ban_mode", "ban_source", "log_level",
+        OutcomeFilter, "client", "ban_mode", "ban_source", "log_level",
         "is_early_stopped", "target_type", "click_source", "version",
     )
     search_fields = ("=id", "eksi_engel_user__eksisozluk_name", "=eksi_engel_user__eksisozluk_id")
@@ -187,9 +189,10 @@ class EksiSozlukUserAdmin(SafeSearchMixin, admin.ModelAdmin):
     # scraped block targets. It is the first filter you want on this page.
     list_display = (
         "eksisozluk_name", "profile_on_eksi", "eksisozluk_id", "is_eksiengel_user",
-        "action_count", "banned_by_count", "last_activity_date", "last_activity_version",
+        "action_count", "banned_by_count", "last_activity_date", "last_activity_client",
+        "last_activity_version",
     )
-    list_filter = ("is_eksiengel_user", "last_activity_version")
+    list_filter = ("is_eksiengel_user", "last_activity_client", "last_activity_version")
     readonly_fields = ("profile_on_eksi",)
 
     profile_on_eksi = eksi_link(

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Action, ActionConfig, EksiSozlukUser, EksiSozlukTitle, EksiSozlukEntry
+from .models import Action, ActionConfig, EksiSozlukUser, EksiSozlukTitle, EksiSozlukEntry, CLIENT_EXTENSION
 from django.utils import timezone
 from django.db.models import Count, Q
 from django.contrib.auth.models import User
@@ -144,6 +144,9 @@ class WriteEksiEngelUserSerializer(serializers.ModelSerializer):
         fields = ('eksisozluk_name', 'eksisozluk_id')
         
     def create(self, validated_data):
+        # Absent means the extension: it does not send the field, and neither did
+        # anything that wrote the rows already in the table.
+        client = self.context.get('client') or CLIENT_EXTENSION
         eksi_engel_user = EksiSozlukUser.objects.filter(**validated_data).first() # user = filtered user OR None
         if eksi_engel_user:
             # the user is exist so update the relevant fields
@@ -151,6 +154,7 @@ class WriteEksiEngelUserSerializer(serializers.ModelSerializer):
             eksi_engel_user.last_activity_date = timezone.now()
             eksi_engel_user.last_activity_user_agent = self.context.get('user_agent')
             eksi_engel_user.last_activity_version = self.context.get('version')
+            eksi_engel_user.last_activity_client = client
         else:
             # create a user
             # TODO: user must be unique with name and id, but constraint on model or serializer cause problems
@@ -162,6 +166,7 @@ class WriteEksiEngelUserSerializer(serializers.ModelSerializer):
                 last_activity_date=timezone.now(),
                 last_activity_user_agent = self.context.get('user_agent'),
                 last_activity_version = self.context.get('version'),
+                last_activity_client = client,
                 **validated_data
             )
         eksi_engel_user.save()

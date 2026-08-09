@@ -28,6 +28,15 @@
             android:background="?android:attr/selectableItemBackground"
             android:text="@string/open_settings"/>
 
+        <!-- Last, and outermost. This is the app's equivalent of the extension's
+             popup, where "Ayarlar ve Yardım" sits alongside the operations
+             entry rather than inside it. -->
+        <TextView android:id="@+id/helpEntry"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:padding="10dp" android:textSize="12sp"
+            android:background="?android:attr/selectableItemBackground"
+            android:text="@string/open_help"/>
+
     </LinearLayout>
 
     <!-- Hidden until a session appears with a run parked on PAUSED_AUTH. An offer,

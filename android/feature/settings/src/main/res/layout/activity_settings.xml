@@ -254,17 +254,13 @@
             android:paddingTop="20dp" android:paddingBottom="6dp"
             android:alpha="0.75"/>
 
-        <Button
-            android:id="@+id/openHelp"
-            style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="@string/settings_open_help"/>
-
+        <!-- The guide is not here. It sits in the browser's top bar next to
+             ayarlar, which is where a user looking for help looks first, and one
+             destination with two doors is worse than one with one. -->
         <Button
             android:id="@+id/openReleaseNotes"
             style="?attr/materialButtonOutlinedStyle"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:text="@string/settings_open_release_notes"/>
 
     </LinearLayout>

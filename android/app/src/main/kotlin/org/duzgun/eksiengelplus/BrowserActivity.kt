@@ -100,6 +100,9 @@ class BrowserActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.settingsEntry).setOnClickListener {
             startActivity(Intent(this, org.duzgun.eksiengelplus.feature.settings.SettingsActivity::class.java))
         }
+        findViewById<TextView>(R.id.helpEntry).setOnClickListener {
+            startActivity(Intent(this, org.duzgun.eksiengelplus.feature.settings.HelpActivity::class.java))
+        }
         askForNotificationsOnce()
 
         web.configureForEksi(this)

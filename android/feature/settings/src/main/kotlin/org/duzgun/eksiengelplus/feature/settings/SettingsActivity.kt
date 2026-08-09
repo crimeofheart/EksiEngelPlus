@@ -90,9 +90,6 @@ class SettingsActivity : AppCompatActivity() {
         dbStats = findViewById(R.id.dbStats)
         findViewById<android.widget.Button>(R.id.clearCache).setOnClickListener { clearCache() }
         findViewById<android.widget.Button>(R.id.clearData).setOnClickListener { confirmClearData() }
-        findViewById<android.widget.Button>(R.id.openHelp).setOnClickListener {
-            startActivity(android.content.Intent(this, HelpActivity::class.java))
-        }
         findViewById<android.widget.Button>(R.id.openReleaseNotes).setOnClickListener {
             startActivity(ReleaseNotesActivity.intent(this, appVersion()))
         }

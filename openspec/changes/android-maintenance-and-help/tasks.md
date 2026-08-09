@@ -18,7 +18,7 @@
 
 ## 3. Help screen
 
-- [x] 3.1 Add `HelpActivity` to `feature:settings`, reachable from Settings
+- [x] 3.1 Add `HelpActivity` to `feature:settings`, opened from the browser's top bar after ayarlar — first built as a button inside Settings, then moved: the top bar is where a user looking for help looks, and the Settings button was removed rather than kept as a second door
 - [x] 3.2 Port the Kullanım Kılavuzu from `faq.html:427-570`, rewritten for this app's navigation
 - [x] 3.3 Cover: acting from the browsing UI, the lists screen, bulk operations, the date filter and its rules, the author list and its CSV format
 - [x] 3.4 State the date-filter divergence explicitly — on by default here, and every enabled rule must pass

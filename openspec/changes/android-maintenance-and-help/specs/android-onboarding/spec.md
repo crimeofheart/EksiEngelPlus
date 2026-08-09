@@ -2,9 +2,14 @@
 
 ### Requirement: The app explains itself without leaving it
 
-A help screen SHALL be reachable from Settings, covering how to act from the
-browsing UI, what each bulk operation does, how the date filter and its rules
-behave, what the lists screen offers, and what the author list accepts.
+A help screen SHALL be reachable from the browser's top bar, alongside listeler
+and ayarlar, covering how to act from the browsing UI, what each bulk operation
+does, how the date filter and its rules behave, what the lists screen offers,
+and what the author list accepts.
+
+That bar is this app's equivalent of the extension's popup, where "Ayarlar ve
+Yardım" sits beside the operations entry rather than inside it. Help SHALL have
+exactly one entry point: a destination reachable two ways teaches neither.
 
 The extension's guide SHALL be the source of the content but not of its shape.
 `faq.html` describes a popup, two browser tabs and an "Ayarlar ve Yardım"
@@ -25,8 +30,13 @@ pictures of the wrong program.
 
 #### Scenario: Help is reachable
 
-- **WHEN** the user opens Settings
-- **THEN** the help screen is reachable from it
+- **WHEN** the user is browsing
+- **THEN** the help screen opens from the top bar, without going through Settings first
+
+#### Scenario: Help has one door
+
+- **WHEN** the app is searched for entry points to the guide
+- **THEN** exactly one is found
 
 #### Scenario: Help describes this app
 

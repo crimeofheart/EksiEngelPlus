@@ -328,31 +328,44 @@ No `minSdk` increase is implied — `minSdk 26` stands.
 
 ## Gate
 
-**Closed**, and everything still open now requires a device or a
-human-established session. Nothing further can be answered from a headless
-environment.
+**GO.** Qualified only by a pinned user agent — see below.
 
-Evidence so far is favourable on every count:
+The load-bearing question was whether a session established in the WebView can
+be *used* by a non-browser client for `POST /userrelation/*`. It was answered on
+a real device (WebView 149): a full block → unblock round trip against a
+controlled target succeeded through `CookieBridgeInterceptor` + OkHttp. The
+native engine is viable; no fallback to WebView-injected `fetch` is needed.
+
+Evidence is favourable on every count:
 
 - The scrape surface survives the mobile user agent unchanged.
 - WebView and Android Chrome are byte-identical, removing an expected class of
   trouble.
-- Read paths are unchallenged for non-browser clients, which is the precondition
-  for the native engine.
+- Read paths are unchallenged for non-browser clients, and writes are too once
+  the cookie bridge carries a real session.
 - Turnstile on login is compatible with the WebView shell and would have killed
   a native-client design.
+- Both `DOCUMENT_START_SCRIPT` and `WEB_MESSAGE_LISTENER` are supported at
+  `minSdk 26`; no floor increase.
 
-Nothing found argues against the architecture. The one genuinely load-bearing
-question — whether an established session can be *used* by a non-browser client
-for `POST /userrelation/*` — remains open, and it is the go/no-go.
+### Qualifications carried into the contract
 
-### Next, in order
+Every one of these is a requirement in
+`eksisozluk-client-contract`, not report prose:
 
-1. Export a session cookie from a browser where a human has solved Turnstile,
-   **or** move to the device phase. Either unblocks the auth-gated captures.
-2. Re-run `capture.sh` with that session to close the coverage gap in
-   `docs/fixtures/eksisozluk/MANIFEST.md` and resolve the five ambiguous
-   selectors, `.mobile-notification-icons .mobile-only a[title]` above all.
-3. Answer S3 with a controlled target account — never a third party's.
-4. Build the throwaway Android project and answer S1's WebView half and S5.
-5. Answer S4 last, since it deliberately trips a server-side protection.
+- The session is user-agent-bound: OkHttp SHALL send the WebView's own UA.
+- `x-requested-with: XMLHttpRequest` selects the JSON rendering path; without it
+  the same request returns an HTML error page.
+- `addrelation` against one's own id returns `4` and creates nothing, and
+  `removerelation` still answers `{"result":true,"count":0}` — `result` alone
+  does not prove a relation existed.
+- Mutation responses carry an undocumented `count` field; clients ignore unknown
+  fields rather than failing to parse.
+
+### Still open
+
+**S4 — the real rate limit and `Retry-After` behaviour.** Not answered. It
+deliberately trips a server-side protection, so it was scheduled last and never
+run. The 12/min figure in `frontend/app/assets/js/notificationHandler.js:60`
+remains unverified, and the Android pacers were built against it. This is a
+measurement gap, not a gate: the architecture ships without it.

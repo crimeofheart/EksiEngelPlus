@@ -77,6 +77,28 @@ class CsvCodecTest {
         val result = CsvCodec.parseImport("birisi,2010-04-01\nbirisi,2012-05-06")
 
         assertThat(result.rows).containsExactly(CsvCodec.Row("birisi", day("2010-04-01")))
+        assertThat(result.duplicates).isEqualTo(1)
+    }
+
+    @Test
+    fun `every pasted line is accounted for`() {
+        // Four names with two repeats, one line with no nick, one blank. The
+        // numbers have to explain where each went, or a collapsed list reads as
+        // one that lost a name.
+        val result = CsvCodec.parseImport("birisi\nbaskasi\nbirisi\nbaskasi\n\n,2010-04-01")
+
+        assertThat(result.rows.map { it.nick }).containsExactly("birisi", "baskasi").inOrder()
+        assertThat(result.duplicates).isEqualTo(2)
+        assertThat(result.skippedLines).isEqualTo(1)
+    }
+
+    @Test
+    fun `a list with no repeats reports none`() {
+        // The clause is appended only when this is non-zero, so an ordinary
+        // paste has to leave it at zero.
+        val result = CsvCodec.parseImport("birisi\nbaskasi")
+
+        assertThat(result.duplicates).isEqualTo(0)
     }
 
     @Test

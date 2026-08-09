@@ -93,6 +93,8 @@
     <string name="author_list_cleared">liste temizlendi.</string>
     <string name="author_list_empty">liste boş.</string>
     <string name="author_list_imported">%1$d yazar alındı, %2$d satır atlandı, %3$d tarih tanındı.</string>
+    <!-- Appended only when there were repeats, so an ordinary paste stays short. -->
+    <string name="author_list_imported_duplicates">%d tekrar eden ad birleştirildi.</string>
     <string name="author_list_enqueued">%d yazar için işlem sıraya alındı.</string>
     <string name="author_list_failed">işlem başarısız: %s</string>
 

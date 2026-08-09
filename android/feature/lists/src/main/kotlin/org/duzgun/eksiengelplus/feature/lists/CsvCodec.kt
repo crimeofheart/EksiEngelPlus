@@ -28,6 +28,20 @@ object CsvCodec {
         val rows: List<Row>,
         val skippedLines: Int,
         val hadHeader: Boolean,
+        /**
+         * Repeat nicks folded into an earlier row.
+         *
+         * Counted so the reported numbers account for every line the user
+         * pasted. They were simply dropped before, which left a paste of six
+         * lines reporting two authors and one skipped line and no explanation
+         * for the other three -- the kind of arithmetic that reads as the list
+         * having eaten a name.
+         *
+         * Blank lines are deliberately still uncounted: a trailing newline is
+         * not something the user did wrong, and reporting it would put "1 satır
+         * atlandı" on almost every paste.
+         */
+        val duplicates: Int = 0,
     ) {
         val datesRecognised: Int get() = rows.count { it.epochDay != null }
     }
@@ -78,6 +92,7 @@ object CsvCodec {
         val rows = mutableListOf<Row>()
         val seen = mutableSetOf<String>()
         var skipped = 0
+        var duplicates = 0
 
         for (line in dataLines) {
             if (line.isBlank()) continue
@@ -89,11 +104,15 @@ object CsvCodec {
             }
             // author_list.nick is uniquely indexed; collapsing here keeps the
             // reported count honest instead of promising rows the upsert merges.
-            if (!seen.add(nick)) continue
+            // Counted, so the line is accounted for rather than vanishing.
+            if (!seen.add(nick)) {
+                duplicates++
+                continue
+            }
             rows += Row(nick, TurkishDateParser.parse(fields.getOrNull(1))?.toEpochDay())
         }
 
-        return ImportResult(rows, skipped, hasHeader)
+        return ImportResult(rows, skipped, hasHeader, duplicates)
     }
 
     /**

@@ -95,6 +95,28 @@ class AuthorListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * What the import did, in numbers that add up.
+     *
+     * The duplicate clause is appended rather than folded into the sentence so
+     * an ordinary paste -- which has no repeats -- reads exactly as it always
+     * did. Only a list that actually lost lines to de-duplication says so.
+     */
+    private fun report(result: CsvCodec.ImportResult): String {
+        val app = getApplication<Application>()
+        val base = app.getString(
+            R.string.author_list_imported,
+            result.rows.size,
+            result.skippedLines,
+            result.datesRecognised,
+        )
+        if (result.duplicates == 0) return base
+        return base + " " + app.getString(
+            R.string.author_list_imported_duplicates,
+            result.duplicates,
+        )
+    }
+
     private fun apply(text: String) = launchBusy { write(text) }
 
     private suspend fun write(text: String) {
@@ -105,16 +127,7 @@ class AuthorListViewModel @Inject constructor(
         runCancellable {
             repository.replaceAll(result.rows)
         }.fold(
-            onSuccess = {
-                say(
-                    getApplication<Application>().getString(
-                        R.string.author_list_imported,
-                        result.rows.size,
-                        result.skippedLines,
-                        result.datesRecognised,
-                    ),
-                )
-            },
+            onSuccess = { say(report(result)) },
             onFailure = { say(failure(it)) },
         )
     }

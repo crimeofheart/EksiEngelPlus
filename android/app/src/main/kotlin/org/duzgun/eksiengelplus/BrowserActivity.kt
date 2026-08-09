@@ -12,6 +12,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
+import org.duzgun.eksiengelplus.ui.fitContentInsideSystemBars
 import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -87,6 +88,7 @@ class BrowserActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_browser)
+        fitContentInsideSystemBars()
         web = findViewById(R.id.web)
         sessionBar = findViewById(R.id.sessionBar)
         loadingCover = findViewById(R.id.loadingCover)

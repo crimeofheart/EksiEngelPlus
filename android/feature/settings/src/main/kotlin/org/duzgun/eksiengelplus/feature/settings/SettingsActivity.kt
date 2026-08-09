@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.CompoundButton
 import androidx.appcompat.app.AppCompatActivity
+import org.duzgun.eksiengelplus.ui.fitContentInsideSystemBars
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -52,6 +53,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        fitContentInsideSystemBars()
         title = getString(R.string.settings_title)
 
         switches = listOf(

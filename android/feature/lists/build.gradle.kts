@@ -25,6 +25,7 @@ dependencies {
     api(project(":core:model"))
     // The date-filtered run has to know whether a filter is switched on.
     implementation(project(":core:datastore"))
+    implementation(project(":core:ui"))
     implementation(project(":eksi:client"))
     implementation(project(":ops:runtime"))
 

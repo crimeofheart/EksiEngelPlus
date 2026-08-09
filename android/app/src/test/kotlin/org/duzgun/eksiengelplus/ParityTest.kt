@@ -165,6 +165,31 @@ class ParityTest {
      * was empty by construction, and telemetry never left the device.
      */
     /**
+     * Two mechanisms for one padding is worse than the broken one.
+     *
+     * `fitsSystemWindows` stopped covering the navigation bar at targetSdk 35
+     * and is ignored outright at 36, so the activities now apply the insets
+     * themselves. If a layout brings the attribute back, both fire on any
+     * platform where the old one still works and the screen pads twice -- on
+     * devices the developer does not have.
+     */
+    @Test fun `no layout declares fitsSystemWindows`() {
+        val offenders = File(repo, "android").walkTopDown()
+            .filter { it.isFile && it.extension == "xml" && "/build/" !in it.path }
+            // The spike harness is a separate application that never ships and
+            // does not depend on core:ui, so taking the attribute away there
+            // would leave it with nothing.
+            .filterNot { "/devharness/" in it.path }
+            .filter { it.readText().contains("fitsSystemWindows") }
+            .map { it.relativeTo(repo).path }
+            .toList()
+
+        assertWithMessage("the activities apply insets; a layout must not also")
+            .that(offenders)
+            .isEmpty()
+    }
+
+    /**
      * A DAO method nothing calls is a policy nobody enforces.
      *
      * `trimExpired` and `size` sat on RegistrationDateCacheDao with no caller

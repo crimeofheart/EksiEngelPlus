@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import org.duzgun.eksiengelplus.ui.fitContentInsideSystemBars
 
 /**
  * What changed in this version, shown once after an install or an upgrade.
@@ -19,6 +20,7 @@ class ReleaseNotesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_release_notes)
+        fitContentInsideSystemBars()
         title = getString(R.string.notes_title)
 
         val version = intent.getStringExtra(EXTRA_VERSION).orEmpty()

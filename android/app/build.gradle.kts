@@ -119,6 +119,7 @@ dependencies {
     implementation(project(":feature:lists"))
     implementation(project(":feature:settings"))
     implementation(project(":core:database"))
+    implementation(project(":core:ui"))
     implementation(project(":core:datastore"))
     implementation(project(":eksi:client"))
     implementation(project(":eksi:parser"))

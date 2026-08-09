@@ -24,6 +24,7 @@ dependencies {
     api(project(":core:datastore"))
     api(project(":core:model"))
     implementation(project(":core:database"))
+    implementation(project(":core:ui"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

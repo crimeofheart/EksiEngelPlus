@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import org.duzgun.eksiengelplus.ui.fitContentInsideSystemBars
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -57,6 +58,7 @@ class OperationsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_operations)
+        fitContentInsideSystemBars()
         title = getString(R.string.ops_title)
 
         running = findViewById(R.id.opsRunning)

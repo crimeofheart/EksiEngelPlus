@@ -32,6 +32,7 @@ include(":eksi:parser")
 // Android libraries.
 include(":core:database")
 include(":core:datastore")
+include(":core:ui")
 include(":core:network")
 include(":eksi:client")
 include(":ops:engine")

@@ -6,7 +6,7 @@
  *   node scripts/ext.mjs check
  *   node scripts/ext.mjs version <patch|minor|major|x.y.z>
  *   node scripts/ext.mjs package
- *   node scripts/ext.mjs release <patch|minor|major|x.y.z>
+ *   node scripts/ext.mjs release <patch|minor|major|x.y.z|current>
  *
  * Chrome and Firefox ship the exact same files; only manifest.json differs.
  * manifest.chrome.json and manifest.firefox.json are the tracked sources of
@@ -330,24 +330,52 @@ function cmdPackage() {
   }
 }
 
+/**
+ * Bump, commit and tag — or, with "current", tag what is already recorded.
+ *
+ * The "current" path exists because the ordinary one could not finish a release
+ * someone had already half-made. `npm run version:patch` writes the new number
+ * into all seven files and stops, by design, so the bump can be reviewed. If the
+ * tag is not cut in the same sitting, the repository is left at a version that
+ * ships nowhere: `release patch` would bump *again* and skip the version that
+ * was prepared, and `release 0.1.7` fails on "already at 0.1.7" because
+ * cmdVersion refuses a no-op. There was no way to say "release what is here".
+ *
+ * It takes no shortcut with safety: the tree must still be clean, the tag must
+ * still not exist, and the seven versions must still agree. It only skips the
+ * rewrite and the commit, because there is nothing to rewrite and a commit with
+ * no change is not a release note, it is noise.
+ */
 function cmdRelease(spec) {
   const git = (...args) => execFileSync("git", args, { cwd: APP_DIR, encoding: "utf8" }).trim();
+
+  // Named here rather than left to cmdVersion, whose message cannot mention
+  // "current" — that spec is meaningless to a bare version rewrite.
+  if (!spec) fail("release expects patch|minor|major|x.y.z|current");
 
   if (git("status", "--porcelain")) {
     fail("working tree is dirty; commit or stash before releasing");
   }
-  const version = cmdVersion(spec);
+
+  const releasingCurrent = spec === "current";
+  // cmdCheck asserts all seven agree; cmdVersion runs it first and then rewrites.
+  const version = releasingCurrent ? cmdCheck() : cmdVersion(spec);
   const tag = `v${version}`;
   if (git("tag", "--list", tag)) fail(`tag ${tag} already exists`);
 
-  for (const file of versionFiles()) {
-    if (file === ACTIVE_MANIFEST) continue; // generated, untracked
-    git("add", file);
+  if (releasingCurrent) {
+    git("tag", "-a", tag, "-m", tag);
+    console.log(`\ntagged ${tag} at HEAD (version already recorded; nothing to commit)`);
+  } else {
+    for (const file of versionFiles()) {
+      if (file === ACTIVE_MANIFEST) continue; // generated, untracked
+      git("add", file);
+    }
+    git("commit", "-m", `chore: release ${tag}`);
+    git("tag", "-a", tag, "-m", tag);
+    console.log(`\ncommitted and tagged ${tag}`);
   }
-  git("commit", "-m", `chore: release ${tag}`);
-  git("tag", "-a", tag, "-m", tag);
 
-  console.log(`\ncommitted and tagged ${tag}`);
   console.log("push with:  git push origin HEAD --follow-tags");
 }
 

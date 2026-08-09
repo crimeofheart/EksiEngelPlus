@@ -118,6 +118,24 @@ addons.mozilla.org, and Google Play.
 
 `npm run release` refuses to run on a dirty tree or an existing tag.
 
+### Releasing a version that was already bumped
+
+`npm run version:patch` writes the new number everywhere and stops, so the bump
+can be reviewed. If the tag is not cut in the same sitting, the repository sits
+at a version that ships nowhere — and neither ordinary path recovers it:
+`release patch` bumps *again* and skips the prepared version, while
+`release 0.1.7` fails on `already at 0.1.7` because a no-op rewrite is refused.
+
+```bash
+cd frontend/app
+npm run release -- current        # tag HEAD at the recorded version, no commit
+git push origin master --follow-tags
+```
+
+It still refuses a dirty tree, an existing tag, or a version the seven files
+disagree on. It only skips the rewrite and the commit, because there is nothing
+to rewrite and an empty commit is not a release note.
+
 ### Store submission
 
 CI publishes *artifacts*, not store listings. The three stores cannot go live in

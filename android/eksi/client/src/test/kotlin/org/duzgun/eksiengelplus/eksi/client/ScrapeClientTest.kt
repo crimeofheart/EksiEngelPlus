@@ -133,6 +133,64 @@ class ScrapeClientTest {
         assertThat(server.requestCount).isEqualTo(3)
     }
 
+    // ------------------------------------------------------- title pagination
+
+    private fun topicPage(vararg nicks: String) = json(
+        nicks.joinToString("") { nick ->
+            """<li data-author="$nick" data-author-id="7"><div class="content">x</div></li>"""
+        }.let { "<html><body><ul id=\"entry-item-list\">$it</ul></body></html>" },
+    )
+
+    @Test fun `a 404 past the last page ends pagination instead of the run`() = runTest {
+        // Measured on device: /yeni-parti--473428?a=dailynice&p=2 answers 404 on a
+        // title with one page of daily entries. This used to throw, so the whole
+        // operation failed having acted on nobody -- with page one already read.
+        topicPage("alice", "bob")
+        server.enqueue(MockResponse().setResponseCode(404))
+
+        val authors = client.allTopicAuthors("yeni-parti", 473428, lastDayOnly = true)
+
+        assertThat(authors.map { it.nick }).containsExactly("alice", "bob")
+        assertThat(server.requestCount).isEqualTo(2)
+    }
+
+    @Test fun `a 404 on the first page is still an error`() = runTest {
+        // Every real title renders page one, so this means the slug or the id is
+        // wrong. Swallowing it would turn a broken request into an operation that
+        // silently does nothing.
+        server.enqueue(MockResponse().setResponseCode(404))
+
+        try {
+            client.allTopicAuthors("nope", 1)
+            throw AssertionError("expected HttpStatusException")
+        } catch (e: HttpStatusException) {
+            assertThat(e.code).isEqualTo(404)
+        }
+    }
+
+    @Test fun `a 500 mid-pagination is not mistaken for the end`() = runTest {
+        // The extension calls every error the last page, so a server blip reads
+        // as a complete list and it acts on a truncated set. Only 404 ends this.
+        topicPage("alice")
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        try {
+            client.allTopicAuthors("t", 1)
+            throw AssertionError("expected HttpStatusException")
+        } catch (e: HttpStatusException) {
+            assertThat(e.code).isEqualTo(500)
+        }
+    }
+
+    @Test fun `an empty page still ends pagination`() = runTest {
+        topicPage("alice")
+        topicPage()
+
+        val authors = client.allTopicAuthors("t", 1)
+
+        assertThat(authors.map { it.nick }).containsExactly("alice")
+    }
+
     @Test fun `observed page sizes differ by endpoint family`() {
         assertThat(ScrapeClient.RELATION_PAGE_SIZE).isEqualTo(25)
         assertThat(ScrapeClient.FOLLOW_PAGE_SIZE).isEqualTo(100)

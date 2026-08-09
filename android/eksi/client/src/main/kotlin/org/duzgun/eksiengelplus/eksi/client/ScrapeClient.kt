@@ -13,6 +13,16 @@ import org.duzgun.eksiengelplus.model.TargetType
 
 data class RelationPage(val nicks: List<String>, val ids: List<Long>, val isLast: Boolean)
 
+/**
+ * A non-2xx response, carrying the code so a caller can tell one from another.
+ *
+ * It used to be a plain IOException with the code in its message, which meant
+ * the only way to act on a status was to parse English out of a string. Nobody
+ * did, so a 404 that merely means "no such page" killed whole operations.
+ */
+class HttpStatusException(val code: Int, val url: String) :
+    java.io.IOException("HTTP $code for $url")
+
 class ScrapeClient(
     private val http: OkHttpClient,
     private val baseUrlProvider: () -> String,
@@ -41,7 +51,7 @@ class ScrapeClient(
             if (SessionExpiry.isLoginRedirect(res.code, res.header("Location")) ||
                 SessionExpiry.isDenied(res.code)
             ) throw SessionExpiredException("http ${res.code}")
-            if (!res.isSuccessful) throw java.io.IOException("HTTP ${res.code} for $url")
+            if (!res.isSuccessful) throw HttpStatusException(res.code, url)
             body.orEmpty()
         }
     }
@@ -68,7 +78,22 @@ class ScrapeClient(
      * author appears many times but must be acted on once.
      *
      * lastDayOnly maps to ?a=dailynice, the extension's LAST_24_H specifier.
-     * Pagination ends when a page yields no authors.
+     *
+     * Pagination ends when a page yields no authors **or answers 404**. Ekşi does
+     * not serve an empty page past the end of a title -- it serves a 404 -- so
+     * treating that as a failure ended the run instead of the loop. Measured:
+     * `/yeni-parti--473428?a=dailynice&p=2` on a title with one page of daily
+     * entries. The whole operation was reported failed having acted on nobody,
+     * with page 1's authors already in hand and thrown away.
+     *
+     * The extension has always survived this, by catching every error and
+     * calling it the last page (scrapingHandler.js:1227-1230). That is too
+     * broad: it cannot tell "no more pages" from "the network went away", and
+     * silently acts on a short list. Only 404 ends the loop here.
+     *
+     * A 404 on the *first* page is still an error. Every real title renders page
+     * one, so a 404 there means the slug or the id is wrong, and returning an
+     * empty list would turn that into an operation that quietly does nothing.
      */
     suspend fun allTopicAuthors(
         slug: String,
@@ -81,7 +106,11 @@ class ScrapeClient(
         while (true) {
             onPage(page)
             val daily = if (lastDayOnly) "a=dailynice&" else ""
-            val body = get("${baseUrlProvider()}/$slug--$titleId?$daily" + "p=$page")
+            val body = try {
+                get("${baseUrlProvider()}/$slug--$titleId?$daily" + "p=$page")
+            } catch (e: HttpStatusException) {
+                if (e.code == 404 && page > FIRST_PAGE) break else throw e
+            }
             val authors = parser.parseTopicAuthors(parser.parse(body))
             if (authors.isEmpty()) break
             authors.forEach { seen.putIfAbsent(it.nick, it) }

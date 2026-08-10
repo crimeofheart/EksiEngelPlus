@@ -158,7 +158,7 @@ sudo systemctl restart gunicorn
 ## nginx config
 # create nginx config
 sudo nano /etc/nginx/sites-available/myproject
-sudo nano /etc/nginx/sites-available/eksiengel.hesimsek.com
+sudo nano /etc/nginx/sites-available/eksiengelplus.duzgun.org
 server {
     listen <port>;
     server_name <server_domain_or_IP>;
@@ -178,7 +178,7 @@ server {
 Example:::
 server {
     listen 80;
-    server_name eksiengel.hesimsek.com www.eksiengel.hesimsek.com;
+    server_name eksiengelplus.duzgun.org www.eksiengelplus.duzgun.org;
     location = /favicon.ico { access_log off; log_not_found off; }
     location /static/ {
         root /var/www/EksiEngelPlus/backend/django_EksiEngel;

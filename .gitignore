@@ -20,6 +20,9 @@ android/.gradle/
 android/**/build/
 android/local.properties
 android/app/release/
+# where release.yml collects the AAB and APK, and where a local build stages a
+# versioned copy of the same. Multi-megabyte binaries, reproducible from a tag.
+android/out/
 *.keystore
 *.jks
 

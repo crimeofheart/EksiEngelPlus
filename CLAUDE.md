@@ -63,6 +63,48 @@ Debug console: "Inspect" on the temporary add-on.
 Reload the extension in the browser after every edit — the old `background.js`
 stays cached otherwise.
 
+## Release notes
+
+`frontend/app/assets/js/changelog.js` is the source. One version number ships
+the extension and the app, so every entry is split by platform:
+
+```js
+"0.1.9": {
+  date: "2026-08-11",   // added by the bump; absent = not released yet
+  app: [ "…" ],
+  extension: []         // [] = "no changes here"; omitted = didn't exist yet
+}
+```
+
+Three surfaces read it, and none of them may disagree:
+
+| Surface | How it gets the notes |
+| --- | --- |
+| extension welcome page | imports `changelog.js` directly |
+| Android sürüm notları | `ReleaseNotes.kt` — a hand-kept mirror |
+| `docs/releaseNotes.html` | `docs/changelog.json`, **generated** |
+
+```bash
+cd frontend/app && npm run changelog   # regenerate docs/changelog.json
+```
+
+`npm run check` fails if `docs/changelog.json` is stale, so CI catches a note
+added without regenerating. `ReleaseNotesTest` asserts `ReleaseNotes.kt` matches
+`changelog.js` word for word **for the shipping version** — older entries are
+free to be reworded.
+
+`docs/changelog.legacy.json` holds the pre-rename Ekşi Engel releases (1.0.0 –
+3.2.0) and is appended verbatim. It is never sorted with the modern list: the
+project restarted numbering at 0.1.0, so 3.2.0 is *older* than 0.1.2 and any
+version comparison of the two says the opposite.
+
+`docs/changelog.txt` is an archive — the old development log plus a TODO
+backlog. Do not add releases there.
+
+A version with no `date` is deliberately kept off the website: notes get written
+while a release is still being built, and `docs/` is live. `npm run version:*`
+stamps the date, so releasing is what publishes it.
+
 ## Versioning and packaging
 
 One version covers all three deliverables. It is recorded in seven places

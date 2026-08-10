@@ -1,3 +1,17 @@
+ARŞİV — buraya yeni sürüm eklemeyin.
+=================================================
+Kullanıcıya gösterilen sürüm notlarının tek kaynağı artık
+frontend/app/assets/js/changelog.js. Eklentinin karşılama sayfası onu doğrudan
+okuyor, Android uygulaması ReleaseNotes.kt ile birebir yansıtıyor, docs/
+altındaki changelog.json ise `npm run changelog` ile ondan üretiliyor.
+
+Yeniden adlandırmadan önceki (Ekşi Engel) sürümler changelog.legacy.json
+dosyasına taşındı; site sayfası ikisini birleştirip gösteriyor.
+
+Bu dosya iki şey için duruyor: aşağıdaki geliştirici geçmişi ve en sondaki
+yapılacaklar listesi. İkisi de başka hiçbir yerde tutulmuyor.
+=================================================
+
 Versiyon notları (son kullanıcı için)
 -------------------------------------------------
 

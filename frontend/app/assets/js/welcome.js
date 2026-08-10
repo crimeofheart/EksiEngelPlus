@@ -1,7 +1,7 @@
 import * as enums from './enums.js';
 import {commHandler} from './commHandler.js';
 import {config} from './config.js';
-import {getNotes} from './changelog.js';
+import {getSections} from './changelog.js';
 
 console.log("welcome.js: has been started.");
 
@@ -23,14 +23,26 @@ function showVersion() {
   const notesElem = document.getElementById('versionNotes');
   if (notesElem) {
     notesElem.replaceChildren();
-    for (const note of getNotes(version)) {
-      const row = document.createElement('tr');
-      const cell = document.createElement('td');
-      cell.textContent = note;
-      row.appendChild(cell);
-      notesElem.appendChild(row);
+    // Extension first: this is the extension's own welcome page, and the first
+    // thing its reader is asking is what changed for them.
+    for (const section of getSections(version, ['extension', 'app'])) {
+      if (section.label) {
+        notesElem.appendChild(noteRow(section.label, 'note-platform'));
+      }
+      for (const note of section.notes) {
+        notesElem.appendChild(noteRow(note));
+      }
     }
   }
+}
+
+function noteRow(text, className) {
+  const row = document.createElement('tr');
+  const cell = document.createElement('td');
+  cell.textContent = text;
+  if (className) cell.className = className;
+  row.appendChild(cell);
+  return row;
 }
 
 document.addEventListener('DOMContentLoaded', async function () {

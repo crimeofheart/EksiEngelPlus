@@ -26,10 +26,36 @@ class ReleaseNotesActivity : AppCompatActivity() {
         val version = intent.getStringExtra(EXTRA_VERSION).orEmpty()
         findViewById<TextView>(R.id.notesVersion).text =
             getString(R.string.notes_version, version)
-        findViewById<TextView>(R.id.notesBody).text =
-            ReleaseNotes.forVersion(version).joinToString("\n\n") { "• $it" }
+        findViewById<TextView>(R.id.notesBody).text = body(version)
         findViewById<android.widget.Button>(R.id.notesDismiss)
             .setOnClickListener { finish() }
+    }
+
+    /**
+     * The sections, one after another, each under its platform's name.
+     *
+     * A SpannableStringBuilder rather than a view per section: the layout is a
+     * single scrolling TextView, and two or three headings do not justify
+     * building the list dynamically.
+     */
+    private fun body(version: String): CharSequence {
+        val text = android.text.SpannableStringBuilder()
+        for (section in ReleaseNotes.forVersion(version)) {
+            if (text.isNotEmpty()) text.append("\n\n")
+            if (section.label.isNotEmpty()) {
+                val start = text.length
+                text.append(section.label)
+                text.setSpan(
+                    android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                    start,
+                    text.length,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+                text.append("\n")
+            }
+            text.append(section.notes.joinToString("\n\n") { "• $it" })
+        }
+        return text
     }
 
     companion object {

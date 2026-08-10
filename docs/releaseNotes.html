@@ -7,6 +7,22 @@
 <link rel="stylesheet" type="text/css" href="./assets/normalize.css">
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<style>
+/*
+  The two things one version number ships. Distinct colours rather than the
+  default blue, because on a release where only one of them changed the badge is
+  what tells the reader whether the entry concerns them -- and the other badge,
+  right below it, says so explicitly.
+
+  Wider than the 65px the verb badges use: "UYGULAMA" does not fit in it.
+*/
+.change-badge-eklenti,
+.change-badge-uygulama {
+  flex-basis: 84px;
+}
+.change-badge-eklenti { background-color: #6f42c1; }
+.change-badge-uygulama { background-color: #1f883d; }
+</style>
 </head>
 
 <body>
@@ -72,7 +88,10 @@ function isRegularNote(changeText) {
 function createChange(changeText) {
   if (changeText != '') {
     var trimmed = $.trim(changeText);
-    var typeMatches = trimmed.match(/^\[(new|fixed|improved|removed|added|pretext)\]\s((.|\n)*)/i);
+    // Eklenti / Uygulama are the platform badges the generated entries carry.
+    // One version number ships both, so every 0.1.x note says which of the two
+    // it is about -- including the ones that say nothing changed there.
+    var typeMatches = trimmed.match(/^\[(new|fixed|improved|removed|added|pretext|eklenti|uygulama)\]\s((.|\n)*)/i);
     if (typeMatches) {
       var changeType = typeMatches[1];
       var changeDescription = typeMatches[2];

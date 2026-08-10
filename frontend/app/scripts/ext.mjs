@@ -4,6 +4,7 @@
  *
  *   node scripts/ext.mjs switch <chrome|firefox>
  *   node scripts/ext.mjs check
+ *   node scripts/ext.mjs changelog
  *   node scripts/ext.mjs version <patch|minor|major|x.y.z>
  *   node scripts/ext.mjs package
  *   node scripts/ext.mjs release <patch|minor|major|x.y.z|current>
@@ -17,7 +18,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { deflateRawSync } from "node:zlib";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_DIR = path.resolve(APP_DIR, "../publish/dist");
@@ -30,6 +31,25 @@ const REPO_ROOT = path.resolve(APP_DIR, "../..");
  * `version` and `package` still run with no JDK and no Android SDK installed.
  */
 const ANDROID_VERSION_FILE = path.join(REPO_ROOT, "android", "version.json");
+
+/**
+ * The release notes, and the website page they also feed.
+ *
+ * changelog.js is the source: the extension's welcome page imports it directly,
+ * and docs/changelog.json is generated from it so the site cannot fall behind
+ * the product the way it did between 2.6.0 and 0.1.8 — four releases the page
+ * never showed because updating it was a separate act nobody remembered.
+ *
+ * The pre-rename history has no entry in changelog.js and never will: those are
+ * Ekşi Engel's releases, in a different numbering and a different format. They
+ * live in changelog.legacy.json and are appended verbatim.
+ */
+const CHANGELOG_JS = path.join(APP_DIR, "assets", "js", "changelog.js");
+const DOCS_CHANGELOG = path.join(REPO_ROOT, "docs", "changelog.json");
+const DOCS_CHANGELOG_LEGACY = path.join(REPO_ROOT, "docs", "changelog.legacy.json");
+
+/** Badge text per platform, matching the labels the two clients show. */
+const DOCS_PLATFORM_BADGES = { extension: "Eklenti", app: "Uygulama" };
 
 const BROWSERS = ["chrome", "firefox"];
 const manifestFor = (browser) => path.join(APP_DIR, `manifest.${browser}.json`);
@@ -249,6 +269,64 @@ function cmdSwitch(browser) {
   console.log(`manifest.json <- manifest.${browser}.json`);
 }
 
+/**
+ * docs/changelog.json, as it should be: changelog.js then the legacy tail.
+ *
+ * Concatenated, never sorted. The project renamed and restarted at 0.1.0, so
+ * "newest first" and "highest version first" stopped being the same ordering —
+ * 3.2.0 is older than 0.1.2 and any comparison of the two numbers says the
+ * opposite. Each list is already newest-first on its own.
+ */
+function buildDocsChangelog() {
+  const { releaseNotes, noChangesNote } = changelog;
+
+  const modern = Object.entries(releaseNotes).flatMap(([version, entry]) => {
+    // No date means not released yet. The notes for the next version are often
+    // written while it is still being built, and docs/ is a live site: listing
+    // one would announce a release nobody can install. cmdVersion stamps the
+    // date when the number is bumped, which is when it becomes real.
+    if (!entry.date) return [];
+
+    const notes = [];
+    for (const [platform, badge] of Object.entries(DOCS_PLATFORM_BADGES)) {
+      const lines = entry[platform];
+      // Omitted means the platform did not exist for this release; only an
+      // empty array is the deliberate "nothing changed here".
+      if (!lines) continue;
+      const text = lines.length ? lines : [noChangesNote];
+      for (const line of text) notes.push(`[${badge}] ${line}`);
+    }
+    return [{ name: "", notes, pub_date: entry.date, version }];
+  });
+
+  const legacy = readJson(DOCS_CHANGELOG_LEGACY);
+  return JSON.stringify([...modern, ...legacy], null, 2) + "\n";
+}
+
+/**
+ * Writes docs/changelog.json, or with `check` only reports that it is stale.
+ *
+ * `check` is what cmdCheck calls, so a note added to changelog.js without
+ * regenerating fails the build rather than shipping a site that disagrees with
+ * the extension about what the release contained.
+ */
+function cmdChangelog({ check = false } = {}) {
+  const wanted = buildDocsChangelog();
+  const current = fs.existsSync(DOCS_CHANGELOG)
+    ? fs.readFileSync(DOCS_CHANGELOG, "utf8")
+    : null;
+
+  if (current === wanted) {
+    if (!check) console.log("docs/changelog.json already up to date");
+    return;
+  }
+  if (check) fail("docs/changelog.json is stale; run `npm run changelog`");
+
+  fs.writeFileSync(DOCS_CHANGELOG, wanted);
+  const count = JSON.parse(wanted).length;
+  console.log(`docs/changelog.json <- changelog.js + legacy (${count} releases)`);
+}
+
 /** Assert every recorded version agrees, and return it. */
 function cmdCheck() {
   const found = versionFiles().flatMap(versionsIn);
@@ -271,9 +349,42 @@ function cmdCheck() {
     }
   }
 
+  // The site is generated from changelog.js, so a stale docs/changelog.json is
+  // the same class of drift as a hand-edited manifest.json: something that is
+  // supposed to be a copy no longer is.
+  cmdChangelog({ check: true });
+
   const version = [...distinct][0];
   console.log(`ok: version ${version} consistent across ${found.length} locations`);
   return version;
+}
+
+/**
+ * Records the release date on the version's changelog entry.
+ *
+ * The date is what promotes a note from "written" to "shipped": until it is
+ * there the entry is deliberately kept off the website. Stamped at the bump
+ * rather than at the tag because `version:patch` and `release` are separate
+ * acts here, and only the bump is guaranteed to happen exactly once.
+ *
+ * Silent when there is no entry to stamp. A missing note is caught by the
+ * Android side's drift test, which is the one place that knows whether the
+ * shipping version has anything to say.
+ */
+function stampReleaseDate(version) {
+  const source = fs.readFileSync(CHANGELOG_JS, "utf8");
+  const opening = new RegExp(`("${version.replace(/\./g, "\\.")}"\\s*:\\s*\\{)`);
+  if (!opening.test(source)) return false;
+  // Already dated: a re-run must not move a date that has been published.
+  if (new RegExp(`"${version.replace(/\./g, "\\.")}"\\s*:\\s*\\{\\s*date:`).test(source)) return false;
+
+  const today = new Date().toISOString().slice(0, 10);
+  fs.writeFileSync(CHANGELOG_JS, source.replace(opening, `$1\n    date: "${today}",`));
+  // The module was imported once at startup and is what buildDocsChangelog
+  // reads; without this the regeneration that follows would emit the file as it
+  // was before the stamp, and `check` would then call its own output stale.
+  changelog.releaseNotes[version].date = today;
+  return true;
 }
 
 function cmdVersion(spec) {
@@ -285,6 +396,12 @@ function cmdVersion(spec) {
   const files = versionFiles();
   const total = files.reduce((n, file) => n + rewriteVersion(file, current, next), 0);
   console.log(`${current} -> ${next} (${total} occurrences in ${files.length} files)`);
+
+  if (stampReleaseDate(next)) console.log(`changelog.js: dated ${next}`);
+  else console.warn(`warning: changelog.js has no undated entry for ${next}`);
+  // Regenerated here rather than left for `check` to complain about: the date
+  // just changed, so the site's copy is stale by construction.
+  cmdChangelog();
   return next;
 }
 
@@ -371,6 +488,10 @@ function cmdRelease(spec) {
       if (file === ACTIVE_MANIFEST) continue; // generated, untracked
       git("add", file);
     }
+    // The bump dated the release and regenerated the site's copy. Both are part
+    // of the release, and leaving them out would land a commit whose own
+    // `check` fails.
+    git("add", CHANGELOG_JS, DOCS_CHANGELOG);
     git("commit", "-m", `chore: release ${tag}`);
     git("tag", "-a", tag, "-m", tag);
     console.log(`\ncommitted and tagged ${tag}`);
@@ -381,6 +502,14 @@ function cmdRelease(spec) {
 
 // ------------------------------------------------------------------- main
 
+/*
+ * changelog.js is an ES module of plain data, so it is imported rather than
+ * parsed. Loaded here, once, and read synchronously afterwards: making cmdCheck
+ * async would have made cmdVersion, cmdPackage and cmdRelease async with it,
+ * for a file that is a few kilobytes of literals.
+ */
+const changelog = await import(pathToFileURL(CHANGELOG_JS).href);
+
 const [command, arg] = process.argv.slice(2);
 switch (command) {
   case "switch":
@@ -388,6 +517,9 @@ switch (command) {
     break;
   case "check":
     cmdCheck();
+    break;
+  case "changelog":
+    cmdChangelog();
     break;
   case "version":
     cmdVersion(arg);
@@ -399,5 +531,5 @@ switch (command) {
     cmdRelease(arg);
     break;
   default:
-    fail("usage: ext.mjs <switch|check|version|package|release> [arg]");
+    fail("usage: ext.mjs <switch|check|changelog|version|package|release> [arg]");
 }

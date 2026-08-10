@@ -6,6 +6,7 @@
     "switch:chrome": "node scripts/ext.mjs switch chrome",
     "switch:firefox": "node scripts/ext.mjs switch firefox",
     "check": "node scripts/ext.mjs check",
+    "changelog": "node scripts/ext.mjs changelog",
     "package": "node scripts/ext.mjs package",
     "version:patch": "node scripts/ext.mjs version patch",
     "version:minor": "node scripts/ext.mjs version minor",
@@ -16,7 +17,13 @@
     "restore-chrome": "npm run switch:chrome",
     "load-firefox": "npm run switch:firefox"
   },
-  "keywords": ["chrome-extension", "firefox-addon", "eksisozluk"],
+  "keywords": [
+    "chrome-extension",
+    "firefox-addon",
+    "eksisozluk"
+  ],
   "author": "crimeofheart",
-  "license": "MIT"
+  "license": "MIT",
+  "//type": "The extension's own JS is loaded by the browser, which never reads this file, and package.json is excluded from the store zips. This is here only so Node stops re-parsing assets/js/changelog.js as CommonJS every time ext.mjs imports it.",
+  "type": "module"
 }

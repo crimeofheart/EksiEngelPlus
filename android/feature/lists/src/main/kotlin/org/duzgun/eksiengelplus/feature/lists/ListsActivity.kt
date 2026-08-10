@@ -10,7 +10,9 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import org.duzgun.eksiengelplus.ui.fitContentInsideSystemBars
+import org.duzgun.eksiengelplus.ui.onPullToRefresh
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -39,6 +41,7 @@ class ListsActivity : AppCompatActivity() {
 
     private val model: ListsViewModel by viewModels()
 
+    private lateinit var refresh: SwipeRefreshLayout
     private lateinit var notice: TextView
     private lateinit var authorSummary: TextView
     private lateinit var opsSummary: TextView
@@ -74,6 +77,17 @@ class ListsActivity : AppCompatActivity() {
         notice = findViewById(R.id.listsNotice)
         authorSummary = findViewById(R.id.authorSummary)
         opsSummary = findViewById(R.id.opsSummary)
+
+        // Refresh was reachable only through a per-row menu, one list at a time.
+        // The swipe is the same verb applied to the screen, which is what the
+        // counts and the freshness lines are all about.
+        refresh = findViewById(R.id.listsRefresh)
+        refresh.onPullToRefresh {
+            // render() owns the spinner from here on, but only if something is
+            // actually going to sync -- a refusal produces no state change and
+            // would leave the gesture spinning forever.
+            if (!model.refreshAll()) refresh.isRefreshing = false
+        }
 
         bind(ListType.BLOCKED, R.id.rowBlocked, R.string.lists_blocked)
         bind(ListType.MUTED, R.id.rowMuted, R.string.lists_muted)
@@ -223,6 +237,11 @@ class ListsActivity : AppCompatActivity() {
 
     private fun render(state: ListsUiState) {
         notice.visibility = if (state.operationRunning) View.VISIBLE else View.GONE
+
+        // Driven by the syncs themselves rather than by the gesture, so the
+        // spinner is also up for a refresh started from a row menu, and survives
+        // the screen being reopened mid-sync.
+        refresh.isRefreshing = state.rows.any { it.sync.isActive }
 
         for (row in state.rows) {
             val views = rows[row.listType] ?: continue

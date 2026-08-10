@@ -12,7 +12,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import org.duzgun.eksiengelplus.ui.fitContentInsideSystemBars
+import org.duzgun.eksiengelplus.ui.onPullToRefresh
 import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -52,6 +54,7 @@ class BrowserActivity : AppCompatActivity() {
     @Inject lateinit var identityRepository: org.duzgun.eksiengelplus.datastore.IdentityRepository
 
     private lateinit var web: WebView
+    private lateinit var webRefresh: SwipeRefreshLayout
     private lateinit var sessionBar: TextView
     private lateinit var resumeBar: android.view.ViewGroup
     private lateinit var bridge: BridgeHost
@@ -90,6 +93,8 @@ class BrowserActivity : AppCompatActivity() {
         setContentView(R.layout.activity_browser)
         fitContentInsideSystemBars()
         web = findViewById(R.id.web)
+        webRefresh = findViewById(R.id.webRefresh)
+        webRefresh.onPullToRefresh { reloadPage() }
         sessionBar = findViewById(R.id.sessionBar)
         loadingCover = findViewById(R.id.loadingCover)
         resumeBar = findViewById(R.id.resumeBar)
@@ -129,6 +134,7 @@ class BrowserActivity : AppCompatActivity() {
                 }
                 bridge.pendingFallbackScript?.let { web.evaluateJavascript(it, null) }
                 loadingCover.visibility = View.GONE
+                webRefresh.isRefreshing = false
             },
         )
 
@@ -199,6 +205,20 @@ class BrowserActivity : AppCompatActivity() {
         val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    /**
+     * The swipe-down reload.
+     *
+     * The spinner is cleared by onPageFinished, which fires for error pages too,
+     * so a failed reload does not leave it turning. The timeout is the same guard
+     * the loading cover uses, for the load that never comes back at all: a
+     * WebView stuck on an unresponsive host reports nothing, and the spinner is
+     * the one thing on screen that would then be lying.
+     */
+    private fun reloadPage() {
+        web.reload()
+        webRefresh.postDelayed({ webRefresh.isRefreshing = false }, COVER_TIMEOUT_MS)
     }
 
     /**

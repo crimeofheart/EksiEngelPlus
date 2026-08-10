@@ -16,4 +16,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    // api, not implementation: the screens name SwipeRefreshLayout in their own
+    // layouts and code, so the class has to be on their compile classpath too.
+    api(libs.androidx.swiperefreshlayout)
 }

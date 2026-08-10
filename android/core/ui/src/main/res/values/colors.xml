@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The app's green, shared. feature/lists carries the same value as
+        eksi_accent for the buttons and the resume bar; the pull-to-refresh
+        spinner appears on screens in two different modules, so the one colour
+        they all reach for lives in the module they all depend on.
+    -->
+    <color name="eksi_refresh_spinner">#81C14B</color>
+</resources>

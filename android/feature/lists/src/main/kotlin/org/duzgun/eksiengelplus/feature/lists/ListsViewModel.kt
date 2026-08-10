@@ -164,6 +164,34 @@ class ListsViewModel @Inject constructor(
 
     fun refresh(listType: ListType) = ListSyncWorker.enqueue(workManager, listType)
 
+    /**
+     * Every list at once, for the swipe-down gesture.
+     *
+     * Gated on the same condition the per-row menu uses -- a running operation is
+     * already holding itself under the server's rate ceiling, and four unpaced
+     * syncs on top of it is the one thing that gate exists to prevent. Lists
+     * already syncing are skipped rather than re-enqueued: the worker is unique
+     * per list with a KEEP policy, so a second enqueue would be dropped silently
+     * and the gesture would look like it did something it did not.
+     *
+     * Returns whether anything was started, so the screen can stop a spinner it
+     * raised for work that is not going to happen.
+     */
+    fun refreshAll(): Boolean {
+        val current = state.value
+        if (current.operationRunning) {
+            say(string(R.string.lists_operation_running))
+            return false
+        }
+        val idle = current.rows.filterNot { it.sync.isActive }
+        // Nothing idle means all four are already going: the gesture asked for a
+        // refresh and a refresh is what is happening, so the spinner stays up and
+        // render() takes it down when the last one lands.
+        if (idle.isEmpty()) return current.rows.isNotEmpty()
+        idle.forEach { ListSyncWorker.enqueue(workManager, it.listType) }
+        return true
+    }
+
     fun stop(listType: ListType) = ListSyncWorker.stop(workManager, listType)
 
     /**

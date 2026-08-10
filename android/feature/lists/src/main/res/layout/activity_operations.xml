@@ -4,7 +4,12 @@
     notification page shows them, so a run is never something the user has to
     infer from a notification they may have dismissed.
 -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<org.duzgun.eksiengelplus.ui.VerticalSwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/opsRefresh"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+<ScrollView
     android:layout_width="match_parent" android:layout_height="match_parent">
 
     <LinearLayout
@@ -56,3 +61,4 @@
             android:text="@string/ops_none" android:textSize="13sp" android:alpha="0.6"/>
     </LinearLayout>
 </ScrollView>
+</org.duzgun.eksiengelplus.ui.VerticalSwipeRefreshLayout>

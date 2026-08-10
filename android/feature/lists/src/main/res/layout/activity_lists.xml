@@ -4,7 +4,12 @@
     carries the same header, padding and divider, so the screen reads as one
     thing rather than as the sum of what was added last.
 -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<org.duzgun.eksiengelplus.ui.VerticalSwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/listsRefresh"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+<ScrollView
     android:layout_width="match_parent" android:layout_height="match_parent">
 
     <LinearLayout
@@ -75,3 +80,4 @@
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
+</org.duzgun.eksiengelplus.ui.VerticalSwipeRefreshLayout>

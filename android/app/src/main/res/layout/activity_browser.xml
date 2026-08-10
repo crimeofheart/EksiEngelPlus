@@ -87,8 +87,20 @@
         android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1">
 
-        <WebView android:id="@+id/web"
-            android:layout_width="match_parent" android:layout_height="match_parent"/>
+        <!--
+            The WebView is the SwipeRefreshLayout's direct child, not the
+            FrameLayout: the gesture is armed by asking the child whether it can
+            still scroll up, and a FrameLayout never can, so wrapping the whole
+            stack would have made every downward drag anywhere on the page
+            trigger a reload.
+        -->
+        <org.duzgun.eksiengelplus.ui.VerticalSwipeRefreshLayout
+            android:id="@+id/webRefresh"
+            android:layout_width="match_parent" android:layout_height="match_parent">
+
+            <WebView android:id="@+id/web"
+                android:layout_width="match_parent" android:layout_height="match_parent"/>
+        </org.duzgun.eksiengelplus.ui.VerticalSwipeRefreshLayout>
 
         <TextView android:id="@+id/loadingCover"
             android:layout_width="match_parent" android:layout_height="match_parent"

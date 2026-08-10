@@ -235,6 +235,168 @@
     return -1;
   }
 
+  /*
+   * The tab the user came from, for pages that are not themselves a tab.
+   *
+   * A title opened out of gündem is at /slug--123: no active marker, no keyword
+   * in the path, so currentTabIndex has nothing to go on and returns -1. That is
+   * the right answer for "which tab is this page" and the wrong one for "which
+   * tab is the user in", which is what the swipe needs on a single-page title.
+   *
+   * Per tab, not per session: sessionStorage is scoped to this WebView's session
+   * already, and a value that outlived it would resume a cycle the user left
+   * behind days ago.
+   */
+  var LAST_TAB_KEY = "eep.lastTab";
+
+  function rememberTab(tabs, at) {
+    if (at === -1) return;
+    try { sessionStorage.setItem(LAST_TAB_KEY, tabs[at].label); } catch (e) {}
+  }
+
+  function rememberedTabIndex(tabs) {
+    var label;
+    try { label = sessionStorage.getItem(LAST_TAB_KEY); } catch (e) { return -1; }
+    if (!label) return -1;
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i].label === label) return i;
+    }
+    return -1;
+  }
+
+  /**
+   * A title's own pages, so a swipe inside an entry list turns the page.
+   *
+   * Only on a title -- /slug--123. The topic lists are paginated too, and keying
+   * off "this page has a pager" would have replaced the tab cycle on gündem with
+   * a page cycle, which is the one thing the swipe already did well.
+   *
+   * Returns null when the title has a single page, and the caller then falls
+   * through to the tab ring: there is no page to turn to, so the gesture should
+   * do what it does everywhere else rather than nothing.
+   */
+  function isTitlePage() {
+    return /--\d+(\/|$)/.test(location.pathname);
+  }
+
+  function pageHref(page) {
+    var url = new URL(location.href);
+    // set, not append: ?a=dailynice and friends decide *which* entries are
+    // paginated, so they have to survive the page change.
+    url.searchParams.set("p", String(page));
+    return url.href;
+  }
+
+  /**
+   * How many pages the title has.
+   *
+   * data-pagecount is Ekşi's own answer and is taken when present. The link
+   * sweep is for the layouts that render the pager without it: the highest p= it
+   * offers is the last page, since the pager always links the end.
+   */
+  function pageCount(pager) {
+    var stated = parseInt(pager.getAttribute("data-pagecount") || "", 10);
+    if (stated > 0) return stated;
+
+    var max = 0;
+    var links = pager.querySelectorAll("a[href], option[value]");
+    for (var i = 0; i < links.length; i++) {
+      var raw = links[i].getAttribute("href") || links[i].getAttribute("value") || "";
+      var found = /[?&]p=(\d+)/.exec(raw);
+      // A bare option carries the number itself rather than a URL.
+      var n = found ? parseInt(found[1], 10) : parseInt(raw, 10);
+      if (n > max) max = n;
+    }
+    return max;
+  }
+
+  function currentPage(pager) {
+    var stated = parseInt(pager.getAttribute("data-currentpage") || "", 10);
+    if (stated > 0) return stated;
+    var fromUrl = parseInt(new URL(location.href).searchParams.get("p") || "", 10);
+    return fromUrl > 0 ? fromUrl : 1;
+  }
+
+  function pageItem(page) {
+    return { label: pageLabel(page), href: pageHref(page) };
+  }
+
+  function titlePageRing() {
+    if (!isTitlePage()) return null;
+    var pager = document.querySelector(".pager");
+    if (!pager) return null;
+
+    var count = pageCount(pager);
+    if (count < 2) return null;
+    var page = Math.min(currentPage(pager), count);
+
+    /*
+     * Never the whole run: three entries, sometimes four.
+     *
+     * The ring is rebuilt on every drag and a long title has hundreds of pages,
+     * so only the two the finger can reach are ever built.
+     *
+     * The ends are where the two rings meet. Off the last page the swipe carries
+     * on into the next tab, and off the first back into the previous one, rather
+     * than stopping dead at a boundary the user has no reason to know about: the
+     * gesture means "keep going", and there is always somewhere to keep going to.
+     * Not a wrap -- page one and the last page are genuinely the ends of *this*
+     * title, and jumping between them would be a different answer entirely.
+     */
+    var tabs = tabRing();
+    var items = [];
+
+    if (page > 1) items.push(pageItem(page - 1));
+    else if (tabs) pushIf(items, ringNeighbour(tabs, -1));
+
+    var at = items.length;
+    items.push(pageItem(page));
+
+    if (page < count) items.push(pageItem(page + 1));
+    else if (tabs) pushIf(items, ringNeighbour(tabs, 1));
+
+    return { items: items, at: at, wrap: false };
+  }
+
+  function pushIf(items, entry) {
+    if (entry) items.push(entry);
+  }
+
+  function pageLabel(page) {
+    return "sayfa " + page;
+  }
+
+  function tabRing() {
+    var tabs = mainTabs();
+    if (tabs.length < 2) return null;
+    var at = currentTabIndex(tabs);
+    // On a title the page is not a tab, so where the user came from is the only
+    // honest answer. Elsewhere -1 still means "unrelated page" and still refuses.
+    if (at === -1 && isTitlePage()) at = rememberedTabIndex(tabs);
+    if (at === -1) return null;
+    return { items: tabs, at: at, wrap: true };
+  }
+
+  /** One step along a ring, or null where a non-wrapping one ends. */
+  function ringNeighbour(ring, dir) {
+    var n = ring.at + dir;
+    if (n < 0) n = ring.wrap ? ring.items.length - 1 : -1;
+    if (n >= ring.items.length) n = ring.wrap ? 0 : -1;
+    return n === -1 ? null : ring.items[n];
+  }
+
+  /**
+   * What this swipe cycles through, here.
+   *
+   * Pages when there are pages to turn, the main tabs otherwise. One shape for
+   * both, so the drag, the preview and the commit never have to know which of
+   * the two they are moving between -- which is also what lets the page ring
+   * end in a tab without anything downstream noticing.
+   */
+  function swipeRing() {
+    return titlePageRing() || tabRing();
+  }
+
   function cycleTab(direction) {
     var tabs = mainTabs();
     if (tabs.length < 2) return;
@@ -265,7 +427,8 @@
     x0: 0, y0: 0, dx: 0,
     axis: null,      // null until the gesture commits to horizontal or vertical
     dir: 0,
-    tabs: null,
+    items: null,     // tabs, or this title's pages ending in its neighbouring tabs
+    wrap: false,     // tabs cycle; a title's pages run out
     at: -1
   };
 
@@ -317,20 +480,23 @@
     return pagerEl();
   }
 
-  function beginDrag() {
-    SWIPE.tabs = mainTabs();
-    SWIPE.at = currentTabIndex(SWIPE.tabs);
-    if (SWIPE.at === -1 || SWIPE.tabs.length < 2) return false;
+  /** [dir] is needed up front: a ring with no neighbour that way is no drag. */
+  /** [dir] is needed up front: a ring with no neighbour that way is no drag. */
+  function beginDrag(dir) {
+    var ring = swipeRing();
+    if (!ring) return false;
+    SWIPE.items = ring.items;
+    SWIPE.at = ring.at;
+    SWIPE.wrap = ring.wrap;
+    if (!neighbour(dir)) return false;
     SWIPE.surface = surfaceEl();
     SWIPE.surface.style.willChange = "transform";
     return true;
   }
 
+  /** SWIPE carries items/at/wrap, so it is a ring like any other. */
   function neighbour(dir) {
-    var n = SWIPE.at + dir;
-    if (n < 0) n = SWIPE.tabs.length - 1;
-    if (n >= SWIPE.tabs.length) n = 0;
-    return SWIPE.tabs[n];
+    return ringNeighbour(SWIPE, dir);
   }
 
   /*
@@ -382,13 +548,22 @@
   }
   preloadTab.inFlight = {};
 
-  /** Warms both neighbours, so the first drag of a session has content. */
+  /**
+   * Warms both neighbours, so the first drag of a session has content.
+   *
+   * Also the one place the current tab is recorded, for the titles opened out of
+   * it: it already resolves the ring, and it runs on every page.
+   */
   function warmNeighbours() {
     var tabs = mainTabs();
-    var at = currentTabIndex(tabs);
-    if (at === -1 || tabs.length < 2) return;
-    preloadTab(tabs[(at + 1) % tabs.length].href);
-    preloadTab(tabs[(at - 1 + tabs.length) % tabs.length].href);
+    rememberTab(tabs, currentTabIndex(tabs));
+
+    var ring = swipeRing();
+    if (!ring) return;
+    for (var d = -1; d <= 1; d += 2) {
+      var side = ringNeighbour(ring, d);
+      if (side) preloadTab(side.href);
+    }
   }
 
   function renderPreview(layer, tab) {
@@ -492,12 +667,7 @@
       SWIPE.x0 = e.touches[0].clientX;
       SWIPE.y0 = e.touches[0].clientY;
       // Warm the neighbours so the first drag has something to show.
-      var tabs = mainTabs();
-      var at = currentTabIndex(tabs);
-      if (at !== -1 && tabs.length > 1) {
-        preloadTab(tabs[(at + 1) % tabs.length].href);
-        preloadTab(tabs[(at - 1 + tabs.length) % tabs.length].href);
-      }
+      warmNeighbours();
     }, { passive: true });
 
     document.addEventListener("touchmove", function (e) {
@@ -509,9 +679,14 @@
         if (Math.abs(dy) > MAX_Y) { SWIPE.axis = "y"; return; }
         if (Math.abs(dx) < MIN_X) return;
         SWIPE.axis = "x";
-        if (!beginDrag()) { SWIPE.axis = "y"; return; }
-        SWIPE.dir = dx < 0 ? 1 : -1;
-        showPreview(SWIPE.dir);
+        // Direction first: beginDrag has to know which way to look before it can
+        // say whether there is anywhere to go. On the last page of a title there
+        // is no next, and the drag should not start at all rather than start and
+        // then have nothing to settle onto.
+        var dir = dx < 0 ? 1 : -1;
+        if (!beginDrag(dir)) { SWIPE.axis = "y"; return; }
+        SWIPE.dir = dir;
+        showPreview(dir);
       }
       if (SWIPE.axis !== "x") return;
 
@@ -528,6 +703,24 @@
       var far = Math.abs(SWIPE.dx) > w * COMMIT;
       var sameWay = (SWIPE.dx < 0 ? 1 : -1) === SWIPE.dir;
       settle(far && sameWay, SWIPE.dir);
+    }, { passive: true });
+
+    /*
+     * The drag taken away from us mid-gesture.
+     *
+     * A native view that intercepts -- the pull-to-refresh above this WebView is
+     * the one that can -- gets the rest of the touch stream, and all the page
+     * receives is this. Without it there is no touchend, settle() is never
+     * called, and the surface stays translated at whatever offset the finger
+     * reached: a page left sitting half off screen with no way back.
+     *
+     * Always back to origin, never committed. The gesture did not finish, so
+     * there is no distance at which it counts as a decision.
+     */
+    document.addEventListener("touchcancel", function () {
+      if (SWIPE.axis !== "x" || !SWIPE.surface) { SWIPE.axis = null; return; }
+      SWIPE.axis = null;
+      settle(false, SWIPE.dir);
     }, { passive: true });
   })();
 

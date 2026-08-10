@@ -8,7 +8,9 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import org.duzgun.eksiengelplus.ui.fitContentInsideSystemBars
+import org.duzgun.eksiengelplus.ui.onPullToRefresh
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -27,6 +29,7 @@ import org.duzgun.eksiengelplus.ops.engine.OperationState
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommand
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommandBus
 import org.duzgun.eksiengelplus.ops.runtime.OperationLabel
+import org.duzgun.eksiengelplus.ops.runtime.OperationReconciler
 import org.duzgun.eksiengelplus.ops.runtime.OperationWaits
 import org.duzgun.eksiengelplus.ops.runtime.OperationWorker
 
@@ -47,7 +50,9 @@ class OperationsActivity : AppCompatActivity() {
     @Inject lateinit var db: EksiDatabase
     @Inject lateinit var commands: OperationCommandBus
     @Inject lateinit var waits: OperationWaits
+    @Inject lateinit var reconciler: OperationReconciler
 
+    private lateinit var refresh: SwipeRefreshLayout
     private lateinit var running: ViewGroup
     private lateinit var runningEmpty: TextView
     private lateinit var queued: ViewGroup
@@ -60,6 +65,21 @@ class OperationsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_operations)
         fitContentInsideSystemBars()
         title = getString(R.string.ops_title)
+
+        /*
+         * The rows come from Room flows, so nothing here is ever stale for want
+         * of a re-read -- but a checkpoint left RUNNING by a process that died is
+         * stale in a way no flow can fix, and until now the only thing that
+         * cleared it was a cold start of the browser screen. This is the screen
+         * that shows the wrong row, so this is where the correction belongs.
+         */
+        refresh = findViewById(R.id.opsRefresh)
+        refresh.onPullToRefresh {
+            lifecycleScope.launch {
+                reconciler.reconcile()
+                refresh.isRefreshing = false
+            }
+        }
 
         running = findViewById(R.id.opsRunning)
         runningEmpty = findViewById(R.id.opsRunningEmpty)

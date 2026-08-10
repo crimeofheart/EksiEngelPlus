@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.1.9": {
+    date: "2026-08-10",
     app: [
       "Ana sayfalarda aşağı çekerek yenileme: tarayıcıda sayfayı, listelerde tüm listeleri, işlem durumunda yarım kalmış işlemleri tazeler.",
       "Bir başlığın içinde yatay kaydırma artık sayfalar arasında geziniyor; son sayfadan sonrası bugün, gündem, debe döngüsüne bağlanıyor.",

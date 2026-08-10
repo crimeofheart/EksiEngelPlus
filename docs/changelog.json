@@ -3,6 +3,17 @@
     "name": "",
     "notes": [
       "[Eklenti] Bu sürümde değişiklik yok.",
+      "[Uygulama] Ana sayfalarda aşağı çekerek yenileme: tarayıcıda sayfayı, listelerde tüm listeleri, işlem durumunda yarım kalmış işlemleri tazeler.",
+      "[Uygulama] Bir başlığın içinde yatay kaydırma artık sayfalar arasında geziniyor; son sayfadan sonrası bugün, gündem, debe döngüsüne bağlanıyor.",
+      "[Uygulama] Yatay kaydırma yarıda kesildiğinde sayfanın ekranın ortasında asılı kalması giderildi."
+    ],
+    "pub_date": "2026-08-10",
+    "version": "0.1.9"
+  },
+  {
+    "name": "",
+    "notes": [
+      "[Eklenti] Bu sürümde değişiklik yok.",
       "[Uygulama] Bir başlıktaki yazarlar taranırken son sayfadan sonrası hata sayılıyor, işlem kimseye dokunmadan yarıda kesiliyordu. Artık son sayfada düzgün duruyor."
     ],
     "pub_date": "2026-08-10",

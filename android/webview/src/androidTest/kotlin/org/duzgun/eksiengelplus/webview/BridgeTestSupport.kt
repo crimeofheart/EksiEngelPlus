@@ -63,6 +63,29 @@ fun settle(passes: Int = 3) {
 }
 
 /**
+ * A profile, shaped the way Ekşi shapes one.
+ *
+ * The two `.relation-link` anchors are the whole point: `data-add-caption` names
+ * the relation and `data-added` says whether it is in place, which is what
+ * decides the direction of the items we inject (script.js:475-516).
+ *
+ * `#button-blocked-link` is present because the injector removes it, and a
+ * fixture without it would let that removal rot unnoticed.
+ */
+fun profileFixture(banned: Boolean, titlesBanned: Boolean): String = """
+<html><body>
+  <h1 id="user-profile-title" data-nick="testyazar"></h1>
+  <input id="who" value="7">
+  <ul class="profile-buttons">
+    <li><a id="button-blocked-link" class="relation-link"
+           data-add-caption="engelle" data-added="$banned">engelle</a></li>
+    <li><a class="relation-link"
+           data-add-caption="başlıklarını engelle" data-added="$titlesBanned">başlıklarını engelle</a></li>
+  </ul>
+</body></html>
+"""
+
+/**
  * One entry, shaped the way Ekşi shapes one: the dropdown is identified by the
  * items it contains, not by position, so the markers have to be present.
  */

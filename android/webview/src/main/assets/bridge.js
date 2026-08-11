@@ -744,6 +744,19 @@
 
   // ------------------------------------------------------------- injectors
 
+  /*
+   * How Ekşi names the two relations it exposes on a profile, in
+   * data-add-caption. These are the site's strings, matched verbatim, and they
+   * double as our own "add" labels -- script.js:486,505 does the same.
+   *
+   * There is deliberately no mute caption. Ekşi renders no .relation-link for
+   * muting, so its state is not on the page; an unconditional "sessizden çıkar"
+   * would do nothing whenever the user was not muted. Bulk unmute and the author
+   * list stay the paths for that.
+   */
+  var CAPTION_BAN = "engelle";
+  var CAPTION_BAN_TITLES = "başlıklarını engelle";
+
   /**
    * The row of controls under a title: şükela, başlıkta ara, takip et,
    * başlığı açan.
@@ -913,6 +926,27 @@
     menu.appendChild(banFollow);
   }
 
+  /**
+   * The relations the site says it holds, keyed by the caption it names them by.
+   *
+   * script.js:475-516 walks the same collection: data-add-caption names the
+   * relation and data-added is "true" while it is in place. Both attributes were
+   * already being selected here and thrown away, which is why every item on this
+   * page could only ever add.
+   */
+  function profileRelations(container) {
+    var links = container.querySelectorAll(".relation-link");
+    var state = {};
+    for (var i = 0; i < links.length; i++) {
+      var caption = links[i].getAttribute("data-add-caption");
+      if (!caption) continue;
+      // The big red button and the dropdown entry share a caption; either one
+      // carrying data-added means the relation exists.
+      state[caption] = state[caption] || links[i].getAttribute("data-added") === "true";
+    }
+    return state;
+  }
+
   /** Profile buttons, mirroring script.js:425-573. */
   function injectProfile(container) {
     if (location.pathname.indexOf("/biri/") !== 0) return;
@@ -929,7 +963,9 @@
      * state where the site withdraws the relation buttons withdraws ours too,
      * without us having to know who is logged in.
      */
-    if (container.querySelectorAll(".relation-link").length === 0) return false;
+    var relations = profileRelations(container);
+    var captions = Object.keys(relations);
+    if (captions.length === 0) return false;
 
     var nickHolder = document.querySelector("[data-nick]");
     var who = document.getElementById("who");
@@ -939,37 +975,63 @@
     var targetType = CONFIG.enableMute ? TargetType.MUTE : TargetType.USER;
 
     // The site's own red block button is removed so ours is the single path
-    // (script.js:489) -- two buttons doing almost-the-same thing is worse.
+    // (script.js:489). Only correct because the item below now covers both
+    // directions -- while it was BAN-only, removing this took away the one
+    // control on the page that could undo a block.
     var native = document.getElementById("button-blocked-link");
     if (native) native.remove();
 
-    var ban = item(muteWord("engelle", "sessize al"));
-    // Not mute-aware on purpose: title blocking is its own relation (r=i) with
-    // no mute counterpart, so this action does the same thing either way.
-    var banTitles = item("başlıklarını engelle");
-    var banFollowers = item(muteWord("takipçilerini engelle", "takipçilerini sessize al"));
+    function single(mode, target, clickSource) {
+      return function () {
+        enqueue({
+          banSource: BanSource.SINGLE, banMode: mode, targetType: target,
+          clickSource: clickSource, authorName: nick, authorId: id
+        });
+      };
+    }
 
-    ban.onclick = function () {
-      enqueue({
-        banSource: BanSource.SINGLE, banMode: BanMode.BAN, targetType: targetType,
-        clickSource: ClickSource.PROFILE, authorName: nick, authorId: id
-      });
-    };
-    banTitles.onclick = function () {
-      enqueue({
-        banSource: BanSource.SINGLE, banMode: BanMode.BAN, targetType: TargetType.TITLE,
-        clickSource: ClickSource.PROFILE, authorName: nick, authorId: id
-      });
-    };
+    /*
+     * Blocking. Undoing it is TargetType.USER even under enableMute: the
+     * relation Ekşi recorded is the block (r=m), and the mute-aware label is
+     * exactly what makes sending r=u here look plausible.
+     */
+    if (CAPTION_BAN in relations) {
+      var banned = relations[CAPTION_BAN];
+      var ban = item(banned ? "engellemeyi bırak" : muteWord("engelle", "sessize al"));
+      ban.onclick = banned
+        ? single(BanMode.UNDOBAN, TargetType.USER, ClickSource.PROFILE)
+        : single(BanMode.BAN, targetType, ClickSource.PROFILE);
+      container.appendChild(ban);
+    }
+
+    /*
+     * Title blocking, which inverts independently of the above -- a user may
+     * have their titles blocked and not themselves.
+     *
+     * Not mute-aware on purpose: title blocking is its own relation (r=i) with
+     * no mute counterpart, so this action does the same thing either way.
+     */
+    if (CAPTION_BAN_TITLES in relations) {
+      var titlesBanned = relations[CAPTION_BAN_TITLES];
+      var banTitles = item(titlesBanned ? "başlıkları engellemeyi kaldır" : CAPTION_BAN_TITLES);
+      banTitles.onclick = single(
+        titlesBanned ? BanMode.UNDOBAN : BanMode.BAN, TargetType.TITLE, ClickSource.PROFILE
+      );
+      container.appendChild(banTitles);
+    }
+
+    /*
+     * Never inverted. This is not a relation on the profile being viewed but an
+     * operation over that user's follower list, so no .relation-link carries its
+     * state and there is nothing to read.
+     */
+    var banFollowers = item(muteWord("takipçilerini engelle", "takipçilerini sessize al"));
     banFollowers.onclick = function () {
       enqueue({
         banSource: BanSource.FOLLOW, banMode: BanMode.BAN, targetType: targetType,
         clickSource: ClickSource.PROFILE, authorName: nick, authorId: id
       });
     };
-
-    container.appendChild(ban);
-    container.appendChild(banTitles);
     container.appendChild(banFollowers);
   }
 

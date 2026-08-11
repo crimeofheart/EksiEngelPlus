@@ -113,6 +113,34 @@ class ParityTest {
             .isEmpty()
     }
 
+    // ---------------------------------------------------- browsing surface
+
+    /**
+     * A relation can be taken away from the page it is shown on.
+     *
+     * bridge.js hardcoded BanMode.BAN in all seven of its enqueues, so the whole
+     * browsing surface could only ever add. It read the two attributes that carry
+     * the state -- data-add-caption and data-added, script.js:475-516 -- and used
+     * them as an existence gate. A profile of someone already blocked offered a
+     * button reading "engelle", and re-sending a block that exists returns 2,
+     * which RelationClient counts as success.
+     *
+     * Asserted against the source rather than through the WebView because the
+     * instrumented cases need a device, and this is the regression that must not
+     * reach one.
+     */
+    @Test fun `the browsing surface can undo a relation, not only add one`() {
+        val bridge = read("android/webview/src/main/assets/bridge.js")
+
+        assertWithMessage("bridge.js never enqueues an undo")
+            .that(bridge)
+            .contains("BanMode.UNDOBAN")
+
+        assertWithMessage("the relation's state is not read from the page")
+            .that(bridge)
+            .contains("data-added")
+    }
+
     // ------------------------------------------------------- author actions
 
     @Test fun `the author list offers what the extension's page offers`() {

@@ -3,6 +3,20 @@
     "name": "",
     "notes": [
       "[Eklenti] Bu sürümde değişiklik yok.",
+      "[Uygulama] Bir yazarın profilinde artık engeli kaldırılabiliyor: zaten engellediğiniz birinde düğme \"engellemeyi bırak\" oluyor. Başlık engeli de ayrı olarak kaldırılabiliyor.",
+      "[Uygulama] Tarih bazlı toplu işlem yeniden yazıldı: liste (engelliler, sessizler, yazar listem), ölçüt (şu kadar süreden yeni/eski, şu tarihten önce/sonra) ve işlem (engelle, sessize al, engeli kaldır, sessizden çıkar, takip et, takipten çıkar ve iki birleşik işlem) ayrı ayrı seçiliyor.",
+      "[Uygulama] Aynı ekranda \"sessiz kullanıcılar\" seçilse bile işlem engelli listesi üzerinde çalışıyordu; artık seçilen liste üzerinde çalışıyor.",
+      "[Uygulama] Ayarlardaki tarih filtresi artık yalnızca engelleme, sessize alma ve başlık engellemede çalışıyor. Daha önce her işlemi kapsıyordu: varsayılan on yıl kuralı yüzünden \"tüm engelleri kaldır\" on yıldan eski hesapları atlıyor, o hesaplar engelli kalıyordu.",
+      "[Uygulama] Tarih bazlı işlemde seçilen ölçüt yalnızca o işlem için geçerli; ayarlardaki tarih filtresi kurallarına dokunmuyor.",
+      "[Uygulama] Son seçimleriniz hatırlanıyor."
+    ],
+    "pub_date": "2026-08-11",
+    "version": "0.2.0"
+  },
+  {
+    "name": "",
+    "notes": [
+      "[Eklenti] Bu sürümde değişiklik yok.",
       "[Uygulama] Ana sayfalarda aşağı çekerek yenileme: tarayıcıda sayfayı, listelerde tüm listeleri, işlem durumunda yarım kalmış işlemleri tazeler.",
       "[Uygulama] Bir başlığın içinde yatay kaydırma artık sayfalar arasında geziniyor; son sayfadan sonrası bugün, gündem, debe döngüsüne bağlanıyor.",
       "[Uygulama] Yatay kaydırma yarıda kesildiğinde sayfanın ekranın ortasında asılı kalması giderildi."

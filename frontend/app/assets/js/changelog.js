@@ -19,6 +19,18 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.2.0": {
+    date: "2026-08-11",
+    app: [
+      "Bir yazarın profilinde artık engeli kaldırılabiliyor: zaten engellediğiniz birinde düğme \"engellemeyi bırak\" oluyor. Başlık engeli de ayrı olarak kaldırılabiliyor.",
+      "Tarih bazlı toplu işlem yeniden yazıldı: liste (engelliler, sessizler, yazar listem), ölçüt (şu kadar süreden yeni/eski, şu tarihten önce/sonra) ve işlem (engelle, sessize al, engeli kaldır, sessizden çıkar, takip et, takipten çıkar ve iki birleşik işlem) ayrı ayrı seçiliyor.",
+      "Aynı ekranda \"sessiz kullanıcılar\" seçilse bile işlem engelli listesi üzerinde çalışıyordu; artık seçilen liste üzerinde çalışıyor.",
+      "Ayarlardaki tarih filtresi artık yalnızca engelleme, sessize alma ve başlık engellemede çalışıyor. Daha önce her işlemi kapsıyordu: varsayılan on yıl kuralı yüzünden \"tüm engelleri kaldır\" on yıldan eski hesapları atlıyor, o hesaplar engelli kalıyordu.",
+      "Tarih bazlı işlemde seçilen ölçüt yalnızca o işlem için geçerli; ayarlardaki tarih filtresi kurallarına dokunmuyor.",
+      "Son seçimleriniz hatırlanıyor."
+    ],
+    extension: []
+  },
   "0.1.9": {
     date: "2026-08-10",
     app: [

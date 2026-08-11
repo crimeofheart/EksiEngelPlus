@@ -43,13 +43,13 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Verify on device that the muted source now acts on muted users — the check is that the run's total matches the muted count, not the blocked count
-- [ ] 7.2 Verify the author-list source runs the stored list and reports as a list run
-- [ ] 7.3 Verify a combined action follows only the users whose undo succeeded
-- [ ] 7.4 Verify BEFORE_DATE with a calendar date, which is the branch the three old presets could never reach
-- [ ] 7.5 Verify settings' `dateFilterRules` are unchanged after a run with a different criterion
-- [ ] 7.6 Verify a run paused and resumed after editing settings keeps its own criterion
-- [ ] 7.7 Run `openspec validate android-date-bulk-builder` clean, then `openspec archive android-date-bulk-builder`
+- [x] 7.1 Verify on device that the muted source now acts on muted users — the check is that the run's total matches the muted count, not the blocked count
+- [x] 7.2 Verify the author-list source runs the stored list and reports as a list run
+- [x] 7.3 Verify a combined action follows only the users whose undo succeeded
+- [x] 7.4 Verify BEFORE_DATE with a calendar date, which is the branch the three old presets could never reach
+- [x] 7.5 Verify settings' `dateFilterRules` are unchanged after a run with a different criterion
+- [x] 7.6 Verify a run paused and resumed after editing settings keeps its own criterion
+- [x] 7.7 Run `openspec validate android-date-bulk-builder` clean, then `openspec archive android-date-bulk-builder`
 
 ## 8. The saved rules only narrow restrictions
 
@@ -66,5 +66,5 @@ other side.
 - [x] 8.7 Correct `help_date_filter_body`, which told the user the rules narrow "bir işlem" — any operation
 - [x] 8.8 Release note on 0.2.0, both surfaces, and regenerate `docs/changelog.json`
 - [x] 8.9 `./gradlew :app:assembleDebug test testDebugUnitTest lintDebug` and `cd frontend/app && npm run check`
-- [ ] 8.10 Verify on device that "tüm engelleri kaldır" now clears a decade-old account, which is the case that was silently skipped
-- [ ] 8.11 Verify a blocking run still spares one, so the fix did not disarm the filter in the direction it belongs
+- [x] 8.10 Verify on device that "tüm engelleri kaldır" now clears a decade-old account, which is the case that was silently skipped
+- [x] 8.11 Verify a blocking run still spares one, so the fix did not disarm the filter in the direction it belongs

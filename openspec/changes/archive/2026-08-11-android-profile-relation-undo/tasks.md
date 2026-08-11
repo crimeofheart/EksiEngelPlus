@@ -15,10 +15,10 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Verify on device: a blocked user's profile offers "engellemeyi bırak", and running it clears the block
-- [ ] 3.2 Verify the same profile afterwards offers "engelle" again, without a reload beyond the site's own
-- [ ] 3.3 Verify the title relation inverts independently — block a user's titles only, and check the two items disagree
-- [ ] 3.4 Verify with `enableMute` on that the undo still removes the block rather than reporting success against the mute relation
-- [ ] 3.5 Verify a profile with no relation links at all (your own) still receives no injected items
+- [x] 3.1 Verify on device: a blocked user's profile offers "engellemeyi bırak", and running it clears the block
+- [x] 3.2 Verify the same profile afterwards offers "engelle" again, without a reload beyond the site's own
+- [x] 3.3 Verify the title relation inverts independently — block a user's titles only, and check the two items disagree
+- [x] 3.4 Verify with `enableMute` on that the undo still removes the block rather than reporting success against the mute relation
+- [x] 3.5 Verify a profile with no relation links at all (your own) still receives no injected items
 - [x] 3.6 `cd frontend/app && npm run check && npm run package`
-- [ ] 3.7 Run `openspec validate android-profile-relation-undo` clean, then `openspec archive android-profile-relation-undo`
+- [x] 3.7 Run `openspec validate android-profile-relation-undo` clean, then `openspec archive android-profile-relation-undo`

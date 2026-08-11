@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.duzgun.eksiengelplus.database.EksiDatabase
+import org.duzgun.eksiengelplus.datastore.DateBulkPrefs
+import org.duzgun.eksiengelplus.model.DateBulkSource
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.model.ListType
@@ -255,20 +257,68 @@ class ListsViewModel @Inject constructor(
      * our cache rather than their account.
      */
     /**
-     * The date-filtered run, refused when there is no filter to apply.
+     * The date-filtered run, composed from the three choices the chooser offers.
      *
-     * Without an enabled rule the filter allows everything, so this would act on
-     * the whole list -- which is the opposite of what someone reaching for a
-     * date filter is asking for.
+     * The criterion travels in the request rather than being read back out of
+     * settings: those rules are standing protection for every operation, and a
+     * one-off "unblock everyone I blocked before 2020" that edited them would
+     * disarm that permanently. Remembering the composition is config, not a rule
+     * — see EksiConfig.dateBulk.
      */
-    fun runDateBased(mode: BanMode, targetType: TargetType) {
+    /** What the chooser was last set to, so it opens where the user left it. */
+    suspend fun dateBulkPrefs(): DateBulkPrefs = configRepository.config.first().dateBulk
+
+    fun runDateBased(prefs: DateBulkPrefs) {
         viewModelScope.launch {
-            val config = configRepository.config.first()
-            if (!config.enableDateFilter || config.dateFilterRules.none { it.enabled }) {
+            val rule = prefs.toRule()
+            if (rule == null) {
+                // A criterion with no value allows everything, so the run would
+                // act on the whole list -- the opposite of what someone reaching
+                // for a date filter is asking for.
                 say(string(R.string.bulk_date_needs_filter))
                 return@launch
             }
-            runOnList(BanSource.DATE_BASED_BULK, mode, targetType)
+
+            configRepository.update { it.copy(dateBulk = prefs) }
+
+            val action = prefs.action
+            val request = if (prefs.source == DateBulkSource.AUTHOR_LIST) {
+                val nicks = db.authorList().getAll().map { it.nick }
+                if (nicks.isEmpty()) {
+                    say(string(R.string.bulk_date_needs_author_list))
+                    return@launch
+                }
+                /*
+                 * LIST, not DATE_BASED_BULK. ban_source integers are rows in the
+                 * shared backend, and this is the author list being run -- which
+                 * is what every other author-list run reports.
+                 */
+                OperationRequest(
+                    source = BanSource.LIST,
+                    mode = action.mode,
+                    targetType = action.target,
+                    thenApplyTo = action.then,
+                    nicks = nicks,
+                    dateRule = rule,
+                )
+            } else {
+                OperationRequest(
+                    source = BanSource.DATE_BASED_BULK,
+                    mode = action.mode,
+                    targetType = action.target,
+                    thenApplyTo = action.then,
+                    relationListOf = prefs.source.relationList,
+                    dateRule = rule,
+                )
+            }
+
+            OperationWorker.enqueue(
+                workManager,
+                db = db,
+                operationId = java.util.UUID.randomUUID().toString(),
+                request = request,
+            )
+            say(string(R.string.lists_run_started), showOperations = true)
         }
     }
 

@@ -435,7 +435,13 @@ class UndoBanAllTask(
  */
 class RelationListTask(
     override val source: BanSource,
-    private val listOf: TargetType,
+    /**
+     * Which relation list is walked, and readable because it is part of what the
+     * task is. The wiring that chooses it was pinned to USER for every
+     * date-based run, so a test has to be able to see the choice without
+     * standing up an HTTP server to watch the query string.
+     */
+    val listOf: TargetType,
     private val runner: TargetRunner,
     private val scrape: ScrapeClient,
 ) : OperationTask {

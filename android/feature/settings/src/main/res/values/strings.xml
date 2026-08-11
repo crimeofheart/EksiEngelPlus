@@ -106,8 +106,10 @@ Liste üzerinde engelle, engel kaldır, takip et, engel kaldır ve takip et, ses
     <string name="help_date_filter_title">Tarih filtresi</string>
     <string name="help_date_filter_body"><![CDATA[
 Kurallar yazarın Ekşi Sözlük\'e kayıt tarihine bakar ve bir işlemin kime dokunacağını daraltır.<br><br>
-Varsayılan kural on yıldan yeni hesapları kapsar, yani on yıldan eski hesaplara dokunulmaz. İstemiyorsanız kuralı kapatabilir veya silebilirsiniz.<br><br>
-Kayıt tarihi bilinmeyen bir yazar işleme <b>alınmaz</b>. Tarih bilinmiyorsa uygulama işlem sırasında yazarın sayfasından okur ve 30 gün önbellekte tutar. Bu okuma işlem hakkınızı harcamaz.
+Yalnızca <b>engelleme, sessize alma ve başlık engelleme</b> için geçerlidir. Engel/sessiz kaldırma, takip etme ve takipten çıkarma gibi işlemler kurallara takılmaz: bunlar kimseye kısıtlama getirmez, dolayısıyla korunacak bir şey de yoktur.<br><br>
+Varsayılan kural on yıldan yeni hesapları kapsar, yani on yıldan eski hesaplar engellenmez. İstemiyorsanız kuralı kapatabilir veya silebilirsiniz.<br><br>
+Kayıt tarihi bilinmeyen bir yazar işleme <b>alınmaz</b>. Tarih bilinmiyorsa uygulama işlem sırasında yazarın sayfasından okur ve 30 gün önbellekte tutar. Bu okuma işlem hakkınızı harcamaz.<br><br>
+Tarih bazlı toplu işlemde seçtiğiniz ölçüt bundan ayrıdır: orada tarihi siz o işlem için seçersiniz, o yüzden engel kaldırmada da çalışır.
 ]]></string>
     <string name="help_date_filter_note"><![CDATA[
 <b>Tarayıcı eklentisinden farklı çalışır.</b> Burada tarih filtresi varsayılan olarak açıktır ve <i>açık olan her kural</i> geçilmelidir; bir kurala bile uymayan yazar işleme alınmaz. Eklentide ise hiçbir kurala uymayan yazar yine de işleme girer. Aynı kural listesi iki tarafta farklı sonuç verir; eklentideki alışkanlığınıza göre değil, buradaki davranışa göre kurun.

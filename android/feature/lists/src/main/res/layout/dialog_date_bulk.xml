@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The extension's date-based section (notification.html:143-188), as one form.
+
+    Four controls that compose, rather than a list of pre-baked combinations: the
+    three rows this replaced named a source the engine did not have, and there
+    was no way to say "before 2020" at all.
+
+    The value rows are mutually exclusive (a day count for NEWER_THAN and
+    OLDER_THAN, a calendar date for BEFORE_DATE and AFTER_DATE) and the
+    activity swaps them on DateCriteria.usesDays, which exists for exactly this.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingStart="20dp" android:paddingEnd="20dp"
+        android:paddingTop="8dp" android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/bulk_date_source"
+            android:textSize="12sp" android:alpha="0.7"
+            android:paddingBottom="4dp"/>
+
+        <Spinner
+            android:id="@+id/dateBulkSource"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/bulk_date_criteria"
+            android:textSize="12sp" android:alpha="0.7"
+            android:paddingTop="12dp" android:paddingBottom="4dp"/>
+
+        <Spinner
+            android:id="@+id/dateBulkCriteria"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+        <!-- Day count, for the two age criteria. -->
+        <LinearLayout
+            android:id="@+id/dateBulkDaysRow"
+            android:orientation="horizontal"
+            android:gravity="bottom"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="12dp">
+
+            <EditText
+                android:id="@+id/dateBulkValue"
+                android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint="@string/bulk_date_value"
+                android:importantForAutofill="no"
+                android:maxLength="6"/>
+
+            <Spinner
+                android:id="@+id/dateBulkUnit"
+                android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <!-- Calendar date, for the two boundary criteria. -->
+        <Button
+            android:id="@+id/dateBulkDate"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/bulk_date_pick_date"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/bulk_date_action"
+            android:textSize="12sp" android:alpha="0.7"
+            android:paddingTop="12dp" android:paddingBottom="4dp"/>
+
+        <Spinner
+            android:id="@+id/dateBulkAction"
+            android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    </LinearLayout>
+</ScrollView>

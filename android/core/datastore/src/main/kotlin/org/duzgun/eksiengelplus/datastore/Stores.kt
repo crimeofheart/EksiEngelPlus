@@ -10,6 +10,7 @@ import java.io.OutputStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import org.duzgun.eksiengelplus.model.DateFilterRule
 
 private val ConfigJson = Json {
     ignoreUnknownKeys = true

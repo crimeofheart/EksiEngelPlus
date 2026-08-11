@@ -13,8 +13,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.duzgun.eksiengelplus.datastore.ConfigRepository
-import org.duzgun.eksiengelplus.datastore.DateCriteria
-import org.duzgun.eksiengelplus.datastore.DateFilterRule
+import org.duzgun.eksiengelplus.model.DateCriteria
+import org.duzgun.eksiengelplus.model.DateFilterRule
 import org.duzgun.eksiengelplus.datastore.EksiConfig
 
 /**

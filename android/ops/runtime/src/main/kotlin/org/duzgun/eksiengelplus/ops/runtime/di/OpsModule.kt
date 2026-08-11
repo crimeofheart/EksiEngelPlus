@@ -125,8 +125,24 @@ object OpsModule {
                 )
                 BanSource.BLOCK_MUTED_USERS, BanSource.UNMUTEALL ->
                     RelationListTask(request.source, TargetType.MUTE, runner, scrape)
+                /*
+                 * The list the chooser picked, not a fixed one.
+                 *
+                 * This was pinned to TargetType.USER, so a run started from
+                 * "sessiz kullanıcılar" scraped the blocked list and then sent
+                 * removerelation r=u for people who had never been muted. The
+                 * dialog named a source the engine did not have.
+                 *
+                 * USER remains the fallback for a checkpoint written before the
+                 * field existed, which is the behaviour such a run began with.
+                 */
                 BanSource.DATE_BASED_BULK ->
-                    RelationListTask(request.source, TargetType.USER, runner, scrape)
+                    RelationListTask(
+                        request.source,
+                        request.relationListOf ?: TargetType.USER,
+                        runner,
+                        scrape,
+                    )
 
                 BanSource.MIGRATE_BLOCKED_TO_MUTED -> MigrateBlockedToMutedTask(runner, scrape)
 

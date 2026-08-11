@@ -1,4 +1,4 @@
-package org.duzgun.eksiengelplus.datastore
+package org.duzgun.eksiengelplus.model
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test

@@ -61,7 +61,10 @@ class ParityTest {
             "rule, so a decade-old account falls through it and is blocked " +
             "anyway. This client requires every enabled rule to pass and " +
             "resolves a missing registration date rather than skipping, so the " +
-            "rule does what it says and is safe to have on.",
+            "rule does what it says and is safe to have on. Safe also because " +
+            "the rules narrow only a run that restricts someone -- see " +
+            "activeDateRules. Gating undos with them turned the default rule " +
+            "into a reason to leave decade-old accounts blocked.",
     )
 
     @Test fun `every extension setting exists here`() {
@@ -110,6 +113,65 @@ class ParityTest {
 
         assertWithMessage("ban sources with no branch in the task factory")
             .that(unhandled)
+            .isEmpty()
+    }
+
+    // ------------------------------------------------------- date-based bulk
+
+    /**
+     * The date-based chooser offers what the extension's form offers.
+     *
+     * It offered three fixed combinations, and the source was a label only --
+     * the task factory scraped the blocked list whichever one was picked, so
+     * "sessiz kullanıcılar" sent removerelation r=u against people who had never
+     * been muted. Names are matched verbatim against enums.js, which is why the
+     * Kotlin enum keeps the extension's Turkish spellings.
+     */
+    @Test fun `every date-bulk source and action the extension defines exists here`() {
+        val enums = read("frontend/app/assets/js/enums.js")
+        val model = read(
+            "android/core/model/src/main/kotlin/org/duzgun/eksiengelplus/model/DateBulk.kt",
+        )
+
+        fun namesIn(enumName: String) = Regex("""(\w+)\s*:\s*"""")
+            .findAll(enums.substringAfter("$enumName = {").substringBefore("}"))
+            .map { it.groupValues[1] }
+            .toSet()
+
+        val declared = namesIn("DateBulkSource") + namesIn("DateBulkAction")
+
+        // Otherwise a rename in enums.js empties the set and the check passes by
+        // finding nothing to compare, which is the failure mode of every test
+        // that greps a file it does not own.
+        assertWithMessage("enums.js parsed to no date-bulk names at all")
+            .that(declared)
+            .hasSize(11)
+
+        val missing = declared.filterNot { Regex("""\b$it\s*\(""").containsMatchIn(model) }
+
+        assertWithMessage("date-bulk names in enums.js with no Kotlin counterpart")
+            .that(missing)
+            .isEmpty()
+    }
+
+    /**
+     * And the chooser can actually reach them.
+     *
+     * The enum existing is not the feature: the previous version had every
+     * BanSource and still offered three of the twelve source-action pairs.
+     */
+    @Test fun `the chooser lists every source and every action`() {
+        val activity = read(
+            "android/feature/lists/src/main/kotlin/org/duzgun/eksiengelplus/feature/lists/ListsActivity.kt",
+        )
+
+        val unreachable =
+            org.duzgun.eksiengelplus.model.DateBulkSource.entries.map { "DateBulkSource.${it.name}" }
+                .plus(org.duzgun.eksiengelplus.model.DateBulkAction.entries.map { "DateBulkAction.${it.name}" })
+                .filterNot { activity.contains(it) }
+
+        assertWithMessage("choices with no row in the chooser")
+            .that(unreachable)
             .isEmpty()
     }
 

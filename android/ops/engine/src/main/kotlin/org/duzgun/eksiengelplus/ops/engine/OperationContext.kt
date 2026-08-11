@@ -39,7 +39,43 @@ data class OperationRequest(
      * whose unblock failed.
      */
     val thenApplyTo: TargetType? = null,
-)
+    /**
+     * DATE_BASED_BULK: which relation list to walk.
+     *
+     * The task factory pinned this to USER, so every date-based run scraped the
+     * blocked list however the chooser was set -- "muted users" read the blocked
+     * list and sent removerelation r=u for people who were never muted. Carried
+     * in the request because the source is part of what the user asked for.
+     *
+     * Defaulted, so a checkpoint written before this field existed resumes with
+     * the behaviour it started with.
+     */
+    val relationListOf: TargetType? = null,
+    /**
+     * DATE_BASED_BULK: the run's own criterion, overriding the saved rules.
+     *
+     * An override rather than an edit. The saved rules are standing protection
+     * for every operation; a one-off "unblock everyone I blocked before 2020"
+     * that wrote itself into them would disarm that permanently and invisibly.
+     */
+    val dateRule: org.duzgun.eksiengelplus.model.DateFilterRule? = null,
+) {
+    /**
+     * Whether this run puts a restriction on someone who did not have one.
+     *
+     * The saved date rules exist to keep people out of a run that would restrict
+     * them, so this is the only shape of run they can sensibly narrow. The
+     * extension applies them in exactly three places -- background.js:772, :836
+     * and :908, the FAV, FOLLOW and TITLE handlers -- every one of them a block.
+     *
+     * Following is deliberately not a restriction: it adds a relation, but not
+     * one that takes anything away from the person it names, and a rule about
+     * protecting old accounts has nothing to say about it.
+     */
+    val addsRestriction: Boolean
+        get() = mode == BanMode.BAN &&
+            (targetType == TargetType.USER || targetType == TargetType.MUTE || targetType == TargetType.TITLE)
+}
 
 /** Where an operation got to, so a resumed run does not redo work. */
 @kotlinx.serialization.Serializable

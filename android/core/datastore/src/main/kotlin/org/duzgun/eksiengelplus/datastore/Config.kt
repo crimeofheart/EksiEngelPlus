@@ -2,6 +2,10 @@ package org.duzgun.eksiengelplus.datastore
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.duzgun.eksiengelplus.model.DateBulkAction
+import org.duzgun.eksiengelplus.model.DateBulkSource
+import org.duzgun.eksiengelplus.model.DateCriteria
+import org.duzgun.eksiengelplus.model.DateFilterRule
 
 /**
  * Ported from frontend/app/assets/js/config.js.
@@ -77,13 +81,32 @@ data class EksiConfig(
      * is not.
      *
      * Here the semantics are the ones the rule describes -- every enabled rule
-     * must pass -- so defaulting it on means a fresh install does not touch
+     * must pass -- so defaulting it on means a fresh install does not block
      * decade-old accounts. That is only safe because the engine now resolves a
      * missing registration date instead of treating it as a reason to skip
      * everyone; see OperationWorker's allowTarget.
+     *
+     * "Does not block", not "does not touch": these rules narrow only a run that
+     * restricts someone. Gating every operation with them made the default rule
+     * spare decade-old accounts from "tüm engelleri kaldır" too, which left them
+     * blocked -- protection pointed at the one direction that needed none. See
+     * activeDateRules.
      */
     val enableDateFilter: Boolean = true,
     val dateFilterRules: List<DateFilterRule> = listOf(DateFilterRule.PROTECT_OLD_ACCOUNTS),
+
+    /**
+     * What the date-based bulk chooser was last set to.
+     *
+     * Config rather than a rule, and that distinction is the point:
+     * [dateFilterRules] is standing protection applied to every operation, while
+     * this is the last thing the user typed into one dialog. Remembering a
+     * composition must never add to the rules.
+     *
+     * Defaulted, so no CURRENT_VERSION bump and no migration step -- an install
+     * written before this field existed decodes with these values.
+     */
+    val dateBulk: DateBulkPrefs = DateBulkPrefs(),
 ) {
     companion object {
         const val DEFAULT_BASE_URL = "https://eksisozluk.com"
@@ -94,64 +117,49 @@ data class EksiConfig(
 }
 
 /**
- * Structured and repeated, which is exactly why this cannot live in a
- * Preferences DataStore.
+ * The chooser's last composition, defaulted to the extension's
+ * createDefaultDateBulkConfig (config.js:58-66) so someone arriving from it
+ * finds the dialog already set the way they left the other one.
+ *
+ * The unit is not stored. The extension keeps a `lastValueType` beside its
+ * value; here months and years are normalised to days on the way in, because
+ * [DateFilterRule.days] is what the predicate compares and two representations
+ * of one number is how they come to disagree.
  */
 @Serializable
-data class DateFilterRule(
-    val id: String,
-    val criteria: DateCriteria,
-    /** Meaningful for NEWER_THAN and OLDER_THAN. */
-    val days: Int? = null,
-    /** Epoch day; meaningful for BEFORE_DATE and AFTER_DATE. */
+data class DateBulkPrefs(
+    val source: DateBulkSource = DateBulkSource.MUTED_USERS,
+    val criteria: DateCriteria = DateCriteria.OLDER_THAN,
+    val days: Int = 3650,
+    /** Epoch day, for the two calendar criteria. Null until one is used. */
     val epochDay: Long? = null,
-    val description: String = "",
-    val enabled: Boolean = true,
+    val action: DateBulkAction = DateBulkAction.SESSIZDEN_CIKAR,
 ) {
-    companion object {
-        /**
-         * The default rule, ported from config.js:43-55.
-         *
-         * Same id, same criteria, same 3650 days, and the same sentence, so a
-         * user who has seen the extension's settings recognises this one.
-         *
-         * The boundary differs by a day on purpose-free grounds: the extension
-         * matches `age < 3650` and DateFilter uses `age <= days`, so an account
-         * exactly 3650 days old is acted on here and spared there. Left as it
-         * is rather than churned, because a rule about decades should not turn
-         * on which side of one midnight a comparison falls.
-         */
-        val PROTECT_OLD_ACCOUNTS = DateFilterRule(
-            id = "block-new-users",
-            criteria = DateCriteria.NEWER_THAN,
-            days = 3650,
-            description = "Yapılacak işlem 10 yıldan yeni hesapları kapsar",
-        )
-
-        /**
-         * The rule list an upgrading install should end up with.
-         *
-         * Appended, never assigned: an existing install may have rules of its
-         * own, and introducing a default by replacing the list would throw away
-         * the user's work. Keyed on the id so it cannot be added twice.
-         *
-         * A function rather than three lines inside the migration so the part
-         * that can lose data is testable without a DataStore.
-         */
-        fun withDefault(rules: List<DateFilterRule>): List<DateFilterRule> =
-            if (rules.any { it.id == PROTECT_OLD_ACCOUNTS.id }) rules
-            else rules + PROTECT_OLD_ACCOUNTS
+    /**
+     * The rule this composition means, or null when it names no boundary.
+     *
+     * Null rather than a permissive rule, because a rule with no value passes
+     * everyone: [DateFilter] treats a missing `days` or `epochDay` as "this rule
+     * does not apply", so an unset calendar criterion would quietly turn a
+     * filtered run into a run over the whole list.
+     *
+     * The id is fixed and not the settings rule's, so a per-run rule can never
+     * be confused with the standing one if it is ever written somewhere.
+     */
+    fun toRule(): DateFilterRule? = when {
+        criteria.usesDays -> if (days > 0) {
+            DateFilterRule(id = RUN_RULE_ID, criteria = criteria, days = days)
+        } else {
+            null
+        }
+        else -> epochDay?.let {
+            DateFilterRule(id = RUN_RULE_ID, criteria = criteria, epochDay = it)
+        }
     }
-}
 
-enum class DateCriteria {
-    NEWER_THAN,
-    OLDER_THAN,
-    BEFORE_DATE,
-    AFTER_DATE;
-
-    /** Whether the rule is expressed as a day count rather than a calendar date. */
-    val usesDays: Boolean get() = this == NEWER_THAN || this == OLDER_THAN
+    companion object {
+        const val RUN_RULE_ID = "date-bulk-run"
+    }
 }
 
 /**
@@ -169,36 +177,6 @@ object BridgeConfigJson {
     val json: Json = Json { encodeDefaults = true }
 
     fun encode(config: EksiConfig): String = json.encodeToString(EksiConfig.serializer(), config)
-}
-
-/**
- * Whether a registration date passes the user's rules.
- *
- * Pure, so the decision is testable without a device, a store or a network.
- *
- * An unknown date does NOT pass. A filter exists to keep accounts out of a bulk
- * run, so acting on one whose date could not be established would defeat the
- * only reason it was switched on. Dates arrive from the CSV import and the list
- * sync, both of which fill the cache.
- */
-object DateFilter {
-
-    fun allows(rules: List<DateFilterRule>, registrationEpochDay: Long?, todayEpochDay: Long): Boolean {
-        val active = rules.filter { it.enabled }
-        if (active.isEmpty()) return true
-        if (registrationEpochDay == null) return false
-        return active.all { it.allows(registrationEpochDay, todayEpochDay) }
-    }
-
-    private fun DateFilterRule.allows(regDay: Long, today: Long): Boolean {
-        val age = today - regDay
-        return when (criteria) {
-            DateCriteria.NEWER_THAN -> days?.let { age <= it } ?: true
-            DateCriteria.OLDER_THAN -> days?.let { age >= it } ?: true
-            DateCriteria.BEFORE_DATE -> epochDay?.let { regDay < it } ?: true
-            DateCriteria.AFTER_DATE -> epochDay?.let { regDay > it } ?: true
-        }
-    }
 }
 
 /** Install identity. Separate store: different lifetime and different sensitivity. */

@@ -4,8 +4,12 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -23,8 +27,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 import androidx.appcompat.app.AlertDialog
+import org.duzgun.eksiengelplus.datastore.DateBulkPrefs
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
+import org.duzgun.eksiengelplus.model.DateBulkAction
+import org.duzgun.eksiengelplus.model.DateBulkSource
+import org.duzgun.eksiengelplus.model.DateCriteria
 import org.duzgun.eksiengelplus.model.ListType
 import org.duzgun.eksiengelplus.model.TargetType
 import org.duzgun.eksiengelplus.model.TurkishDateParser
@@ -210,29 +218,113 @@ class ListsActivity : AppCompatActivity() {
     }
 
     /**
-     * The date-filtered run, which needs a direction of its own.
+     * The date-filtered run: source, criterion and action, composed.
      *
-     * It was hardcoded to unblocking from the blocked list, which is one of
-     * three reasonable readings of "apply my date filter" and not obviously the
-     * one intended.
+     * This was three fixed rows, two of which were also wrong -- the source was
+     * a label only, since the task factory scraped the blocked list whichever
+     * one was picked. The four controls are the extension's
+     * (notification.html:143-188), and the composition is remembered.
      */
     private fun askDateBasedAction() {
-        data class Choice(val labelRes: Int, val mode: BanMode, val target: TargetType)
+        lifecycleScope.launch {
+            val saved = model.dateBulkPrefs()
+            val view = layoutInflater.inflate(R.layout.dialog_date_bulk, null)
 
-        val choices = listOf(
-            Choice(R.string.bulk_date_blocked_unblock, BanMode.UNDOBAN, TargetType.USER),
-            Choice(R.string.bulk_date_muted_unmute, BanMode.UNDOBAN, TargetType.MUTE),
-            Choice(R.string.bulk_date_blocked_mute, BanMode.BAN, TargetType.MUTE),
-        )
+            val sourceSpinner = view.findViewById<Spinner>(R.id.dateBulkSource)
+            val criteriaSpinner = view.findViewById<Spinner>(R.id.dateBulkCriteria)
+            val unitSpinner = view.findViewById<Spinner>(R.id.dateBulkUnit)
+            val actionSpinner = view.findViewById<Spinner>(R.id.dateBulkAction)
+            val valueField = view.findViewById<EditText>(R.id.dateBulkValue)
+            val daysRow = view.findViewById<View>(R.id.dateBulkDaysRow)
+            val dateButton = view.findViewById<Button>(R.id.dateBulkDate)
 
-        AlertDialog.Builder(this)
-            .setTitle(R.string.bulk_date_which)
-            .setItems(choices.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
-                val c = choices[which]
-                model.runDateBased(c.mode, c.target)
+            sourceSpinner.fill(SOURCES.map { getString(it.second) })
+            criteriaSpinner.fill(CRITERIA.map { getString(it.second) })
+            unitSpinner.fill(UNITS.map { getString(it.first) })
+            actionSpinner.fill(ACTIONS.map { getString(it.second) })
+
+            sourceSpinner.setSelection(SOURCES.indexOfFirst { it.first == saved.source })
+            criteriaSpinner.setSelection(CRITERIA.indexOfFirst { it.first == saved.criteria })
+            actionSpinner.setSelection(ACTIONS.indexOfFirst { it.first == saved.action })
+            // Always restored in days: the unit is only a way of typing one.
+            valueField.setText(saved.days.toString())
+
+            /*
+             * The two value rows are exclusive, and DateCriteria.usesDays is what
+             * decides. Held in a var rather than read back off the button, so the
+             * date survives the label being reformatted.
+             */
+            var epochDay: Long? = saved.epochDay
+            fun showDate() {
+                epochDay?.let {
+                    dateButton.text = LocalDate.ofEpochDay(it).format(DATE_LABEL)
+                } ?: run { dateButton.setText(R.string.bulk_date_pick_date) }
             }
-            .setNegativeButton(R.string.author_list_cancel, null)
-            .show()
+            fun syncValueRows() {
+                val usesDays = CRITERIA[criteriaSpinner.selectedItemPosition].first.usesDays
+                daysRow.visibility = if (usesDays) View.VISIBLE else View.GONE
+                dateButton.visibility = if (usesDays) View.GONE else View.VISIBLE
+            }
+            showDate()
+            syncValueRows()
+            criteriaSpinner.onItemSelected { syncValueRows() }
+
+            dateButton.setOnClickListener {
+                val start = epochDay?.let { LocalDate.ofEpochDay(it) } ?: LocalDate.now(ZONE)
+                android.app.DatePickerDialog(
+                    this@ListsActivity,
+                    { _, year, month, day ->
+                        // DatePicker months are zero-based; LocalDate's are not.
+                        epochDay = LocalDate.of(year, month + 1, day).toEpochDay()
+                        showDate()
+                    },
+                    start.year, start.monthValue - 1, start.dayOfMonth,
+                ).show()
+            }
+
+            AlertDialog.Builder(this@ListsActivity)
+                .setTitle(R.string.bulk_date_title)
+                .setView(view)
+                .setNegativeButton(R.string.author_list_cancel, null)
+                .setPositiveButton(R.string.bulk_date_start) { _, _ ->
+                    val criteria = CRITERIA[criteriaSpinner.selectedItemPosition].first
+                    model.runDateBased(
+                        DateBulkPrefs(
+                            source = SOURCES[sourceSpinner.selectedItemPosition].first,
+                            criteria = criteria,
+                            // Normalised here: DateFilterRule.days is what the
+                            // predicate compares, and a stored unit beside it
+                            // would be a second representation of one number.
+                            days = if (criteria.usesDays) {
+                                (valueField.text.toString().toIntOrNull() ?: 0) *
+                                    UNITS[unitSpinner.selectedItemPosition].second
+                            } else {
+                                saved.days
+                            },
+                            epochDay = epochDay,
+                            action = ACTIONS[actionSpinner.selectedItemPosition].first,
+                        ),
+                    )
+                }
+                .show()
+        }
+    }
+
+    /** Fills a spinner with plain labels, which is all any of these need. */
+    private fun Spinner.fill(labels: List<String>) {
+        adapter = ArrayAdapter(
+            this@ListsActivity,
+            android.R.layout.simple_spinner_item,
+            labels,
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+    }
+
+    /** [block] on a real selection, ignoring the one the adapter fires on attach. */
+    private fun Spinner.onItemSelected(block: () -> Unit) {
+        onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) = block()
+            override fun onNothingSelected(p: AdapterView<*>?) = Unit
+        }
     }
 
     private fun render(state: ListsUiState) {
@@ -284,5 +376,52 @@ class ListsActivity : AppCompatActivity() {
     private companion object {
         const val MIME_CSV = "text/csv"
         val WHEN_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+
+        /** Ekşi's own zone, so a date picked here means what the site means. */
+        val ZONE: ZoneId = TurkishDateParser.ZONE
+        val DATE_LABEL: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+
+        /*
+         * The chooser's three lists, each pairing an enum with its label.
+         *
+         * Ordered, because a spinner position is how a selection comes back --
+         * and looked up by value on restore, so reordering a list cannot select
+         * the wrong thing.
+         */
+        val SOURCES = listOf(
+            DateBulkSource.BLOCKED_USERS to R.string.bulk_src_blocked,
+            DateBulkSource.MUTED_USERS to R.string.bulk_src_muted,
+            DateBulkSource.AUTHOR_LIST to R.string.bulk_src_author_list,
+        )
+
+        val CRITERIA = listOf(
+            DateCriteria.NEWER_THAN to R.string.bulk_crit_newer,
+            DateCriteria.OLDER_THAN to R.string.bulk_crit_older,
+            DateCriteria.BEFORE_DATE to R.string.bulk_crit_before,
+            DateCriteria.AFTER_DATE to R.string.bulk_crit_after,
+        )
+
+        /**
+         * Label and the days one of them is worth.
+         *
+         * Approximate on purpose, matching the extension's own arithmetic: a
+         * rule about "older than three years" is not asking about leap days.
+         */
+        val UNITS = listOf(
+            R.string.bulk_unit_days to 1,
+            R.string.bulk_unit_months to 30,
+            R.string.bulk_unit_years to 365,
+        )
+
+        val ACTIONS = listOf(
+            DateBulkAction.ENGELLE to R.string.bulk_act_engelle,
+            DateBulkAction.SESSIZE_AL to R.string.bulk_act_sessize_al,
+            DateBulkAction.ENGEL_KALDIR to R.string.bulk_act_engel_kaldir,
+            DateBulkAction.SESSIZDEN_CIKAR to R.string.bulk_act_sessizden_cikar,
+            DateBulkAction.TAKIP_ET to R.string.bulk_act_takip_et,
+            DateBulkAction.TAKIPTEN_CIKAR to R.string.bulk_act_takipten_cikar,
+            DateBulkAction.ENGEL_KALDIR_VE_TAKIP_ET to R.string.bulk_act_engel_kaldir_takip,
+            DateBulkAction.SESSIZDEN_CIKAR_VE_TAKIP_ET to R.string.bulk_act_sessizden_cikar_takip,
+        )
     }
 }

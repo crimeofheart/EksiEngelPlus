@@ -409,7 +409,7 @@ class OperationWorker @AssistedInject constructor(
          * for. Dates come from the cache the CSV import and the list sync fill.
          */
         val config = configRepository.config.first()
-        val activeRules = if (config.enableDateFilter) config.dateFilterRules else emptyList()
+        val activeRules = activeDateRules(request, config)
         val today = java.time.LocalDate.now(org.duzgun.eksiengelplus.model.TurkishDateParser.ZONE).toEpochDay()
 
         val ctx = RoomOperationContext(
@@ -417,7 +417,7 @@ class OperationWorker @AssistedInject constructor(
                 if (activeRules.none { it.enabled }) {
                     true
                 } else {
-                    org.duzgun.eksiengelplus.datastore.DateFilter.allows(
+                    org.duzgun.eksiengelplus.model.DateFilter.allows(
                         activeRules,
                         registrationDay(nick, readPacer),
                         today,
@@ -774,6 +774,43 @@ class OperationWorker @AssistedInject constructor(
             db.checkpoints().upsert(it.copy(state = state.name, updatedAt = System.currentTimeMillis()))
         }
     }
+}
+
+/**
+ * The rules that gate one run's targets.
+ *
+ * Two different things are called "the date filter" and they answer to different
+ * questions, which is why they are resolved together here rather than wherever
+ * each happens to be read.
+ *
+ * A run's **own criterion** is a target selector the user just typed, and it
+ * applies whatever the run does. The extension's default composition is itself
+ * an unmute -- muted users, older than 3650 days, sessizden çıkar
+ * (config.js:58-66) -- so a criterion that only worked on blocking would be no
+ * feature at all.
+ *
+ * The **saved rules** are standing protection, and they only narrow a run that
+ * restricts someone. That is where this was wrong: they gated every operation,
+ * so the default ten-year rule silently spared decade-old accounts from "tüm
+ * engelleri kaldır" and left them blocked -- protection applied to the one
+ * direction that needed none. The extension never did this; it filters in three
+ * places (background.js:772, :836, :908) and all three are blocks.
+ *
+ * It is also what the run costs: an unfiltered undo no longer resolves a
+ * registration date per uncached nick, which on a full unblock is one network
+ * read per person for an answer nothing then consults.
+ *
+ * A function rather than four lines inside the worker so the precedence is
+ * testable without WorkManager — it is a decision about what a run touches, and
+ * getting it backwards is silent.
+ */
+internal fun activeDateRules(
+    request: OperationRequest,
+    config: org.duzgun.eksiengelplus.datastore.EksiConfig,
+): List<org.duzgun.eksiengelplus.model.DateFilterRule> {
+    request.dateRule?.let { return listOf(it) }
+    if (!config.enableDateFilter || !request.addsRestriction) return emptyList()
+    return config.dateFilterRules
 }
 
 /** Maps a request to the task that serves it. */

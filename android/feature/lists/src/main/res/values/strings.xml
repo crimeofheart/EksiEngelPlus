@@ -45,11 +45,42 @@
     <string name="bulk_undoban_all">tüm engelleri kaldır</string>
     <string name="bulk_unmute_all">tüm sessizleri kaldır</string>
     <string name="bulk_date_based">tarih filtresine göre çalıştır</string>
-    <string name="bulk_date_which">hangi listeye uygulansın</string>
-    <string name="bulk_date_blocked_unblock">engellilerden filtreye uyanların engelini kaldır</string>
-    <string name="bulk_date_muted_unmute">sessizlerden filtreye uyanları sessizden çıkar</string>
-    <string name="bulk_date_blocked_mute">engellilerden filtreye uyanları sessize al</string>
-    <string name="bulk_date_needs_filter">önce ayarlardan tarih filtresini açıp kural ekleyin</string>
+    <string name="bulk_date_title">tarih bazlı toplu işlem</string>
+    <string name="bulk_date_source">liste</string>
+    <string name="bulk_date_criteria">ölçüt</string>
+    <string name="bulk_date_value">değer</string>
+    <string name="bulk_date_date">tarih</string>
+    <string name="bulk_date_action">işlem</string>
+    <string name="bulk_date_pick_date">tarih seç</string>
+    <string name="bulk_date_start">başlat</string>
+    <string name="bulk_date_needs_filter">önce bir tarih ölçütü belirleyin</string>
+    <string name="bulk_date_needs_author_list">yazar listeniz boş</string>
+
+    <!-- DateBulkSource, enums.js:113-117 -->
+    <string name="bulk_src_blocked">engelli kullanıcılar</string>
+    <string name="bulk_src_muted">sessiz kullanıcılar</string>
+    <string name="bulk_src_author_list">yazar listem</string>
+
+    <!-- DateCriteria -->
+    <string name="bulk_crit_newer">şu kadar süreden yeni hesaplar</string>
+    <string name="bulk_crit_older">şu kadar süreden eski hesaplar</string>
+    <string name="bulk_crit_before">şu tarihten önce açılan hesaplar</string>
+    <string name="bulk_crit_after">şu tarihten sonra açılan hesaplar</string>
+
+    <!-- The unit is a data-entry convenience; it is normalised to days. -->
+    <string name="bulk_unit_days">gün</string>
+    <string name="bulk_unit_months">ay</string>
+    <string name="bulk_unit_years">yıl</string>
+
+    <!-- DateBulkAction, enums.js:102-111 -->
+    <string name="bulk_act_engelle">engelle</string>
+    <string name="bulk_act_sessize_al">sessize al</string>
+    <string name="bulk_act_engel_kaldir">engeli kaldır</string>
+    <string name="bulk_act_sessizden_cikar">sessizden çıkar</string>
+    <string name="bulk_act_takip_et">takip et</string>
+    <string name="bulk_act_takipten_cikar">takipten çıkar</string>
+    <string name="bulk_act_engel_kaldir_takip">engeli kaldır ve takip et</string>
+    <string name="bulk_act_sessizden_cikar_takip">sessizden çıkar ve takip et</string>
     <string name="bulk_needs_filter">önce ayarlardan tarih filtresini açın</string>
     <string name="ops_progress">%1$d / %2$d · %3$d başarılı · %4$d başarısız</string>
     <string name="ops_resume">devam et</string>

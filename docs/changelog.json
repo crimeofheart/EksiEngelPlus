@@ -3,6 +3,16 @@
     "name": "",
     "notes": [
       "[Eklenti] Bu sürümde değişiklik yok.",
+      "[Uygulama] Bir başlığa uzun basıldığında üç seçenekli bir menü açılıyor: başlığı kopyala, bağlantıyı kopyala ve paylaş. Başlığın nerede göründüğü fark etmiyor: gündemde, arama sonuçlarında, bir yazarın entry'lerinde ve başlığın kendi sayfasında çalışıyor.",
+      "[Uygulama] Menü ekranın ortasında açılıyor, dışına dokunmak kapatıyor ve seçenekler basıldıkları anda çalışıyor."
+    ],
+    "pub_date": "2026-08-16",
+    "version": "0.3.0"
+  },
+  {
+    "name": "",
+    "notes": [
+      "[Eklenti] Bu sürümde değişiklik yok.",
       "[Uygulama] Bir yazarın profilinde artık engeli kaldırılabiliyor: zaten engellediğiniz birinde düğme \"engellemeyi bırak\" oluyor. Başlık engeli de ayrı olarak kaldırılabiliyor.",
       "[Uygulama] Tarih bazlı toplu işlem yeniden yazıldı: liste (engelliler, sessizler, yazar listem), ölçüt (şu kadar süreden yeni/eski, şu tarihten önce/sonra) ve işlem (engelle, sessize al, engeli kaldır, sessizden çıkar, takip et, takipten çıkar ve iki birleşik işlem) ayrı ayrı seçiliyor.",
       "[Uygulama] Aynı ekranda \"sessiz kullanıcılar\" seçilse bile işlem engelli listesi üzerinde çalışıyordu; artık seçilen liste üzerinde çalışıyor.",

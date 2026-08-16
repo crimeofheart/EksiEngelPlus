@@ -45,6 +45,13 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.3.0" to VersionNotes(
+            app = listOf(
+                "Bir başlığa uzun basıldığında üç seçenekli bir menü açılıyor: başlığı kopyala, bağlantıyı kopyala ve paylaş. Başlığın nerede göründüğü fark etmiyor: gündemde, arama sonuçlarında, bir yazarın entry'lerinde ve başlığın kendi sayfasında çalışıyor.",
+                "Menü ekranın ortasında açılıyor, dışına dokunmak kapatıyor ve seçenekler basıldıkları anda çalışıyor.",
+            ),
+            extension = emptyList(),
+        ),
         "0.2.0" to VersionNotes(
             app = listOf(
                 "Bir yazarın profilinde artık engeli kaldırılabiliyor: zaten engellediğiniz birinde düğme \"engellemeyi bırak\" oluyor. Başlık engeli de ayrı olarak kaldırılabiliyor.",

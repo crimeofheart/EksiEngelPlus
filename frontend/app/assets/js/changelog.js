@@ -19,6 +19,14 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.3.0": {
+    date: "2026-08-16",
+    app: [
+      "Bir başlığa uzun basıldığında üç seçenekli bir menü açılıyor: başlığı kopyala, bağlantıyı kopyala ve paylaş. Başlığın nerede göründüğü fark etmiyor: gündemde, arama sonuçlarında, bir yazarın entry'lerinde ve başlığın kendi sayfasında çalışıyor.",
+      "Menü ekranın ortasında açılıyor, dışına dokunmak kapatıyor ve seçenekler basıldıkları anda çalışıyor."
+    ],
+    extension: []
+  },
   "0.2.0": {
     date: "2026-08-11",
     app: [

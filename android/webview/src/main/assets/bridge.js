@@ -41,9 +41,22 @@
       EksiEngelPlus.postMessage(
         JSON.stringify({ v: 1, type: type, reqId: String(reqId), payload: payload || {} })
       );
+      return true;
     } catch (e) {
-      /* bridge absent: not an allowed origin */
+      /*
+       * The bridge object is absent, which on a page we injected into should be
+       * impossible -- and was, until now, indistinguishable from success. A
+       * control that does nothing and says nothing is the worst thing this file
+       * can contain: it reads as the app being broken. Callers the user is
+       * waiting on say so out loud.
+       */
+      return false;
     }
+  }
+
+  /** For the things a user pressed and is watching: silence is not an option. */
+  function sendOrTell(type, payload) {
+    if (!send(type, payload)) toast("EksiEngelPlus: sayfa köprüsü yanıt vermiyor.");
   }
 
   function enqueue(payload) {
@@ -663,6 +676,17 @@
     document.addEventListener("touchstart", function (e) {
       SWIPE.axis = null;
       SWIPE.dx = 0;
+      /*
+       * Nothing swipes underneath the hold menu.
+       *
+       * The menu is modal, and on a title page this gesture turns pages: it
+       * transforms the page, prefetches its neighbours and can commit a
+       * navigation. A finger drifting off a hold is not a page turn, and letting
+       * it be one is why this only ever misbehaved on a title page and never on
+       * the feed. "y" rather than a bare return, so the rest of this gesture
+       * stays disclaimed even once the menu is gone.
+       */
+      if (holdMenu) { SWIPE.axis = "y"; return; }
       if (e.touches.length !== 1) return;
       SWIPE.x0 = e.touches[0].clientX;
       SWIPE.y0 = e.touches[0].clientY;
@@ -671,6 +695,9 @@
     }, { passive: true });
 
     document.addEventListener("touchmove", function (e) {
+      // The menu can open mid-gesture, so the guard is needed here too: the
+      // finger was down before there was anything to be modal over.
+      if (holdMenu) return;
       if (e.touches.length !== 1) return;
       var dx = e.touches[0].clientX - SWIPE.x0;
       var dy = e.touches[0].clientY - SWIPE.y0;
@@ -1154,6 +1181,395 @@
     else menu.appendChild(share);
   }
 
+  // ------------------------------------------------------- holding a title
+
+  /**
+   * A title is acted on by holding it, not by a button.
+   *
+   * An entry has a dropdown to put an item in; a title has nowhere. The row under
+   * a title is a strip of the site's own anchors that the block submenu already
+   * occupies, and a list page is nothing but title rows, so a visible control per
+   * row would be a control on every line of the screen. A hold is what Android
+   * already means by "act on this link", and it costs no pixels.
+   *
+   * Recognised by the link, not by the page. Ekşi renders title links in gündem,
+   * in search results, in a profile's entry list, in "başlıkta ara", in the
+   * sidebar and in the header of the title itself -- each with its own container
+   * class, most of which change without notice. A title's address is the one
+   * thing common to all of them: "/slug--1234567".
+   */
+  var TITLE_PATH = /^\/[^\/]+--\d+\/?$/;
+
+  /*
+   * Anchors that carry a title's address without standing for the title.
+   *
+   * The pager is the reason this exists: "sonraki" on a title page links to
+   * "/slug--123?p=2", which passes the address test while meaning "turn the
+   * page". The menus are ours and the site's, and neither is a link to hold.
+   */
+  var TITLE_HOLD_EXCLUDE =
+    ".pager, .dropdown-menu, .sub-title-menu, [data-eksiengel-hold-menu]";
+
+  /** Broad on purpose: this only turns off the native callout, never selects. */
+  var TITLE_HOLD_CSS = 'h1#title > a[href], a[href*="--"]';
+
+  /** The app's green: core/ui `eksi_refresh_spinner`, the same one the buttons use. */
+  var ACCENT = "#81C14B";
+
+  /*
+   * Without this the WebView's own long-press wins the same gesture: it opens the
+   * link context menu, or starts a text selection, at roughly the moment our menu
+   * appears, and the user is left with both.
+   */
+  function suppressNativeCallout() {
+    var style = document.createElement("style");
+    style.setAttribute("data-eksiengel-holdstyle", "true");
+    style.textContent = TITLE_HOLD_CSS +
+      "{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}";
+    // documentElement, not head: at document start there may not be a head yet.
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  suppressNativeCallout();
+
+  /** The title link a touch landed on, wherever on the site that touch was. */
+  function titleHoldAnchor(node) {
+    var a = node && node.closest ? node.closest("a[href]") : null;
+    if (!a || a.closest(TITLE_HOLD_EXCLUDE)) return null;
+    // The header of the title being read, whose anchor is the title by position
+    // rather than by address.
+    if (a.parentNode && a.parentNode.id === "title") return a;
+    var path;
+    try {
+      path = new URL(a.href, location.href).pathname;
+    } catch (e) {
+      return null;
+    }
+    return TITLE_PATH.test(path) ? a : null;
+  }
+
+  /**
+   * The title's own words.
+   *
+   * A list row carries the entry count in a trailing `<small>`, and the header
+   * carries the name verbatim in `data-title`. Neither the count nor the site's
+   * own whitespace belongs in what gets copied.
+   */
+  function titleHoldName(a) {
+    var head = a.closest("h1#title");
+    var named = head && head.getAttribute("data-title");
+    if (named) return named;
+
+    var text = "";
+    var kids = a.childNodes;
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i].nodeType === 1 && kids[i].tagName === "SMALL") continue;
+      text += kids[i].textContent || "";
+    }
+    return text.trim();
+  }
+
+  /**
+   * The address of the title, not of the list it was reached from.
+   *
+   * Ekşi links a gündem row as "/baslik--123?a=popular"; that parameter says how
+   * this list is sorted, which is nothing to the person receiving the link. Every
+   * other parameter stays -- `?day=` and friends select what is being shared.
+   */
+  function titleHoldUrl(a) {
+    try {
+      var u = new URL(a.href, location.href);
+      u.searchParams.delete("a");
+      return u.toString();
+    } catch (e) {
+      return a.href;
+    }
+  }
+
+  var HOLD_MENU_MARK = "data-eksiengel-hold-menu";
+  var holdMenu = null;
+  /** Set by the hold module; called when the app stops being frontmost. */
+  var abandonHold = null;
+  /** The card itself. Everything outside it is "outside the menu". */
+  var holdSheet = null;
+
+  /**
+   * [defer] when the touch being answered is still in flight.
+   *
+   * The backdrop is the element that touch belongs to, and a touch sequence
+   * belongs to the element it began on: taking that element out of the document
+   * mid-sequence leaves the WebView holding a gesture whose target no longer
+   * exists, and the page stops answering touches at all. That is the dismissal
+   * freeze -- and it is only this path, because every other way of closing the
+   * menu happens on a lift, when the gesture is already ending.
+   *
+   * So the menu goes invisible and untouchable at once, which is all the user can
+   * perceive, and the node itself is dropped when the gesture is over. Lingering
+   * is harmless in a way that removing is not: it is already hidden and already
+   * inert, and the timeout drops it even if no lift is ever reported.
+   */
+  function closeHoldMenu(defer) {
+    if (!holdMenu) return;
+    var menu = holdMenu;
+    holdMenu = null;
+    holdSheet = null;
+
+    if (!defer) {
+      menu.remove();
+      return;
+    }
+
+    menu.style.visibility = "hidden";
+    menu.style.pointerEvents = "none";
+    var drop = function () { menu.remove(); };
+    document.addEventListener("touchend", drop, { once: true, passive: true });
+    document.addEventListener("touchcancel", drop, { once: true, passive: true });
+    setTimeout(drop, 500);
+  }
+
+  /** Whether a touch or click landed on the menu rather than past it. */
+  function insideHoldMenu(node) {
+    return !!(holdSheet && node && holdSheet.contains(node));
+  }
+
+  function holdButton(label, run) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.style.cssText = [
+      "display:block", "box-sizing:border-box", "width:100%", "margin:0 0 8px",
+      "padding:13px 14px", "border:0", "border-radius:8px",
+      "background:" + ACCENT, "color:#fff", "font-family:inherit",
+      "font-size:15px", "line-height:1.2", "text-align:center", "cursor:pointer"
+    ].join(";");
+    /*
+     * The button acts on its own touch, not on a click alone.
+     *
+     * A touch sequence is delivered to the element it began on for its whole
+     * life, so the lift that ends the hold -- and the click that lift leaves
+     * behind -- are both addressed to the title, never to a button that happens
+     * to have appeared under the finger. A button therefore only ever sees a
+     * press the user aimed at it, with no flag, no timer and no window during
+     * which it is deaf. That was the whole of this bug, in each of its shapes.
+     *
+     * The click handler is the fallback for anything that is not a finger, and
+     * `done` keeps the pair from firing twice for one press.
+     */
+    var done = false;
+    function press(e) {
+      if (done) return;
+      done = true;
+      // Stops the synthesized click that would otherwise follow this touch.
+      if (e && e.cancelable) e.preventDefault();
+      // Closed first: the share sheet takes a moment to appear, and a menu still
+      // standing behind it reads as a tap that did nothing.
+      closeHoldMenu();
+      run();
+    }
+    b.addEventListener("touchend", press);
+    b.addEventListener("click", press);
+    return b;
+  }
+
+  /**
+   * A sheet at the bottom rather than a popup at the finger.
+   *
+   * The finger is on a title in a list, which can be anywhere from the first row
+   * to the last; anchoring there means clamping against both edges of a viewport
+   * that the keyboard and the site's own sticky header both move. The bottom is
+   * where Android puts this, and it is within reach of the thumb that opened it.
+   */
+  function openHoldMenu(name, url) {
+    closeHoldMenu();
+
+    var back = document.createElement("div");
+    back.setAttribute(HOLD_MENU_MARK, "true");
+    back.style.cssText = [
+      "position:fixed", "inset:0", "left:0", "right:0", "top:0", "bottom:0",
+      "background:rgba(0,0,0,0.45)", "z-index:2147483646",
+      /*
+       * Centred rather than anchored to the bottom.
+       *
+       * Android 13 and up draw the clipboard preview at the bottom of the screen
+       * after every copy, over the top of this app. A sheet down there shares
+       * that space with it, and the lowest option ends up underneath. Centring
+       * costs nothing and keeps the two apart.
+       *
+       * This is not the fix for the freeze that was chased through this file --
+       * that was a fault in the device's WebView, cleared by updating Android
+       * System WebView, and no arrangement of this menu affected it.
+       */
+      "display:flex", "align-items:center", "justify-content:center",
+      /*
+       * The finger is still down when this appears, and the WebView's own
+       * long-press is still running on the same gesture. Without this it finds
+       * the text of whichever button landed under the finger and selects it:
+       * "başlığı" highlighted inside our own menu, with the browser's
+       * Copy/Share bar over the top of it.
+       */
+      "-webkit-user-select:none", "user-select:none", "-webkit-touch-callout:none"
+    ].join(";");
+
+    var sheet = document.createElement("div");
+    sheet.style.cssText = [
+      "box-sizing:border-box", "width:100%", "max-width:520px",
+      "margin:0 8px 8px", "padding:14px", "border-radius:14px",
+      "background:#fff", "color:#333",
+      "box-shadow:0 2px 16px rgba(0,0,0,0.35)"
+    ].join(";");
+
+    var head = document.createElement("div");
+    head.textContent = name;
+    head.style.cssText = [
+      "margin:0 0 12px", "padding:0 2px", "font-size:13px", "line-height:1.3",
+      "color:#666", "overflow:hidden", "text-overflow:ellipsis", "white-space:nowrap"
+    ].join(";");
+    sheet.appendChild(head);
+
+    sheet.appendChild(holdButton("başlığı kopyala", function () {
+      sendOrTell("copy", { text: name, label: "başlık" });
+    }));
+    sheet.appendChild(holdButton("bağlantıyı kopyala", function () {
+      sendOrTell("copy", { text: url, label: "bağlantı" });
+    }));
+    sheet.appendChild(holdButton("paylaş", function () {
+      sendOrTell("share", { url: url, title: name });
+    }));
+
+    // Belt and braces beside the touch-driven dismissal below: a click that
+    // reaches the backdrop is also a click past the menu.
+    back.onclick = function (e) { if (!insideHoldMenu(e.target)) closeHoldMenu(); };
+
+    back.appendChild(sheet);
+    document.body.appendChild(back);
+    holdMenu = back;
+    holdSheet = sheet;
+  }
+
+  /**
+   * The menu is live from the moment it appears, and one click is dropped.
+   *
+   * The problem it solves is narrow: the lift that ends the hold produces a
+   * click, and that click would either open the title under the menu or choose
+   * whichever option the finger happened to be over. Exactly one click, at a
+   * known moment.
+   *
+   * Timing gates were the wrong answer twice. Anything that makes the menu inert
+   * for a period makes it inert for a period the user can tap into -- and if the
+   * period ever fails to end, the screen is dimmed by a backdrop that swallows
+   * nothing and answers nothing, which is not a menu but a freeze. `opened` has
+   * no such failure: the next touchstart clears it, and a deliberate tap always
+   * begins with one, so the only click it can ever eat is the opening lift's.
+   */
+
+  (function installTitleHold() {
+    var HOLD_MS = 500;   // what Android itself calls a long press
+    var SLOP = 12;       // the distance the swipe uses to claim the gesture
+    var timer = null;
+    var anchor = null;
+    var x0 = 0, y0 = 0;
+    var opened = false;
+
+    function cancel() {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      anchor = null;
+    }
+
+    document.addEventListener("touchstart", function (e) {
+      /*
+       * Anything that touches past the sheet closes it, before anything else is
+       * considered and whatever state the rest of the page is in. Driven by the
+       * touch rather than by the click, so it holds even where a click is being
+       * swallowed -- there is no combination of events that leaves the user
+       * behind a dimmed backdrop with no way out.
+       */
+      // Deferred: this very touch is the one being answered, and it belongs to
+      // the backdrop we are dismissing.
+      if (holdMenu && !insideHoldMenu(e.target)) closeHoldMenu(true);
+
+      cancel();
+      opened = false;
+      if (e.touches.length !== 1) return;
+      var a = titleHoldAnchor(e.target);
+      if (!a) return;
+      anchor = a;
+      x0 = e.touches[0].clientX;
+      y0 = e.touches[0].clientY;
+      timer = setTimeout(function () {
+        timer = null;
+        var held = anchor;
+        anchor = null;
+        if (!held) return;
+        opened = true;
+        // Silent where the app has no VIBRATE permission, which is the only
+        // reason this is not the confirmation itself.
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch (e2) { /* no haptics */ }
+        openHoldMenu(titleHoldName(held), titleHoldUrl(held));
+      }, HOLD_MS);
+    }, { passive: true });
+
+    document.addEventListener("touchmove", function (e) {
+      if (!timer) return;
+      if (e.touches.length !== 1) { cancel(); return; }
+      if (Math.abs(e.touches[0].clientX - x0) > SLOP ||
+          Math.abs(e.touches[0].clientY - y0) > SLOP) cancel();
+    }, { passive: true });
+
+    document.addEventListener("touchend", cancel, { passive: true });
+    document.addEventListener("touchcancel", cancel, { passive: true });
+
+    /*
+     * The app going away in the middle of a gesture.
+     *
+     * "paylaş" hands off to the system chooser, and the chooser covers the
+     * WebView while a finger is still on it. The touchend that would end this
+     * gesture may never arrive: the hold timer stays armed and opens a menu
+     * nobody is there to see, and the suppression flag stays set over a click
+     * that is never coming. The user returns to a dimmed page holding a menu it
+     * did not ask for, which is the shape of the freeze that only appears once
+     * "paylaş" is in the mix, in either order.
+     *
+     * So everything this gesture owns is dropped the moment the page stops being
+     * frontmost. Three signals because one is not reliable here: a chooser may
+     * only pause the activity without ever hiding the page, and `appPaused` from
+     * the host covers exactly that case.
+     */
+    abandonHold = function () {
+      cancel();
+      opened = false;
+      closeHoldMenu();
+    };
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState !== "visible") abandonHold();
+    });
+    window.addEventListener("pagehide", abandonHold);
+    /*
+     * Deliberately not `blur`. The system's own clipboard preview takes window
+     * focus on every copy, so a blur hook fires in the middle of ordinary use of
+     * this very menu -- it is the app leaving that matters here, which the two
+     * signals above and `appPaused` already say.
+     */
+
+    /*
+     * The one click the opening gesture leaves behind, which is addressed to the
+     * title it was held over and would open it behind the menu.
+     *
+     * Narrow on purpose: only clicks on a title link. A blanket version of this
+     * was tried, and swallowing one click "wherever it lands" is precisely how a
+     * press on an option came to be eaten. The buttons need no protection from
+     * this click -- it is never delivered to them.
+     */
+    document.addEventListener("click", function (e) {
+      if (!opened) return;
+      opened = false;
+      if (!titleHoldAnchor(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+  })();
+
   var injectors = [
     { selector: ".sub-title-menu", apply: injectTitleMenu },
     { selector: ".dropdown-menu", apply: injectEntryMenu },
@@ -1290,6 +1706,9 @@
         for (var i = 0; i < marked.length; i++) marked[i].removeAttribute(mk);
       }
       scan();
+    } else if (msg.type === "appPaused") {
+      // The host knows it is going away even when the page is never told.
+      if (abandonHold) abandonHold();
     } else if (msg.type === "toast") {
       toast(msg.payload && msg.payload.text);
     } else if (msg.type === "hideAuthors") {

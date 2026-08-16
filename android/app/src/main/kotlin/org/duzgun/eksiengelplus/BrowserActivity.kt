@@ -83,6 +83,42 @@ class BrowserActivity : AppCompatActivity() {
 
     private val base = EksiConfig.DEFAULT_BASE_URL
 
+    /**
+     * Tells the page it is no longer frontmost.
+     *
+     * The share chooser can cover the WebView while a finger is still down
+     * without the page ever being hidden, so `visibilitychange` alone leaves the
+     * hold gesture running underneath it.
+     */
+    override fun onPause() {
+        super.onPause()
+        if (webAlive) bridge.push(web, "appPaused", "{}")
+    }
+
+    /** False once the WebView has been destroyed; nothing may be pushed into it after. */
+    private var webAlive = true
+
+
+    /**
+     * A WebView does not go away with its Activity.
+     *
+     * Left in place it keeps its renderer, keeps running timers, and stays part
+     * of the process's input plumbing. Every recreation of this Activity added
+     * another: three were alive at once on a test device, all on eksisozluk,
+     * all reporting themselves visible. That is a leak whether or not anything
+     * else goes wrong, and only a force-stop was clearing it.
+     *
+     * Out of the tree before destroy(), which is what the platform asks for: a
+     * destroyed WebView still attached to a window is not a supported state.
+     */
+    override fun onDestroy() {
+        webAlive = false
+        (web.parent as? android.view.ViewGroup)?.removeView(web)
+        web.stopLoading()
+        web.destroy()
+        super.onDestroy()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.data?.toString()?.takeIf { it.startsWith("http") }?.let { web.loadUrl(it) }
@@ -119,6 +155,7 @@ class BrowserActivity : AppCompatActivity() {
             allowedOrigins = allowedOriginsFor(base),
             onEnqueue = ::enqueue,
             onShare = ::share,
+            onCopy = ::copy,
             onNavigating = ::coverLoad,
         )
 
@@ -361,6 +398,40 @@ class BrowserActivity : AppCompatActivity() {
         }
         startActivity(Intent.createChooser(send, null))
     }
+
+    /**
+     * [label] names what was copied, so the system's own clipboard UI can say it.
+     *
+     * The confirmation is ours only below Android 13. From 13 the platform shows
+     * a preview of every copy itself, and a toast on top of it is the same message
+     * twice.
+     */
+    private fun copy(text: String, label: String) {
+        val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+        val wrote = clipboard != null && runCatching {
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+            // Read back rather than trust the call. The clipboard is a system
+            // service shared with every other app, and when it stops accepting
+            // writes it does so quietly -- which looks, from inside this app,
+            // exactly like the menu having died. It also explains a failure that
+            // outlives the process: the state that is wedged is not ours.
+            clipboard.primaryClip?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)?.coerceToText(this)?.toString() == text
+        }.getOrDefault(false)
+
+        // Android 13 and up preview every copy themselves, so a confirmation of
+        // our own would be the same message twice -- but a failure is never
+        // previewed by anyone, and has to be said here.
+        val message = when {
+            !wrote -> R.string.copy_failed
+            android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU ->
+                R.string.copied
+            else -> return
+        }
+        android.widget.Toast.makeText(this, getString(message), android.widget.Toast.LENGTH_SHORT)
+            .show()
+    }
+
 
     /**
      * Shows what changed, on the first launch after an install or an upgrade.

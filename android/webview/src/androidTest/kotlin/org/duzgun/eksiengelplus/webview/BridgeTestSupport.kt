@@ -86,6 +86,38 @@ fun profileFixture(banned: Boolean, titlesBanned: Boolean): String = """
 """
 
 /**
+ * A gündem row, shaped the way Ekşi shapes one.
+ *
+ * The trailing `<small>` is the entry count and the `?a=popular` is how this list
+ * is sorted; neither is part of the title, and both are on every row of the real
+ * page, so a fixture without them would test a row that does not exist.
+ */
+const val TOPIC_LIST_FIXTURE = """
+<html><body>
+  <ul class="topic-list partial">
+    <li><a href="/mohamed-salah-ghaly--3459509?a=popular">mohamed salah ghaly <small>627</small></a></li>
+  </ul>
+</body></html>
+"""
+
+/**
+ * A title page: its header, and the pager that carries the same address.
+ *
+ * "sonraki" links to `/slug--123?p=2`, which is a title address by every test the
+ * hold applies except the one that excludes the pager.
+ */
+const val TITLE_PAGE_FIXTURE = """
+<html><body>
+  <h1 id="title" data-title="mohamed salah ghaly" data-id="3459509" data-slug="mohamed-salah-ghaly">
+    <a href="/mohamed-salah-ghaly--3459509">mohamed salah ghaly</a>
+  </h1>
+  <div class="pager" data-pagecount="4" data-currentpage="1">
+    <a class="next" href="/mohamed-salah-ghaly--3459509?p=2">sonraki</a>
+  </div>
+</body></html>
+"""
+
+/**
  * One entry, shaped the way Ekşi shapes one: the dropdown is identified by the
  * items it contains, not by position, so the markers have to be present.
  */

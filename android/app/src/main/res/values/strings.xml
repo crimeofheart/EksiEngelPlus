@@ -9,4 +9,8 @@
     <string name="open_help">yardım</string>
     <string name="resume_cancel">iptal</string>
     <string name="resume_cancelled">duraklatılmış işlem iptal edildi.</string>
+    <!-- Shown below Android 13 only; from 13 the system previews every copy itself. -->
+    <string name="copied">kopyalandı.</string>
+    <!-- The system clipboard refused the write; never previewed by the platform. -->
+    <string name="copy_failed">kopyalanamadı — panoya yazılamıyor.</string>
 </resources>

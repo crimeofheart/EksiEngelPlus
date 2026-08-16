@@ -95,6 +95,15 @@ class BridgeHost(
     private val allowedOrigins: Set<String>,
     private val onEnqueue: (OperationRequest) -> Unit,
     private val onShare: (url: String, title: String) -> Unit = { _, _ -> },
+    /**
+     * Copying goes to the host rather than to `navigator.clipboard`.
+     *
+     * The page is third-party content in a WebView; the async clipboard API there
+     * is gated on a permission prompt the app would have to answer on the site's
+     * behalf, and `execCommand("copy")` needs a live selection, which is exactly
+     * what the hold suppresses. `ClipboardManager` is neither.
+     */
+    private val onCopy: (text: String, label: String) -> Unit = { _, _ -> },
     /** Where a swipe is heading, so the host can cover the load with something. */
     private val onNavigating: (label: String, topPx: Int, leftPx: Int) -> Unit = { _, _, _ -> },
     private val onLog: (String) -> Unit = {},
@@ -211,6 +220,17 @@ class BridgeHost(
         if (url.isNotBlank()) onShare(url, title)
     }
 
+    /** Same shape as the share payload, and parsed the same way, for the same reason. */
+    private fun copyFrom(raw: String) {
+        val obj = runCatching {
+            BridgeJson.parseToJsonElement(raw) as? kotlinx.serialization.json.JsonObject
+        }.getOrNull() ?: return
+        val payload = obj["payload"] as? kotlinx.serialization.json.JsonObject ?: return
+        val text = (payload["text"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+        val label = (payload["label"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+        if (text.isNotBlank()) onCopy(text, label)
+    }
+
     private fun handle(raw: String?) {
         val envelope = raw?.let {
             runCatching { BridgeJson.decodeFromString(BridgeEnvelope.serializer(), it) }.getOrNull()
@@ -224,6 +244,7 @@ class BridgeHost(
                 ?: onLog("bridge: unmappable enqueue payload")
 
             "share" -> shareFrom(body)
+            "copy" -> copyFrom(body)
             "navigating" -> navigatingFrom(body)
 
             "log" -> onLog("page: ${envelope.payload}")

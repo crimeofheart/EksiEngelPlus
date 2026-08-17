@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EksiEngelPlus - Ekşi Sözlük Toplu Engelleme Eklentisi</title>
+    <title>EksiEngelPlus - Ekşi Sözlük Toplu Engelleme Eklentisi ve Android Uygulaması</title>
+    <meta name="description" content="Ekşi Sözlük'te toplu engelleme, sessize alma ve liste yönetimi. Chrome ve Firefox eklentisi ile Android uygulaması.">
+    <meta property="og:title" content="EksiEngelPlus">
+    <meta property="og:description" content="Ekşi Sözlük'te toplu engelleme ve yönetim. Chrome, Firefox ve Android.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/frontend/app/assets/img/eksiengel128.png">
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/frontend/app/assets/img/eksiengel128.png">
     <style>
         * {
@@ -244,6 +248,44 @@
             cursor: pointer;
         }
         
+        .version-badge {
+            display: inline-block;
+            padding: 5px 14px;
+            background: #2E7D32;
+            color: white;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.3s ease;
+        }
+        .version-badge:hover {
+            background: #4CAF50;
+        }
+        .platform-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #4CAF50;
+            vertical-align: middle;
+        }
+        .subhead {
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .notice {
+            background: #FFF8E1;
+            border-left: 4px solid #FFB300;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: #6D4C00;
+        }
+
         @media (max-width: 768px) {
             .logo h1 {
                 font-size: 1.8rem;
@@ -272,13 +314,14 @@
                 <div class="logo">
                     <img src="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/frontend/app/assets/img/eksiengel128.png" alt="EksiEngelPlus">
                     <h1>Eksi<span>Engel</span>Plus</h1>
+                    <a href="https://github.com/crimeofheart/EksiEngelPlus/releases/latest" class="version-badge" target="_blank" data-tr="v0.3.0 &middot; Sürüm Notları" data-en="v0.3.0 &middot; Release Notes"></a>
                 </div>
                 <div class="lang-switch">
                     <button class="lang-btn active" onclick="setLanguage('tr')">Türkçe</button>
                     <button class="lang-btn" onclick="setLanguage('en')">English</button>
                 </div>
             </div>
-            <p class="tagline" data-tr="Ekşi Sözlük'te toplu engelleme ve yönetim işlemleri artık çok kolay!" data-en="Mass blocking and management on Ekşi Sözlük is now easier than ever!"></p>
+            <p class="tagline" data-tr="Ekşi Sözlük'te toplu engelleme ve yönetim işlemleri artık çok kolay! Tarayıcı eklentisi ve Android uygulaması." data-en="Mass blocking and management on Ekşi Sözlük is now easier than ever! Browser extension and Android app."></p>
             <div class="cta-buttons">
                 <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh" class="btn btn-primary" target="_blank">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -292,6 +335,12 @@
 </svg>
                     <span data-tr="Firefox Eklenti Sitesinden Yükle" data-en="Install from Firefox Add-ons"></span>
                 </a>
+                <a href="https://github.com/crimeofheart/EksiEngelPlus/releases/latest" class="btn btn-primary" target="_blank">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.2439 13.8533 7.8508 12 7.8508s-3.5902.3931-5.1367 1.0989L4.841 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3435-4.1021-2.6892-7.5743-6.1185-9.4396" fill="white"/>
+</svg>
+                    <span data-tr="Android APK'sını İndir" data-en="Download Android APK"></span>
+                </a>
                 <a href="https://github.com/crimeofheart/EksiEngelPlus" class="btn btn-secondary" target="_blank">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                     <span data-tr="GitHub'da İncele" data-en="View on GitHub"></span>
@@ -300,7 +349,7 @@
         </header>
 
         <section class="card">
-            <h2 data-tr="Özellikler" data-en="Features"></h2>
+            <h2><span data-tr="Eklenti Özellikleri" data-en="Extension Features"></span> <span class="platform-tag">Chrome &middot; Firefox</span></h2>
             <div class="features-grid">
                 <div class="feature">
                     <h3>🚫 <span data-tr="Toplu Engelleme" data-en="Mass Blocking"></span></h3>
@@ -370,14 +419,86 @@
         </section>
 
         <section class="card">
-            <h2 data-tr="Ekran Görüntüleri" data-en="Screenshots"></h2>
+            <h2><span data-tr="Android Uygulaması" data-en="Android App"></span> <span class="platform-tag">Android 8.0+</span></h2>
+            <p class="subhead" data-tr="Eklentideki işlemlerin tamamı artık telefonda da var. Uygulama Ekşi Sözlük'ü kendi içinde yeniden yazmıyor: siteyi olduğu gibi açıyor, işlemleri arka planda yürütüyor." data-en="Everything the extension does now works on your phone too. The app does not reimplement Ekşi Sözlük: it loads the real site and runs the operations in the background."></p>
+            <div class="features-grid">
+                <div class="feature">
+                    <h3>📱 <span data-tr="Gerçek Site" data-en="The Real Site"></span></h3>
+                    <p data-tr="Ekşi Sözlük siteye girdiğiniz gibi açılıyor. Giriş de site üzerinden yapılıyor, uygulama şifrenizi hiç görmüyor." data-en="Ekşi Sözlük loads exactly as it does in a browser. Login happens on the site itself — the app never sees your password."></p>
+                </div>
+                <div class="feature">
+                    <h3>🚫 <span data-tr="Tüm Toplu İşlemler" data-en="All Bulk Operations"></span></h3>
+                    <p data-tr="Favori engeli, takipçi engeli, başlıktakileri engelle, sessize al, engeli kaldır ve takip et — eklentideki işlemlerin tamamı." data-en="Favorite blocking, follower blocking, block everyone in a title, mute, unblock, and follow — the full set from the extension."></p>
+                </div>
+                <div class="feature">
+                    <h3>⏸️ <span data-tr="Arka Planda Çalışma" data-en="Runs in the Background"></span></h3>
+                    <p data-tr="İşlem uygulamayı kapatsanız da sürüyor. Uygulama öldürülse bile kaldığı yerden devam ediyor, günlere yayılacak kadar uzun işlemler parçalara bölünüyor." data-en="An operation keeps going after you leave the app. It resumes from its last checkpoint even if the process is killed, and long runs are chunked across days."></p>
+                </div>
+                <div class="feature">
+                    <h3>🔔 <span data-tr="Bildirimler ve Duraklatma" data-en="Notifications and Pause"></span></h3>
+                    <p data-tr="İşlem durumu bildirimden izlenebiliyor, istediğiniz an duraklatılıp devam ettirilebiliyor. Bir işlem başlamadan kaç kişiye dokunacağı ve ne kadar süreceği söyleniyor." data-en="Track progress from a notification, and pause or resume at any time. Before an operation starts, it states how many users it will touch and how long it will take."></p>
+                </div>
+                <div class="feature">
+                    <h3>📊 <span data-tr="Listeler ve CSV" data-en="Lists and CSV"></span></h3>
+                    <p data-tr="Engellenen, sessize alınan ve takip edilen listeleriniz uygulamada tutuluyor; CSV olarak dışa ve içe aktarılabiliyor." data-en="Your blocked, muted, and followed lists are kept in the app, and can be exported to and imported from CSV."></p>
+                </div>
+                <div class="feature">
+                    <h3>🏷️ <span data-tr="Tarih Bazlı Toplu İşlem" data-en="Date-based Bulk Operations"></span></h3>
+                    <p data-tr="Liste, ölçüt ve işlem ayrı ayrı seçiliyor: hangi liste üzerinde, hangi tarih ölçütüyle, hangi işlem. Son seçimleriniz hatırlanıyor." data-en="Pick the list, the criterion, and the operation separately: which list, which date rule, which action. Your last choices are remembered."></p>
+                </div>
+                <div class="feature">
+                    <h3>📝 <span data-tr="Başlığa Uzun Basma" data-en="Long-press a Title"></span></h3>
+                    <p data-tr="Bir başlığa uzun basınca üç seçenekli menü açılıyor: başlığı kopyala, bağlantıyı kopyala, paylaş. Gündemde, arama sonuçlarında ve bir yazarın entry'lerinde çalışıyor." data-en="Long-pressing a title opens a three-option menu: copy the title, copy the link, share. Works on the front page, in search results, and in an author's entries."></p>
+                </div>
+                <div class="feature">
+                    <h3>🔃 <span data-tr="Çekerek Yenileme" data-en="Pull to Refresh"></span></h3>
+                    <p data-tr="Aşağı çekmek tarayıcıda sayfayı, listelerde tüm listeleri, işlem durumunda yarım kalmış işlemleri tazeliyor." data-en="Pulling down refreshes the page in the browser, every list on the lists screen, and unfinished operations on the status screen."></p>
+                </div>
+                <div class="feature">
+                    <h3>↔️ <span data-tr="Yatay Kaydırma ile Gezinme" data-en="Swipe to Navigate"></span></h3>
+                    <p data-tr="Bir başlığın içinde yatay kaydırma sayfalar arasında geziniyor; son sayfadan sonrası bugün, gündem ve debe döngüsüne bağlanıyor." data-en="Swiping sideways inside a title moves between its pages; past the last page it cycles through today, gündem, and debe."></p>
+                </div>
+                <div class="feature">
+                    <h3>🛡️ <span data-tr="Tarih Filtresi Varsayılan Açık" data-en="Date Filter On by Default"></span></h3>
+                    <p data-tr="On yıldan eski hesaplara dokunulmuyor. Bu kural yalnızca engelleme, sessize alma ve başlık engellemede geçerli — engel kaldırma her hesabı kapsıyor." data-en="Accounts older than ten years are left alone. The rule applies only to blocking, muting, and title blocking — unblocking covers every account."></p>
+                </div>
+                <div class="feature">
+                    <h3>👤 <span data-tr="Profilden Engel Kaldırma" data-en="Undo from a Profile"></span></h3>
+                    <p data-tr="Zaten engellediğiniz bir yazarın profilinde düğme &quot;engellemeyi bırak&quot; oluyor. Başlık engeli de ayrı olarak kaldırılabiliyor." data-en="On the profile of someone you already blocked, the button becomes &quot;unblock&quot;. A title block can be lifted separately."></p>
+                </div>
+                <div class="feature">
+                    <h3>📚 <span data-tr="Kılavuz ve Sürüm Notları" data-en="Guide and Release Notes"></span></h3>
+                    <p data-tr="Ayarlarda kullanım kılavuzu ve o sürüme ait notlar var. Kayıt tarihi önbelleğinin boyutu da buradan görülüp temizlenebiliyor." data-en="Settings carries a usage guide and the notes for the installed version. The registration-date cache can be inspected and cleared from there too."></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2><span data-tr="Android Uygulamasını Kurma" data-en="Installing the Android App"></span></h2>
+            <div class="notice" data-tr="Uygulama henüz Google Play'de yayında değil, APK olarak GitHub üzerinden dağıtılıyor. Bu yüzden kurulum sırasında telefonunuz sizi uyaracak — bu normal." data-en="The app is not on Google Play yet; it is distributed as an APK on GitHub. Your phone will warn you during installation — that is expected."></div>
+            <div class="instructions">
+                <ol>
+                    <li data-tr="En son sürümün GitHub sayfasını telefonunuzda açın ve eksiengelplus-0.3.0.apk dosyasını indirin." data-en="Open the latest release page on your phone and download eksiengelplus-0.3.0.apk."></li>
+                    <li data-tr="Telefonunuz bilinmeyen kaynaklardan kuruluma izin vermenizi isteyecek; tarayıcınız için bu izni verin." data-en="Your phone will ask you to allow installs from unknown sources; grant it for your browser."></li>
+                    <li data-tr="İndirilen APK'yı açın ve kurulumu onaylayın." data-en="Open the downloaded APK and confirm the installation."></li>
+                    <li data-tr="Uygulamayı açın ve karşınıza gelen Ekşi Sözlük sayfasından hesabınıza giriş yapın. İşlemler bundan sonra kullanılabilir." data-en="Open the app and log in to your account on the Ekşi Sözlük page it shows. Operations become available after that."></li>
+                </ol>
+            </div>
+            <a href="https://github.com/crimeofheart/EksiEngelPlus/releases/latest" class="github-link" target="_blank">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                <span data-tr="En son sürümü indir (v0.3.0)" data-en="Download the latest release (v0.3.0)"></span>
+            </a>
+        </section>
+
+        <section class="card">
+            <h2><span data-tr="Ekran Görüntüleri" data-en="Screenshots"></span> <span class="platform-tag">Chrome &middot; Firefox</span></h2>
             <div class="screenshots">
                 <div class="screenshot" onclick="openLightbox(this)">
                     <img src="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/docs/ss/notification.png" alt="Ana İşlemler">
                     <p data-tr="Ana İşlemler Sayfası" data-en="Main Operations Page"></p>
                 </div>
                 <div class="screenshot" onclick="openLightbox(this)">
-                    <img src="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/docs/ss/authorListPage.png" data-en="Author List Page" alt="Yazar Listesi">
+                    <img src="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/docs/ss/authorListPage.png" alt="Yazar Listesi">
                     <p data-tr="Yazar Listesi Sayfası" data-en="Author List Page"></p>
                 </div>
                 <div class="screenshot" onclick="openLightbox(this)">
@@ -388,7 +509,7 @@
         </section>
 
         <section class="card">
-            <h2 data-tr="Ayarlar" data-en="Settings"></h2>
+            <h2><span data-tr="Ayarlar" data-en="Settings"></span> <span class="platform-tag">Chrome &middot; Firefox</span></h2>
             <div class="features-grid">
                 <div class="feature">
                     <h3>🔔 <span data-tr="Engelle veya Sessize Al" data-en="Block or Mute"></span></h3>
@@ -421,8 +542,13 @@
 
         <footer>
             <p data-tr="© 2026 EksiEngelPlus. Tüm hakları saklıdır." data-en="© 2026 EksiEngelPlus. All rights reserved."></p>
-            <p><a href="/privacy" data-tr="Gizlilik Politikası" data-en="Privacy Policy"></a></p>
-            <p data-tr="Bu eklenti Ekşi Sözlük ile bağlantılı değildir." data-en="This extension is not affiliated with Ekşi Sözlük."></p>
+            <p>
+                <a href="/privacy" data-tr="Gizlilik Politikası" data-en="Privacy Policy"></a>
+                &middot;
+                <a href="https://github.com/crimeofheart/EksiEngelPlus/releases" target="_blank" data-tr="Sürüm Notları" data-en="Release Notes"></a>
+            </p>
+            <p data-tr="Eklenti ve Android uygulaması aynı sürüm numarasını paylaşır. Şu anki sürüm: v0.3.0" data-en="The extension and the Android app share one version number. Current version: v0.3.0"></p>
+            <p data-tr="Bu eklenti ve uygulama Ekşi Sözlük ile bağlantılı değildir." data-en="This extension and app are not affiliated with Ekşi Sözlük."></p>
         </footer>
     </div>
 

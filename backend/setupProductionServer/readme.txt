@@ -1,3 +1,13 @@
+# HISTORICAL. This file records how the production box was originally built out, and is
+# kept for that reason. It is NOT the current deploy procedure and two things in it are no
+# longer true of the live host:
+#
+#   - the reverse proxy is Caddy, not nginx (the nginx section below is how it used to be)
+#   - the systemd unit is `gunicorn-eksiengel`, not `gunicorn`
+#
+# To deploy a change, see "Deploying the backend" in PROJECT_OVERVIEW.md -- it also states
+# when `collectstatic` and `migrate` are needed, which is not every time.
+
 # https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu-22-04
 
 # install necessary libs
@@ -151,9 +161,10 @@ sudo journalctl -u gunicorn.socket # if fails, how to see logs
 sudo systemctl stop gunicorn.socket # to stop if necessary (because it is automatically trigger gunicorn)
 # restarting gunicorn.socket causes django server to be restart
 
-# if /etc/systemd/system/gunicorn.service changes, run these to restart
+# if the gunicorn unit file changes, run these to restart
+# (the live unit is gunicorn-eksiengel; this section was written when it was plain `gunicorn`)
 sudo systemctl daemon-reload
-sudo systemctl restart gunicorn
+sudo systemctl restart gunicorn-eksiengel
 
 ## nginx config
 # create nginx config

@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import include, path
 from django.shortcuts import render, redirect
 
+from api.release_info import landing_context
+
 
 def privacy_page(request):
     """Serve the privacy policy page."""
@@ -9,8 +11,13 @@ def privacy_page(request):
 
 
 def landing_page(request):
-    """Serve the landing page at root URL."""
-    return render(request, 'landing/index.html')
+    """Serve the landing page at root URL.
+
+    The version and its release notes are derived from the files the release
+    tooling maintains, so a release needs no template edit. See
+    api.release_info.
+    """
+    return render(request, 'landing/index.html', landing_context())
 
 
 urlpatterns = [

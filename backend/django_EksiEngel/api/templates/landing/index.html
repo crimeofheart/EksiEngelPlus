@@ -277,6 +277,13 @@
             color: #555;
             margin-bottom: 20px;
         }
+        .instructions ul {
+            margin-left: 20px;
+        }
+        .notes-label {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
         .notice {
             background: #FFF8E1;
             border-left: 4px solid #FFB300;
@@ -314,7 +321,7 @@
                 <div class="logo">
                     <img src="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/frontend/app/assets/img/eksiengel128.png" alt="EksiEngelPlus">
                     <h1>Eksi<span>Engel</span>Plus</h1>
-                    <a href="https://github.com/crimeofheart/EksiEngelPlus/releases/latest" class="version-badge" target="_blank" data-tr="v0.3.0 &middot; Sürüm Notları" data-en="v0.3.0 &middot; Release Notes"></a>
+                    <a href="#surum-notlari" class="version-badge" data-tr="{% if version %}v{{ version }} &middot; {% endif %}Sürüm Notları" data-en="{% if version %}v{{ version }} &middot; {% endif %}Release Notes"></a>
                 </div>
                 <div class="lang-switch">
                     <button class="lang-btn active" onclick="setLanguage('tr')">Türkçe</button>
@@ -478,7 +485,7 @@
             <div class="notice" data-tr="Uygulama henüz Google Play'de yayında değil, APK olarak GitHub üzerinden dağıtılıyor. Bu yüzden kurulum sırasında telefonunuz sizi uyaracak — bu normal." data-en="The app is not on Google Play yet; it is distributed as an APK on GitHub. Your phone will warn you during installation — that is expected."></div>
             <div class="instructions">
                 <ol>
-                    <li data-tr="En son sürümün GitHub sayfasını telefonunuzda açın ve eksiengelplus-0.3.0.apk dosyasını indirin." data-en="Open the latest release page on your phone and download eksiengelplus-0.3.0.apk."></li>
+                    <li data-tr="En son sürümün GitHub sayfasını telefonunuzda açın ve {% if version %}eksiengelplus-{{ version }}.apk dosyasını{% else %}APK dosyasını{% endif %} indirin." data-en="Open the latest release page on your phone and download {% if version %}eksiengelplus-{{ version }}.apk{% else %}the APK{% endif %}."></li>
                     <li data-tr="Telefonunuz bilinmeyen kaynaklardan kuruluma izin vermenizi isteyecek; tarayıcınız için bu izni verin." data-en="Your phone will ask you to allow installs from unknown sources; grant it for your browser."></li>
                     <li data-tr="İndirilen APK'yı açın ve kurulumu onaylayın." data-en="Open the downloaded APK and confirm the installation."></li>
                     <li data-tr="Uygulamayı açın ve karşınıza gelen Ekşi Sözlük sayfasından hesabınıza giriş yapın. İşlemler bundan sonra kullanılabilir." data-en="Open the app and log in to your account on the Ekşi Sözlük page it shows. Operations become available after that."></li>
@@ -486,7 +493,7 @@
             </div>
             <a href="https://github.com/crimeofheart/EksiEngelPlus/releases/latest" class="github-link" target="_blank">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                <span data-tr="En son sürümü indir (v0.3.0)" data-en="Download the latest release (v0.3.0)"></span>
+                <span data-tr="En son sürümü indir{% if version %} (v{{ version }}){% endif %}" data-en="Download the latest release{% if version %} (v{{ version }}){% endif %}"></span>
             </a>
         </section>
 
@@ -530,6 +537,25 @@
             </div>
         </section>
 
+        {% if release %}
+        <section class="card" id="surum-notlari">
+            <h2><span data-tr="Sürüm Notları" data-en="Release Notes"></span>{% if release.version %} <span class="platform-tag">v{{ release.version }}{% if release.date %} &middot; {{ release.date }}{% endif %}</span>{% endif %}</h2>
+            <p class="subhead" data-tr="Bu sürümde neler değişti. Notlar yalnızca Türkçedir." data-en="What changed in this release. These notes are in Turkish only."></p>
+            {% for group in release.groups %}
+            <div class="instructions">
+                {% if group.label %}<h3 class="notes-label">{{ group.label }}</h3>{% endif %}
+                <ul>
+                    {% for note in group.notes %}<li>{{ note }}</li>{% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+            <a href="https://github.com/crimeofheart/EksiEngelPlus/releases" class="github-link" target="_blank">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                <span data-tr="Tüm sürüm notları" data-en="All release notes"></span>
+            </a>
+        </section>
+        {% endif %}
+
         <section class="card">
             <h2 data-tr="GitHub" data-en="GitHub"></h2>
             <p data-tr="Proje kodlarına GitHub üzerinden erişebilirsiniz. Katkıda bulunmak veya hata bildirmek için lütfen repository'yi ziyaret edin." data-en="You can access the project code via GitHub. Please visit the repository to contribute or report issues."></p>
@@ -547,7 +573,7 @@
                 &middot;
                 <a href="https://github.com/crimeofheart/EksiEngelPlus/releases" target="_blank" data-tr="Sürüm Notları" data-en="Release Notes"></a>
             </p>
-            <p data-tr="Eklenti ve Android uygulaması aynı sürüm numarasını paylaşır. Şu anki sürüm: v0.3.0" data-en="The extension and the Android app share one version number. Current version: v0.3.0"></p>
+            <p data-tr="Eklenti ve Android uygulaması aynı sürüm numarasını paylaşır.{% if version %} Şu anki sürüm: v{{ version }}{% endif %}" data-en="The extension and the Android app share one version number.{% if version %} Current version: v{{ version }}{% endif %}"></p>
             <p data-tr="Bu eklenti ve uygulama Ekşi Sözlük ile bağlantılı değildir." data-en="This extension and app are not affiliated with Ekşi Sözlük."></p>
         </footer>
     </div>

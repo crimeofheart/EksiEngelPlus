@@ -102,17 +102,61 @@ class ParityTest {
 
     // ---------------------------------------------------------- ban sources
 
-    @Test fun `every ban source the extension defines is handled`() {
-        val sources = Regex("""(\w+)\s*:\s*\d+""")
+    /**
+     * Ban sources the app deliberately does not offer, and why.
+     *
+     * Same bargain as [deliberatelyDifferentDefault]: naming one is the
+     * decision, leaving it out is what fails the build.
+     */
+    private val banSourceNotOffered = mapOf(
+        "FOLLOWEES" to
+            "Follow-only audience added to the extension's entry and profile " +
+            "menus. The app has no equivalent menu and no scrapeFollowing of " +
+            "its own yet, so there is nothing to branch to. Remove this entry " +
+            "when the app grows the action.",
+    )
+
+    private fun extensionBanSources(): Set<String> =
+        Regex("""(\w+)\s*:\s*"\d+"""")
             .findAll(read("frontend/app/assets/js/enums.js").substringAfter("BanSource").substringBefore("}"))
             .map { it.groupValues[1] }
             .toSet()
 
+    @Test fun `every ban source the extension defines is handled`() {
+        val sources = extensionBanSources()
+
+        // The values are quoted in enums.js, so a regex expecting bare digits
+        // matches nothing and the check passes by comparing an empty set --
+        // which is how FOLLOWEES reached the app unnoticed. Pin the count so a
+        // parse that finds nothing fails instead of excusing everything.
+        assertWithMessage("enums.js parsed to no ban sources at all")
+            .that(sources)
+            .hasSize(15)
+
         val factory = read("android/ops/runtime/src/main/kotlin/org/duzgun/eksiengelplus/ops/runtime/di/OpsModule.kt")
-        val unhandled = sources.filterNot { factory.contains("BanSource.$it") }
+        val unhandled = sources
+            .filterNot { it in banSourceNotOffered }
+            .filterNot { factory.contains("BanSource.$it") }
 
         assertWithMessage("ban sources with no branch in the task factory")
             .that(unhandled)
+            .isEmpty()
+    }
+
+    @Test fun `an unoffered ban source is only excused while it is still unoffered`() {
+        val factory = read("android/ops/runtime/src/main/kotlin/org/duzgun/eksiengelplus/ops/runtime/di/OpsModule.kt")
+        val nowHandled = banSourceNotOffered.keys.filter { factory.contains("BanSource.$it") }
+
+        assertWithMessage("exempted in banSourceNotOffered but now handled")
+            .that(nowHandled)
+            .isEmpty()
+    }
+
+    @Test fun `an unoffered ban source still exists in the extension`() {
+        val stale = banSourceNotOffered.keys - extensionBanSources()
+
+        assertWithMessage("exempted in banSourceNotOffered but gone from enums.js")
+            .that(stale)
             .isEmpty()
     }
 

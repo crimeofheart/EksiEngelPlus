@@ -607,6 +607,10 @@ class OperationWorker @AssistedInject constructor(
                 // it -- without it the history row falls back to "favlayanlar"
                 // with no way to tell three of them apart.
                 summaryJson = OperationLabel.summaryJson(OperationLabel.target(request)),
+                // Same reasoning as summaryJson, for the whole request: the
+                // history screen replays the run from this, and the checkpoint
+                // that held it does not survive the next two lines.
+                requestJson = Json.encodeToString(OperationRequest.serializer(), request),
             ),
         )
         db.checkpoints().remove(operationId)

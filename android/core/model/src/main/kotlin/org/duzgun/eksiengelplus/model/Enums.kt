@@ -13,7 +13,10 @@ interface HasPk {
     val pk: Int
 }
 
-/** api.BanSource — widened to 14 in api/migrations/0008_widen_ban_source_and_seed_missing.py. */
+/**
+ * api.BanSource — widened to 14 in api/migrations/0008_widen_ban_source_and_seed_missing.py,
+ * then 15 in api/migrations/0011_seed_followees_ban_source.py.
+ */
 enum class BanSource(override val pk: Int) : HasPk {
     SINGLE(1),
     FAV(2),
@@ -28,7 +31,13 @@ enum class BanSource(override val pk: Int) : HasPk {
     REFRESH_BLOCKED_LIST(11),
     DATE_BASED_BULK(12),
     UNMUTEALL(13),
-    REFRESH_FOLLOWED_LIST(14);
+    REFRESH_FOLLOWED_LIST(14),
+
+    /**
+     * The accounts an author follows. Unrelated to [ClickSource.FOLLOWING],
+     * which names the page a tap came from rather than the audience of a run.
+     */
+    FOLLOWEES(15);
 
     companion object {
         fun fromPk(pk: Int) = entries.firstOrNull { it.pk == pk }

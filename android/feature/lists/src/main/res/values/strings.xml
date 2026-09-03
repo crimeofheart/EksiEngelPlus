@@ -5,6 +5,10 @@
     <string name="ops_running">süren ve bekleyen</string>
     <string name="ops_queued">sıradakiler</string>
     <string name="ops_remove">kaldır</string>
+    <string name="ops_retry">tekrarla</string>
+    <string name="ops_open_source">git</string>
+    <string name="ops_retry_queued">işlem tekrar sıraya alındı</string>
+    <string name="ops_open_unavailable">bu işlemin açılacak bir sayfası yok</string>
     <string name="ops_pending">başlamadı</string>
 
     <!--

@@ -82,6 +82,7 @@ object OperationLabel {
         BanSource.SINGLE -> R.string.src_single
         BanSource.FAV -> R.string.src_fav
         BanSource.FOLLOW -> R.string.src_follow
+        BanSource.FOLLOWEES -> R.string.src_followees
         BanSource.LIST -> R.string.src_list
         BanSource.TITLE -> R.string.src_title
         BanSource.UNDOBANALL -> R.string.src_undobanall

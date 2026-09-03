@@ -20,7 +20,10 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.database.CompletedOperationEntity
 import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
@@ -51,6 +54,7 @@ class OperationsActivity : AppCompatActivity() {
     @Inject lateinit var commands: OperationCommandBus
     @Inject lateinit var waits: OperationWaits
     @Inject lateinit var reconciler: OperationReconciler
+    @Inject lateinit var config: org.duzgun.eksiengelplus.datastore.ConfigRepository
 
     private lateinit var refresh: SwipeRefreshLayout
     private lateinit var running: ViewGroup
@@ -267,6 +271,7 @@ class OperationsActivity : AppCompatActivity() {
                         OperationLabel.targetFromRequest(task.payloadJson),
                     ),
                     whenText(task.enqueuedAt),
+                    task.payloadJson,
                 ) { lifecycleScope.launch { db.queuedTasks().remove(task.id) } },
             )
         }
@@ -296,7 +301,92 @@ class OperationsActivity : AppCompatActivity() {
                     small = true,
                 ),
             )
+            val controls = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            addRowActions(controls, op.requestJson)
+            if (controls.childCount > 0) row.addView(controls)
             finished.addView(row)
+        }
+    }
+
+    // -------------------------------------------------------- row actions
+
+    /**
+     * The request behind a row, or null when there is nothing to replay.
+     *
+     * History rows archived before requestJson existed decode to null, as do
+     * any that were written without one. Both callers treat that as "offer no
+     * actions" rather than reconstructing a request from the label.
+     */
+    private fun requestOf(json: String?): OperationRequest? {
+        if (json.isNullOrBlank()) return null
+        return runCatching {
+            Json.decodeFromString(OperationRequest.serializer(), json)
+        }.getOrNull()
+    }
+
+    /** Queues the same request again, as a new run. */
+    private fun retry(request: OperationRequest) {
+        lifecycleScope.launch {
+            OperationWorker.enqueue(
+                WorkManager.getInstance(applicationContext),
+                db = db,
+                operationId = java.util.UUID.randomUUID().toString(),
+                request = request,
+            )
+            showMessage(UiMessage(getString(R.string.ops_retry_queued)))
+        }
+    }
+
+    /**
+     * The page a run acted on.
+     *
+     * A plain address, so it still resolves when the author or title is already
+     * blocked or muted -- those pages are reachable directly even once they stop
+     * appearing in any listing. Built from the configured host so a run started
+     * against a mirror opens on that mirror.
+     */
+    private fun sourceUrl(request: OperationRequest, base: String): String? {
+        val origin = base.trimEnd('/')
+        request.entryId?.let { return "$origin/entry/$it" }
+        request.authorNick?.takeIf { it.isNotBlank() }
+            ?.let { return "$origin/biri/${it.replace(" ", "-")}" }
+        val slug = request.titleSlug
+        val titleId = request.titleId
+        if (!slug.isNullOrBlank() && titleId != null) return "$origin/$slug--$titleId"
+        return null
+    }
+
+    private fun openSource(request: OperationRequest) {
+        lifecycleScope.launch {
+            val base = runCatching { config.config.first().eksiSozlukUrl }
+                .getOrNull()
+                ?: org.duzgun.eksiengelplus.datastore.EksiConfig.DEFAULT_BASE_URL
+            val url = sourceUrl(request, base)
+            if (url == null) {
+                showMessage(UiMessage(getString(R.string.ops_open_unavailable)))
+                return@launch
+            }
+            startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    .setPackage(packageName),
+            )
+        }
+    }
+
+    /**
+     * Adds "tekrarla" and "git" to a row, when the run carries enough to do so.
+     *
+     * Bulk and list-sourced runs have no single page to open, so "git" is left
+     * off those rather than pointing somewhere arbitrary.
+     */
+    private fun addRowActions(into: ViewGroup, json: String?) {
+        val request = requestOf(json) ?: return
+        into.addView(action(R.string.ops_retry) { retry(request) })
+        if (sourceUrl(request, org.duzgun.eksiengelplus.datastore.EksiConfig.DEFAULT_BASE_URL) != null) {
+            into.addView(action(R.string.ops_open_source) { openSource(request) })
         }
     }
 
@@ -309,7 +399,12 @@ class OperationsActivity : AppCompatActivity() {
      * stacking a title, a timestamp and a full-width button gave three lines of
      * chrome to a row that says "later".
      */
-    private fun pendingRow(title: String, whenText: String, onRemove: () -> Unit): LinearLayout {
+    private fun pendingRow(
+        title: String,
+        whenText: String,
+        requestJson: String? = null,
+        onRemove: () -> Unit,
+    ): LinearLayout {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -331,6 +426,8 @@ class OperationsActivity : AppCompatActivity() {
         labels.addView(label(title, bold = true).apply { textSize = 14f })
         labels.addView(label(whenText, small = true))
         row.addView(labels)
+
+        addRowActions(row, requestJson)
 
         row.addView(
             TextView(this).apply {

@@ -10,6 +10,7 @@
     <string name="src_single">tek yazar</string>
     <string name="src_fav">favlayanlar</string>
     <string name="src_follow">takipçiler</string>
+    <string name="src_followees">takip edilenler</string>
     <string name="src_list">yazar listesi</string>
     <string name="src_title">başlıktakiler</string>
     <string name="src_undobanall">tüm engelleri kaldırma</string>

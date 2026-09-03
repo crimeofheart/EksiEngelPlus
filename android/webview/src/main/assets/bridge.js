@@ -27,7 +27,7 @@
   var ITEM_MARK = "data-eksiengel-item";
 
   // enums.js pks. Shared database keys -- must not drift.
-  var BanSource = { SINGLE: 1, FAV: 2, FOLLOW: 3, TITLE: 6 };
+  var BanSource = { SINGLE: 1, FAV: 2, FOLLOW: 3, TITLE: 6, FOLLOWEES: 15 };
   var BanMode = { BAN: 1, UNDOBAN: 2 };
   var TargetType = { USER: 1, TITLE: 2, MUTE: 3, FOLLOW: 4 };
   var ClickSource = { ENTRY: 1, PROFILE: 2, QUESTION: 3, TITLE: 6 };
@@ -920,12 +920,28 @@
     var targetType = CONFIG.enableMute ? TargetType.MUTE : TargetType.USER;
 
     var banUser = item(muteWord("yazarı engelle", "yazarı sessize al"));
+    var followUser = item("yazarı takip et");
     var banFav = item(muteWord("favlayanları engelle", "favlayanları sessize al"));
+    var followFav = item("favlayanları takip et");
     var banFollow = item(muteWord("takipçilerini engelle", "takipçilerini sessize al"));
+    var followFollow = item("takipçilerini takip et");
+    var followFollowees = item("takip ettiklerini takip et");
 
     banUser.onclick = function () {
       enqueue({
         banSource: BanSource.SINGLE, banMode: BanMode.BAN, targetType: targetType,
+        clickSource: clickSource, authorName: authorName,
+        authorId: authorId ? Number(authorId) : null, entryUrl: entryUrl
+      });
+    };
+    /*
+     * Following is its own relation (r=b), so these never consult enableMute --
+     * the mute-aware label above is about which of block/mute a restricting run
+     * means, a choice that does not exist here.
+     */
+    followUser.onclick = function () {
+      enqueue({
+        banSource: BanSource.SINGLE, banMode: BanMode.BAN, targetType: TargetType.FOLLOW,
         clickSource: clickSource, authorName: authorName,
         authorId: authorId ? Number(authorId) : null, entryUrl: entryUrl
       });
@@ -940,6 +956,13 @@
         entryUrl: entryUrl, entryId: Number(entryId)
       });
     };
+    followFav.onclick = function () {
+      enqueue({
+        banSource: BanSource.FAV, banMode: BanMode.BAN, targetType: TargetType.FOLLOW,
+        clickSource: clickSource, authorName: authorName,
+        entryUrl: entryUrl, entryId: Number(entryId)
+      });
+    };
     banFollow.onclick = function () {
       enqueue({
         banSource: BanSource.FOLLOW, banMode: BanMode.BAN, targetType: targetType,
@@ -947,10 +970,28 @@
         authorId: authorId ? Number(authorId) : null
       });
     };
+    followFollow.onclick = function () {
+      enqueue({
+        banSource: BanSource.FOLLOW, banMode: BanMode.BAN, targetType: TargetType.FOLLOW,
+        clickSource: clickSource, authorName: authorName,
+        authorId: authorId ? Number(authorId) : null
+      });
+    };
+    followFollowees.onclick = function () {
+      enqueue({
+        banSource: BanSource.FOLLOWEES, banMode: BanMode.BAN, targetType: TargetType.FOLLOW,
+        clickSource: clickSource, authorName: authorName,
+        authorId: authorId ? Number(authorId) : null
+      });
+    };
 
     menu.appendChild(banUser);
+    menu.appendChild(followUser);
     menu.appendChild(banFav);
+    menu.appendChild(followFav);
     menu.appendChild(banFollow);
+    menu.appendChild(followFollow);
+    menu.appendChild(followFollowees);
   }
 
   /**
@@ -1060,6 +1101,38 @@
       });
     };
     container.appendChild(banFollowers);
+
+    /*
+     * The follow side of the same three audiences. Never mute-aware and never
+     * inverted: r=b is its own relation, and the site carries no .relation-link
+     * for an operation over someone else's follower or followee list.
+     *
+     * "takip et" on the profile itself is the one exception in spirit -- Ekşi
+     * does render a follow control there -- but it is added unconditionally
+     * alongside the others rather than read off relations, because a nick with
+     * no CAPTION_BAN entry still has followers worth acting on.
+     */
+    var followUser = item("takip et");
+    followUser.onclick = single(BanMode.BAN, TargetType.FOLLOW, ClickSource.PROFILE);
+    container.appendChild(followUser);
+
+    var followFollowers = item("takipçilerini takip et");
+    followFollowers.onclick = function () {
+      enqueue({
+        banSource: BanSource.FOLLOW, banMode: BanMode.BAN, targetType: TargetType.FOLLOW,
+        clickSource: ClickSource.PROFILE, authorName: nick, authorId: id
+      });
+    };
+    container.appendChild(followFollowers);
+
+    var followFollowees = item("takip ettiklerini takip et");
+    followFollowees.onclick = function () {
+      enqueue({
+        banSource: BanSource.FOLLOWEES, banMode: BanMode.BAN, targetType: TargetType.FOLLOW,
+        clickSource: ClickSource.PROFILE, authorName: nick, authorId: id
+      });
+    };
+    container.appendChild(followFollowees);
   }
 
   /**

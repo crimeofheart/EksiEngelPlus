@@ -108,13 +108,7 @@ class ParityTest {
      * Same bargain as [deliberatelyDifferentDefault]: naming one is the
      * decision, leaving it out is what fails the build.
      */
-    private val banSourceNotOffered = mapOf(
-        "FOLLOWEES" to
-            "Follow-only audience added to the extension's entry and profile " +
-            "menus. The app has no equivalent menu and no scrapeFollowing of " +
-            "its own yet, so there is nothing to branch to. Remove this entry " +
-            "when the app grows the action.",
-    )
+    private val banSourceNotOffered = mapOf<String, String>()
 
     private fun extensionBanSources(): Set<String> =
         Regex("""(\w+)\s*:\s*"\d+"""")

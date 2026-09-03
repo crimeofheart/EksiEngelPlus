@@ -13,6 +13,7 @@ import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.eksi.client.RelationClient
 import org.duzgun.eksiengelplus.eksi.client.ScrapeClient
 import org.duzgun.eksiengelplus.ops.engine.FavActionTask
+import org.duzgun.eksiengelplus.ops.engine.FolloweesActionTask
 import org.duzgun.eksiengelplus.ops.engine.FollowActionTask
 import org.duzgun.eksiengelplus.ops.engine.ListActionTask
 import org.duzgun.eksiengelplus.ops.engine.MigrateBlockedToMutedTask
@@ -39,7 +40,9 @@ object OpsModule {
 
     @Provides @Singleton
     fun database(@ApplicationContext context: Context): EksiDatabase =
-        Room.databaseBuilder(context, EksiDatabase::class.java, EksiDatabase.NAME).build()
+        Room.databaseBuilder(context, EksiDatabase::class.java, EksiDatabase.NAME)
+            .addMigrations(*EksiDatabase.MIGRATIONS)
+            .build()
 
     @Provides @Singleton
     fun workManager(@ApplicationContext context: Context): WorkManager =
@@ -98,6 +101,7 @@ object OpsModule {
                 // (scrapingHandler.js:186); wired to config with the settings screen.
                 BanSource.FAV -> FavActionTask(runner, scrape, includeNovices = { true })
                 BanSource.FOLLOW -> FollowActionTask(runner, scrape)
+                BanSource.FOLLOWEES -> FolloweesActionTask(runner, scrape)
                 BanSource.TITLE -> TitleActionTask(runner, scrape)
                 BanSource.UNDOBANALL -> UndoBanAllTask(runner, scrape)
 

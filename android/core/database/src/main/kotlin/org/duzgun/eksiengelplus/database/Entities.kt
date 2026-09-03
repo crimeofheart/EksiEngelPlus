@@ -123,6 +123,15 @@ data class CompletedOperationEntity(
     val startedAt: Long,
     val finishedAt: Long,
     val summaryJson: String,
+    /**
+     * The request that produced this run, so the history screen can queue it
+     * again or open what it acted on.
+     *
+     * Nullable because every row written before this column existed has no
+     * request to recover -- the checkpoint carrying it was deleted when the run
+     * was archived. Those rows offer neither action rather than guessing.
+     */
+    val requestJson: String? = null,
 )
 
 /** The pasted author list, replacing the userList storage key. */

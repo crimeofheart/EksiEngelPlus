@@ -377,6 +377,30 @@ class FollowActionTask(
 }
 
 /**
+ * ban_source 15. Everyone a given author follows.
+ *
+ * The mirror of [FollowActionTask] -- same walk, the other endpoint. Offered
+ * only as a follow, because there was never a block or mute of this audience to
+ * keep parity with.
+ */
+class FolloweesActionTask(
+    private val runner: TargetRunner,
+    private val scrape: ScrapeClient,
+) : OperationTask {
+    override val source = BanSource.FOLLOWEES
+
+    override suspend fun run(ctx: OperationContext): OperationOutcome {
+        val nick = ctx.request.authorNick?.toEksiSlug() ?: return OperationOutcome.COMPLETED
+        ctx.awaitReadPermit()
+        val followees = scrape.allFollow(FollowEndpoint.FOLLOWING, nick)
+        return runner.applyToAll(
+            ctx,
+            followees.map { Target(it.nick.value.toEksiSlug(), it.id) },
+        )
+    }
+}
+
+/**
  * ban_source 6. Everyone who posted in a title.
  *
  * De-duplicated: a prolific author appears on many pages but must be acted on

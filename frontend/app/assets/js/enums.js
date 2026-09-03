@@ -12,7 +12,10 @@ export const BanSource = {
   REFRESH_BLOCKED_LIST: "11",
   DATE_BASED_BULK: "12",
   UNMUTEALL: "13",
-  REFRESH_FOLLOWED_LIST: "14"
+  REFRESH_FOLLOWED_LIST: "14",
+  // The accounts a given author follows. Distinct from ClickSource.FOLLOWING,
+  // which names the page a click came from, not the audience of an action.
+  FOLLOWEES: "15"
 };
 
 export const BanMode = { BAN: "1", UNDOBAN: "2" };
@@ -47,6 +50,10 @@ export const ClickType = {
   OPERATION_PAUSE: "OPERATION_PAUSE",
   OPERATION_RESUME: "OPERATION_RESUME",
   OPERATION_STOP: "OPERATION_STOP",
+  // A task re-run from İşlem durumu. Distinct from a fresh dispatch of the same
+  // banSource so retry volume is separable in the analytics admin; the re-run
+  // itself still posts an ordinary Action row when it finishes.
+  OPERATION_RETRY: "OPERATION_RETRY",
   
   // Bulk operations
   OPERATION_BLOCK_MUTED_USERS: "OPERATION_BLOCK_MUTED_USERS",

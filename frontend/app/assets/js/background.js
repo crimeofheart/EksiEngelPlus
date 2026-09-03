@@ -470,6 +470,11 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
         sourceEntry: obj.entryUrl || null,
         sourceAuthor: obj.authorName || null,
         sourceTitle: obj.titleName || null,
+        // Ids, not just display names: replaying a task from İşlem durumu needs
+        // the same arguments processHandler was bound to, and a name alone can
+        // no longer be resolved once the task has left the queue.
+        sourceAuthorId: obj.authorId || null,
+        sourceTitleId: obj.titleId || null,
         timeFilter: obj.timeSpecifier || null,
         clickSource: obj.clickSource || null,
         banSource: obj.banSource,
@@ -660,9 +665,21 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     return res;
   };
 
+  // A scraped-audience run (FAV, FOLLOW, FOLLOWEES) normally derives its
+  // block/mute/title booleans from config. TargetType.FOLLOW replaces all of
+  // them: following is a different relation, not another flavour of blocking.
+  // The isBanned* flags describe block/mute state only, so they say nothing
+  // about whether a follow is needed -- and addrelation is idempotent for an
+  // already-followed account, so attempting it anyway is harmless.
+  const isFollowTarget = targetType == enums.TargetType.FOLLOW;
+  const performOnScrapedUser = async (banMode, value) =>
+    isFollowTarget
+      ? await performWithRetry(banMode, value.authorId, false, false, false, true)
+      : await performWithRetry(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
+
   if(banSource === enums.BanSource.SINGLE) {
     notificationHandler.notifyOngoing(0, 0, 1, processQueue.currentItemMetadata);
-    let res = await performWithRetry(banMode, singleAuthorId, targetType == enums.TargetType.USER, targetType == enums.TargetType.TITLE, targetType == enums.TargetType.MUTE);
+    let res = await performWithRetry(banMode, singleAuthorId, targetType == enums.TargetType.USER, targetType == enums.TargetType.TITLE, targetType == enums.TargetType.MUTE, targetType == enums.TargetType.FOLLOW);
     authorIdList.push(singleAuthorId);
     authorNameList.push(singleAuthorName);
     notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, authorNameList.length, processQueue.currentItemMetadata);
@@ -787,7 +804,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size, processQueue.currentItemMetadata);
     for (const [name, value] of scrapedRelations) {
       if(programController.earlyStop) break;
-      let res = await performWithRetry(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
+      let res = await performOnScrapedUser(banMode, value);
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size, processQueue.currentItemMetadata);
     }
   } else if (banSource === enums.BanSource.FOLLOW) {
@@ -851,15 +868,57 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     }
     
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size, processQueue.currentItemMetadata);
-    notificationHandler.notifyStatus("Takipçiler engelleniyor...");
-    
+    notificationHandler.notifyStatus(isFollowTarget ? "Takipçiler takip ediliyor..." : "Takipçiler engelleniyor...");
+
     for (const [name, value] of scrapedRelations) {
       if(programController.earlyStop) break;
       if (!value.authorId || value.authorId === "0") {
           log.warn("bg", `Skipping follower with invalid ID: ${name}`);
           continue;
       }
-      let res = await performWithRetry(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
+      let res = await performOnScrapedUser(banMode, value);
+      notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size, processQueue.currentItemMetadata);
+    }
+  } else if (banSource === enums.BanSource.FOLLOWEES) {
+    notificationHandler.notifyStatus("Takip edilenler getiriliyor...");
+    let scrapedRelations = await scrapingHandler.scrapeFollowing(singleAuthorName);
+    if(scrapedRelations.size === 0) {
+      notificationHandler.finishErrorNoAccount(banSource, banMode, processQueue.currentItemMetadata);
+      log.info("bg", "No users found in FOLLOWEES operation");
+      return;
+    }
+
+    // Drop the accounts already followed: re-following them would burn requests
+    // against the rate limit for no effect. /following already reports this per
+    // user as IsBuddy (Relation.doIFollow), so no second scrape is needed.
+    if(config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
+      notificationHandler.notifyAnalysisOnlyRequiredActions();
+      for (const [name, value] of scrapedRelations) {
+        if (value.doIFollow === true)
+          scrapedRelations.delete(name);
+      }
+    }
+
+    if(scrapedRelations.size === 0) {
+      notificationHandler.finishErrorNoAccount(banSource, banMode, processQueue.currentItemMetadata);
+      log.info("bg", "No users found in FOLLOWEES operation after analysis");
+      return;
+    }
+
+    authorNameList = Array.from(scrapedRelations, ([name, value]) => name);
+    authorIdList = Array.from(scrapedRelations, ([name, value]) => value.authorId);
+
+    notificationHandler.notifyOngoing(0, 0, scrapedRelations.size, processQueue.currentItemMetadata);
+    notificationHandler.notifyStatus("Takip edilenler takip ediliyor...");
+
+    for (const [name, value] of scrapedRelations) {
+      if(programController.earlyStop) break;
+      if (!value.authorId || value.authorId === "0") {
+          log.warn("bg", `Skipping followee with invalid ID: ${name}`);
+          continue;
+      }
+      // Follow-only audience: there is no block/mute counterpart to fall back to.
+      let res = await performWithRetry(banMode, value.authorId, false, false, false, true);
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size, processQueue.currentItemMetadata);
     }
   } else if (banSource === enums.BanSource.TITLE) {

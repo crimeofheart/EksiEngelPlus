@@ -84,6 +84,41 @@ function describeTarget(...parts) {
   return kept.length ? ` (${kept.join(" - ")})` : "";
 }
 
+/**
+ * The arguments a task was dispatched with, in the shape the background message
+ * listener expects back, so İşlem durumu can re-enqueue it or open its source.
+ *
+ * Returns null for a task with no single target -- a bulk or list-sourced run
+ * has no one entry/author/title to replay against or navigate to. Callers treat
+ * null as "offer neither action", which is also what an item persisted before
+ * these fields existed produces.
+ */
+export function buildRetryParams(action = {}, metadata = {}) {
+  const banSource = action.banSource ?? metadata.banSource;
+  const banMode = action.banMode ?? metadata.banMode;
+  const authorId = metadata.sourceAuthorId || null;
+  const titleId = metadata.sourceTitleId || null;
+  const entryUrl = metadata.sourceEntry || null;
+  const authorName = metadata.sourceAuthor || null;
+  const titleName = metadata.sourceTitle || null;
+
+  if (!banSource || (!entryUrl && !authorName && !titleName)) return null;
+
+  return {
+    banSource,
+    banMode,
+    entryUrl,
+    authorName,
+    authorId,
+    titleName,
+    titleId,
+    targetType: (metadata.targetTypes || [])[0] || null,
+    clickSource: metadata.clickSource || null,
+    timeSpecifier: metadata.timeFilter || null,
+    action: metadata.listAction || null
+  };
+}
+
 export function generateUnifiedDescription(banSource, metadata = {}) {
   const { targetTypes = [], sourceEntry, sourceAuthor, sourceTitle, sourceList, timeFilter, banMode, listAction } = metadata;
   let baseDescription = "";
@@ -319,6 +354,9 @@ class AutoQueue extends Queue {
         sourceList: metadata.sourceList || null,
         targetTypes: metadata.targetTypes || [],
         timeFilter: metadata.timeFilter || null,
+        // The arguments processHandler was bound to, carried through so İşlem
+        // durumu can replay the task or open what it acted on.
+        retryParams: buildRetryParams(action, metadata),
         taskStatus: enums.TaskStatus.PROCESSING,
         operationNotes: metadata.operationNotes || "",
         requiresUserInteraction: metadata.requiresUserInteraction || false,
@@ -345,6 +383,9 @@ class AutoQueue extends Queue {
         sourceList: metadata.sourceList || null,
         targetTypes: metadata.targetTypes || [],
         timeFilter: metadata.timeFilter || null,
+        // The arguments processHandler was bound to, carried through so İşlem
+        // durumu can replay the task or open what it acted on.
+        retryParams: buildRetryParams(action, metadata),
         taskStatus: enums.TaskStatus.QUEUED,
         operationNotes: metadata.operationNotes || "",
         requiresUserInteraction: metadata.requiresUserInteraction || false,

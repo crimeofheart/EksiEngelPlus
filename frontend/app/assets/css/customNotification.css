@@ -456,6 +456,32 @@ body {
 .stats-btn:hover:not(:disabled) { background-color: #45a049 !important; transform: translateY(-1px); }
 .stats-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Per-row task actions in the queue and completed tables */
+.task-actions {
+    white-space: nowrap;
+}
+
+.task-action-btn {
+    cursor: pointer;
+    padding: 2px 8px;
+    margin-right: 4px;
+    font-size: 11px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--primary-color);
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.task-action-btn:last-child { margin-right: 0; }
+
+.task-action-btn:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
 /* Actions Grid */
 .actions-card, .migration-card, .help-card { border-left: 3px solid var(--primary-color); }
 

@@ -335,58 +335,63 @@
       }
 
       // Create new buttons as list items
-      let newButtonBanUser = document.createElement("li");
-      newButtonBanUser.innerHTML = `<a href="javascript:void(0);"><img src=${eksiEngelIconURL} style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"> yazarı engelle</a>`;
+      const menuItemMarkup = (label) =>
+        `<a href="javascript:void(0);"><img src=${eksiEngelIconURL} style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"> ${label}</a>`;
 
-      // Update button label based on enableMute config (after buttons are created)
+      const makeMenuItem = (label) => {
+        const item = document.createElement("li");
+        item.innerHTML = menuItemMarkup(label);
+        return item;
+      };
+
+      let newButtonBanUser = makeMenuItem("yazarı engelle");
+      let newButtonFollowUser = makeMenuItem("yazarı takip et");
+      let newButtonBanFav = makeMenuItem("favlayanları engelle");
+      let newButtonFollowFav = makeMenuItem("favlayanları takip et");
+      let newButtonBanFollow = makeMenuItem("takipçilerini engelle");
+      let newButtonFollowFollow = makeMenuItem("takipçilerini takip et");
+      let newButtonFollowFollowees = makeMenuItem("takip ettiklerini takip et");
+
+      // Only the block/mute labels vary with enableMute; the follow ones never do.
+      // Relabel in place -- the click listeners hang off the <li>, so replacing
+      // the node instead would silently drop them.
       getConfig().then(config => {
-        const banLabel = config?.enableMute ? "yazarı sessize al" : "yazarı engelle";
-        newButtonBanUser.innerHTML = `<a href="javascript:void(0);"><img src=${eksiEngelIconURL} style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"> ${banLabel}</a>`;
-      });
-
-      let newButtonBanFav = document.createElement("li");
-      newButtonBanFav.innerHTML = `<a href="javascript:void(0);"><img src=${eksiEngelIconURL} style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"> favlayanları engelle</a>`;
-      
-      let newButtonBanFollow = document.createElement("li");
-      // Set initial label, then update based on config
-      newButtonBanFollow.innerHTML = `<a href="javascript:void(0);"><img src=${eksiEngelIconURL} style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"> takipçilerini engelle</a>`;
-      getConfig().then(config => {
-        const followLabel = config?.enableMute ? "takipçilerini sessize al" : "takipçilerini engelle";
-        newButtonBanFollow.innerHTML = `<a href="javascript:void(0);"><img src=${eksiEngelIconURL} style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"> ${followLabel}</a>`;
-      });
-
-      // Insert buttons in the dropdown menu
-      if (lastRelevantItem) {
-        // Insert after the last relevant item
-        if (lastRelevantItem.nextSibling) {
-          dropdownMenu.insertBefore(newButtonBanUser, lastRelevantItem.nextSibling);
-          dropdownMenu.insertBefore(newButtonBanFav, lastRelevantItem.nextSibling.nextSibling);
-          dropdownMenu.insertBefore(newButtonBanFollow, lastRelevantItem.nextSibling.nextSibling.nextSibling);
-        } else {
-          // If it's the last element, just append
-          dropdownMenu.appendChild(newButtonBanUser);
-          dropdownMenu.appendChild(newButtonBanFav);
-          dropdownMenu.appendChild(newButtonBanFollow);
+        if (config?.enableMute) {
+          newButtonBanUser.innerHTML = menuItemMarkup("yazarı sessize al");
+          newButtonBanFollow.innerHTML = menuItemMarkup("takipçilerini sessize al");
         }
-      } else {
-        // If no relevant item found, just append at the end
-        dropdownMenu.appendChild(newButtonBanUser);
-        dropdownMenu.appendChild(newButtonBanFav);
-        dropdownMenu.appendChild(newButtonBanFollow);
+      });
+
+      // Each button goes after the one before it, so the anchor walks forward as
+      // we insert. A fixed nextSibling chain would break the moment the list grows.
+      const newButtons = [
+        newButtonBanUser, newButtonFollowUser,
+        newButtonBanFav, newButtonFollowFav,
+        newButtonBanFollow, newButtonFollowFollow,
+        newButtonFollowFollowees
+      ];
+      let anchor = lastRelevantItem;
+      for (const button of newButtons) {
+        if (anchor && anchor.nextSibling) {
+          dropdownMenu.insertBefore(button, anchor.nextSibling);
+        } else {
+          dropdownMenu.appendChild(button);
+        }
+        anchor = button;
       }
 
       // Add event listeners
       newButtonBanUser.addEventListener("click", async function(e){
         e.preventDefault();
         const config = await getConfig();
-        
+
         // Check if title ban is enabled in config
         if (config?.enableTitleBan) {
           console.log("Eksi Engel: Title ban is enabled, blocking both user and titles");
           // First block the user
           const targetType = config?.enableMute ? enums.TargetType.MUTE : enums.TargetType.USER;
           EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.BAN, entryUrl, authorName, authorId, targetType, clickSource);
-          
+
           // Then block their titles
           setTimeout(() => {
             EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.BAN, entryUrl, authorName, authorId, enums.TargetType.TITLE, clickSource);
@@ -398,15 +403,35 @@
           EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.BAN, entryUrl, authorName, authorId, targetType, clickSource);
         }
       });
-      
+
+      newButtonFollowUser.addEventListener("click", function(e){
+        e.preventDefault();
+        EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.BAN, entryUrl, authorName, authorId, enums.TargetType.FOLLOW, clickSource);
+      });
+
       newButtonBanFav.addEventListener("click", function(e){
         e.preventDefault();
         EksiEngel_sendMessage(enums.BanSource.FAV, enums.BanMode.BAN, entryUrl, authorName, authorId, null, clickSource);
       });
-      
+
+      newButtonFollowFav.addEventListener("click", function(e){
+        e.preventDefault();
+        EksiEngel_sendMessage(enums.BanSource.FAV, enums.BanMode.BAN, entryUrl, authorName, authorId, enums.TargetType.FOLLOW, clickSource);
+      });
+
       newButtonBanFollow.addEventListener("click", function(e){
         e.preventDefault();
         EksiEngel_sendMessage(enums.BanSource.FOLLOW, enums.BanMode.BAN, entryUrl, authorName, authorId, null, clickSource);
+      });
+
+      newButtonFollowFollow.addEventListener("click", function(e){
+        e.preventDefault();
+        EksiEngel_sendMessage(enums.BanSource.FOLLOW, enums.BanMode.BAN, entryUrl, authorName, authorId, enums.TargetType.FOLLOW, clickSource);
+      });
+
+      newButtonFollowFollowees.addEventListener("click", function(e){
+        e.preventDefault();
+        EksiEngel_sendMessage(enums.BanSource.FOLLOWEES, enums.BanMode.BAN, entryUrl, authorName, authorId, enums.TargetType.FOLLOW, clickSource);
       });
 
       dropdownMenu.dataset[processedMark] = "true"; // Mark as processed
@@ -464,6 +489,7 @@
           const authorId = String(authorIdElement.value); // String is in case
 
           let buttonRelationTitleBan = null; // Track the title ban button to append "block followers" after it
+          let buttonRelationBan = null; // Fallback anchor when the profile has no title-ban button
 
           // Find existing relation links within this container
           const buttonsRelation = profileButtonsContainer.querySelectorAll(".relation-link");
@@ -501,6 +527,7 @@
                            });
                        }
                       parentListItem.parentNode.append(newButton);
+                      buttonRelationBan = newButton;
                   }
               } else if (nameOfTheButton == "başlıklarını engelle") {
                   if (isBanned == "true") {
@@ -515,14 +542,33 @@
               }
           });
 
-          // Add 'block followers' button after the title ban button, if found
-          if (buttonRelationTitleBan) {
-              let newButtonFollow = document.createElement("li");
-              newButtonFollow.classList.add('eksiengel-injected-button');
+          // Add the audience buttons after the title ban button. Falling back to
+          // the block button keeps them reachable on a profile that renders no
+          // title-ban link, where they used to be dropped entirely.
+          const audienceAnchor = buttonRelationTitleBan || buttonRelationBan;
+          if (audienceAnchor) {
+              const makeAudienceButton = (label, banSource, targetType) => {
+                  const item = document.createElement("li");
+                  item.classList.add('eksiengel-injected-button');
+                  item.innerHTML = `<a><span><img src=${eksiEngelIconURL}> ${label}</span></a>`;
+                  item.addEventListener("click", function(){ EksiEngel_sendMessage(banSource, enums.BanMode.BAN, null, authorName, authorId, targetType, enums.ClickSource.PROFILE) });
+                  return item;
+              };
+
               const followLabel = config?.enableMute ? "takipçilerini sessize al" : "takipçilerini engelle";
-              newButtonFollow.innerHTML = `<a><span><img src=${eksiEngelIconURL}> ${followLabel}</span></a>`;
-              newButtonFollow.addEventListener("click", function(){ EksiEngel_sendMessage(enums.BanSource.FOLLOW, enums.BanMode.BAN, null, authorName, authorId, null, enums.ClickSource.PROFILE) });
-              buttonRelationTitleBan.parentNode.insertBefore(newButtonFollow, buttonRelationTitleBan.nextSibling); // Insert after
+              const audienceButtons = [
+                  makeAudienceButton("takip et", enums.BanSource.SINGLE, enums.TargetType.FOLLOW),
+                  makeAudienceButton(followLabel, enums.BanSource.FOLLOW, null),
+                  makeAudienceButton("takipçilerini takip et", enums.BanSource.FOLLOW, enums.TargetType.FOLLOW),
+                  makeAudienceButton("takip ettiklerini takip et", enums.BanSource.FOLLOWEES, enums.TargetType.FOLLOW)
+              ];
+
+              // Walk the anchor forward so each button lands after the previous one.
+              let anchor = audienceAnchor;
+              for (const button of audienceButtons) {
+                  anchor.parentNode.insertBefore(button, anchor.nextSibling);
+                  anchor = button;
+              }
           }
 
           profileButtonsContainer.dataset[processedMark] = "true"; // Mark container as processed

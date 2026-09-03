@@ -15,7 +15,8 @@ import * as utils from './utils.js';
 import { commHandler } from './commHandler.js';
 import { storageHandler } from './storageHandler.js';
 import { notificationHandler } from './notificationHandler.js';
-import { generateUnifiedDescription, processQueue, getTaskCategory } from './queue.js';
+import { generateUnifiedDescription, processQueue, getTaskCategory, buildRetryParams } from './queue.js';
+import { config } from './config.js';
 import { buttonStateManager } from './buttonStateManager.js';
 
 function getCategoryDisplayName(taskCategory) {
@@ -1469,7 +1470,12 @@ async function insertCompletedProcessesTable(banSource, successfulAction, perfor
   cell4.innerHTML = performedAction;
   cell5.innerHTML = successfulAction;
   cell6.innerHTML = errorStatus;
-  
+
+  // Rebuilt from the stored metadata rather than persisted separately, so a
+  // restored row and a live one offer exactly the same actions.
+  fillTaskActionsCell(row.insertCell(6), buildRetryParams({ banSource }, operationMetadata || {}));
+
+
   const completedItem = {
     banSource,
     successfulAction,
@@ -1493,6 +1499,72 @@ function generateDescriptionFromMetadataForCompleted(banSource, metadata = {}) {
     updatedMetadata.banMode = banSource.includes('UN') ? enums.BanMode.UNDOBAN : enums.BanMode.BAN;
   }
   return generateUnifiedDescription(banSource, updatedMetadata);
+}
+
+/**
+ * The page a task acted on.
+ *
+ * Built as a plain URL rather than looked up through the site, so it still
+ * resolves when the author or title is already blocked or muted -- those pages
+ * are reachable by address even when they no longer appear in any listing.
+ */
+function sourceUrlForTask(retryParams) {
+  if (!retryParams) return null;
+  const origin = config.EksiSozlukURL;
+  if (retryParams.entryUrl) return retryParams.entryUrl;
+  // Same shapes scrapingHandler fetches (scrapingHandler.js:1035, :1199): the
+  // slug goes in raw, and a nick's spaces become hyphens the way the entry menu
+  // already normalises data-author. Percent-encoding either one 404s.
+  if (retryParams.authorName) {
+    return `${origin}/biri/${retryParams.authorName.replace(/ /g, "-")}`;
+  }
+  if (retryParams.titleName && retryParams.titleId) {
+    return `${origin}/${retryParams.titleName}--${retryParams.titleId}`;
+  }
+  return null;
+}
+
+function retryTask(retryParams) {
+  commHandler.sendAnalyticsData({ click_type: enums.ClickType.OPERATION_RETRY });
+  // The same message a content-script menu click sends, so the task rejoins the
+  // queue through the ordinary path instead of a second pipeline.
+  chrome.runtime.sendMessage(null, { ...retryParams }, () => {
+    if (chrome.runtime.lastError) {
+      console.error("notification.js: retry failed:", chrome.runtime.lastError.message);
+      notificationHandler.showStatusMessage("İşlem tekrarlanamadı.", "error");
+      return;
+    }
+    notificationHandler.showStatusMessage("İşlem tekrar sıraya alındı.", "success");
+  });
+}
+
+/**
+ * Fills a row's action cell. Each button appears only when the stored task
+ * actually carries what it needs, so bulk tasks and rows persisted before these
+ * fields existed simply show nothing rather than failing on click.
+ */
+function fillTaskActionsCell(cell, retryParams) {
+  cell.classList.add("task-actions");
+  if (!retryParams) return;
+
+  const repeatBtn = document.createElement("button");
+  repeatBtn.className = "task-action-btn";
+  repeatBtn.type = "button";
+  repeatBtn.textContent = "Tekrarla";
+  repeatBtn.title = "Bu işlemi aynı hedefle yeniden sıraya al";
+  repeatBtn.addEventListener("click", () => retryTask(retryParams));
+  cell.appendChild(repeatBtn);
+
+  const sourceUrl = sourceUrlForTask(retryParams);
+  if (!sourceUrl) return;
+
+  const gotoBtn = document.createElement("button");
+  gotoBtn.className = "task-action-btn";
+  gotoBtn.type = "button";
+  gotoBtn.textContent = "Git";
+  gotoBtn.title = "İşlemin başlatıldığı sayfayı aç";
+  gotoBtn.addEventListener("click", () => chrome.tabs.create({ url: sourceUrl }));
+  cell.appendChild(gotoBtn);
 }
 
 function updatePlannedProcessesTable(plannedProcesses) {
@@ -1558,6 +1630,8 @@ function updatePlannedProcessesTable(plannedProcesses) {
     const categoryDisplayName = getCategoryDisplayName(process.taskCategory);
     cell2.innerHTML = `${categoryIndicator} ${categoryDisplayName}`;
     cell2.title = `Kategori: ${categoryDisplayName}\nKarmaşıklık: ${process.taskComplexity}\nÖncelik: ${process.taskPriority}`;
+
+    fillTaskActionsCell(row.insertCell(4), process.retryParams);
   }
 }
 

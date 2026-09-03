@@ -41,6 +41,30 @@ class TargetRunner(
         if (targets.isEmpty()) return OperationOutcome.COMPLETED
 
         /*
+         * What a follow has to undo first.
+         *
+         * Ekşi holds block (r=m), mute (r=u) and follow (r=b) as independent
+         * relations, so following an account you blocked leaves the block in
+         * place: the follow reports success and the account stays hidden.
+         * Following is a request to see someone, which cannot be true while a
+         * restriction says otherwise.
+         *
+         * Read once for the run and only when a follow is what the run does, so
+         * an ordinary block run pays nothing for it. The lists are the
+         * authority; the synced copies in Room go stale the moment a block
+         * happens on another device.
+         *
+         * Adding the follow only. TAKIPTEN_CIKAR is also TargetType.FOLLOW, and
+         * un-following someone is no reason to unblock them.
+         */
+        val restricted =
+            if (targetType == TargetType.FOLLOW && mode == org.duzgun.eksiengelplus.model.BanMode.BAN) {
+                restrictionsToLift(ctx)
+            } else {
+                null
+            }
+
+        /*
          * The size, before the first action rather than after it.
          *
          * Progress was published only once a target had been dealt with, so a
@@ -86,6 +110,22 @@ class TargetRunner(
             // author_list from the planned list minus everyone whose id came back
             // 0 -- the same set that reaches here.
             ctx.recordTarget(target.nick, id)
+
+            /*
+             * Lifted before the follow and deliberately uncounted: the run is
+             * "follow N people", so N stays the denominator and only the follow
+             * itself moves the cursor. A failure to lift is left to the follow
+             * that follows it to report.
+             */
+            if (restricted != null) {
+                val key = target.nick.toEksiSlug()
+                if (key in restricted.blocked) {
+                    performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.USER, id)
+                }
+                if (key in restricted.muted) {
+                    performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.MUTE, id)
+                }
+            }
 
             when (val outcome = performWithRetry(ctx, mode, targetType, id)) {
                 is Applied.Ok ->
@@ -237,6 +277,19 @@ class TargetRunner(
         data object Ok : Applied
         data object Failed : Applied
         data object SessionGone : Applied
+    }
+
+    /** The blocked and muted nicks, slugged to match how targets are keyed. */
+    private data class Restrictions(val blocked: Set<String>, val muted: Set<String>)
+
+    private suspend fun restrictionsToLift(ctx: OperationContext): Restrictions {
+        // Reads, not mutations, so they take the read permit rather than the
+        // action one -- the same pacing every other list walk in the engine uses.
+        ctx.awaitReadPermit()
+        val blocked = scrape.allRelations(TargetType.USER).nicks.map { it.toEksiSlug() }.toSet()
+        ctx.awaitReadPermit()
+        val muted = scrape.allRelations(TargetType.MUTE).nicks.map { it.toEksiSlug() }.toSet()
+        return Restrictions(blocked, muted)
     }
 
     private suspend fun performWithRetry(

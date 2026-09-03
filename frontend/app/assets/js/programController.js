@@ -350,6 +350,11 @@ class ProgramController {
       let successCount = 0;
       let failCount = 0;
       
+      // One lookup for the whole run, and only when a follow will need it.
+      const followClearState = bulkAction === 'TAKIP_ET'
+        ? await this._followClearState(source)
+        : null;
+
       for (let i = 0; i < matchingUsers.length; i++) {
         // Check for pause/stop request
         const status = await checkPauseOrStop();
@@ -406,7 +411,7 @@ class ProgramController {
             result = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
             break;
           case 'TAKIP_ET':
-            result = await this._performActionWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
+            result = await this._followAfterClearing(authorId, username, source, followClearState);
             break;
           case 'TAKIPTEN_CIKAR':
             result = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, false, true);
@@ -613,6 +618,49 @@ class ProgramController {
     } catch (error) {
       log.err("progctrl", `Error clearing muted refresh state: ${error}`);
     }
+  }
+
+  /**
+   * The block/mute state a follow run needs, or null when the list already says it.
+   *
+   * A run over the blocked list is all blocked accounts and a run over the muted
+   * list is all muted ones, so those need no lookup at all. Only an author list
+   * is unknown, and it costs one pass over the relation lists for the whole run.
+   */
+  async _followClearState(source) {
+    if (source === 'BLOCKED_USERS' || source === 'MUTED_USERS') return null;
+    const scraped = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
+    const byNick = new Map();
+    for (const [name, relation] of scraped) {
+      byNick.set(String(name).replace(/ /g, "-").toLowerCase(), relation);
+    }
+    return byNick;
+  }
+
+  /**
+   * Follows, lifting whatever restriction stands in the way first.
+   *
+   * Ekşi holds block, mute and follow as independent relations, so following an
+   * account you blocked leaves the block in place: the follow reports success
+   * and the account stays hidden. Following is a request to see someone, which
+   * cannot be true while a restriction says otherwise.
+   */
+  async _followAfterClearing(authorId, username, source, blockedState) {
+    if (source === 'BLOCKED_USERS') {
+      await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
+    } else if (source === 'MUTED_USERS') {
+      await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
+    } else {
+      const key = String(username || "").replace(/ /g, "-").toLowerCase();
+      const state = blockedState ? blockedState.get(key) : null;
+      if (state && state.isBannedUser) {
+        await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
+      }
+      if (state && state.isBannedMute) {
+        await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
+      }
+    }
+    return await this._performActionWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
   }
 
   async _performActionWithRetry(banMode, id, isTargetUser, isTargetTitle, isTargetMute, isTargetFollow = false, retries = 3) {
@@ -2882,6 +2930,12 @@ notificationHandler.notify(`${totalCount} adet başlıkları engellenen kullanı
       // Use already restored successCount/failCount from checkpoint, or start from 0
       const resumeIndex = checkpointData?.stage === 'PERFORM_ACTIONS' ? (checkpointData.processedCount || 0) : 0;
       
+      // Rebuilt on resume rather than restored: the checkpoint may be hours old
+      // and the relation lists move underneath it.
+      const followClearState = params.bulkAction === 'TAKIP_ET'
+        ? await this._followClearState(params.source)
+        : null;
+
       for (let i = resumeIndex; i < matchingUsers.length; i++) {
         // Check for pause/stop request
         const status = await checkPauseOrStop();
@@ -2954,7 +3008,7 @@ notificationHandler.notify(`${totalCount} adet başlıkları engellenen kullanı
             result = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
             break;
           case 'TAKIP_ET':
-            result = await this._performActionWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
+            result = await this._followAfterClearing(authorId, username, params.source, followClearState);
             break;
           case 'TAKIPTEN_CIKAR':
             result = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, false, true);

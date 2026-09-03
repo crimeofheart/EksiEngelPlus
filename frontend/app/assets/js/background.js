@@ -668,18 +668,71 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   // A scraped-audience run (FAV, FOLLOW, FOLLOWEES) normally derives its
   // block/mute/title booleans from config. TargetType.FOLLOW replaces all of
   // them: following is a different relation, not another flavour of blocking.
-  // The isBanned* flags describe block/mute state only, so they say nothing
-  // about whether a follow is needed -- and addrelation is idempotent for an
-  // already-followed account, so attempting it anyway is harmless.
-  const isFollowTarget = targetType == enums.TargetType.FOLLOW;
-  const performOnScrapedUser = async (banMode, value) =>
+  // Adding the follow only. An unfollow is also TargetType.FOLLOW, and
+  // un-following someone is no reason to unblock them.
+  const isFollowTarget = targetType == enums.TargetType.FOLLOW && banMode == enums.BanMode.BAN;
+
+  /*
+   * What a follow has to undo first.
+   *
+   * Ekşi holds block (r=m), mute (r=u) and follow (r=b) as three independent
+   * relations, so following someone you blocked leaves the block in place: the
+   * follow reports success and the account stays hidden. Following is a request
+   * to see someone, which cannot be true while a restriction says otherwise.
+   *
+   * One pass over the relation lists serves every target in the run, and the
+   * lists are the authority -- the locally cached ones go stale the moment a
+   * block happens anywhere else.
+   */
+  // The author list expresses a follow as an action name rather than a target
+  // type, so both spellings have to arm the lookup or a list follow silently
+  // keeps the block it was meant to lift.
+  const isFollowRun = isFollowTarget || listAction === "TAKIP_ET";
+  let followClearState = null;
+  const nickKey = (name) => String(name || "").replace(/ /g, "-").toLowerCase();
+  if (isFollowRun) {
+    notificationHandler.notifyScrapeBanned();
+    const scraped = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
+    followClearState = new Map();
+    for (const [name, relation] of scraped) followClearState.set(nickKey(name), relation);
+  }
+
+  /*
+   * Clearing a restriction is bookkeeping for the follow behind it, not
+   * something the user asked for. The run is "follow N people", so N stays the
+   * denominator and these extra calls must not inflate the counts the progress
+   * line and the telemetry both read.
+   */
+  const withoutCounting = async (fn) => {
+    const successful = relationHandler.successfulAction;
+    const performed = relationHandler.performedAction;
+    const res = await fn();
+    relationHandler.successfulAction = successful;
+    relationHandler.performedAction = performed;
+    return res;
+  };
+
+  const followAfterClearing = async (id, name) => {
+    const state = followClearState ? followClearState.get(nickKey(name)) : null;
+    if (state && state.isBannedUser) {
+      await withoutCounting(() => performWithRetry(enums.BanMode.UNDOBAN, id, true, false, false));
+    }
+    if (state && state.isBannedMute) {
+      await withoutCounting(() => performWithRetry(enums.BanMode.UNDOBAN, id, false, false, true));
+    }
+    return await performWithRetry(enums.BanMode.BAN, id, false, false, false, true);
+  };
+
+  const performOnScrapedUser = async (banMode, value, name) =>
     isFollowTarget
-      ? await performWithRetry(banMode, value.authorId, false, false, false, true)
-      : await performWithRetry(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute));
+      ? await followAfterClearing(value.authorId, name)
+      : await performWithRetry(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute), targetType == enums.TargetType.FOLLOW);
 
   if(banSource === enums.BanSource.SINGLE) {
     notificationHandler.notifyOngoing(0, 0, 1, processQueue.currentItemMetadata);
-    let res = await performWithRetry(banMode, singleAuthorId, targetType == enums.TargetType.USER, targetType == enums.TargetType.TITLE, targetType == enums.TargetType.MUTE, targetType == enums.TargetType.FOLLOW);
+    let res = isFollowTarget
+      ? await followAfterClearing(singleAuthorId, singleAuthorName)
+      : await performWithRetry(banMode, singleAuthorId, targetType == enums.TargetType.USER, targetType == enums.TargetType.TITLE, targetType == enums.TargetType.MUTE, targetType == enums.TargetType.FOLLOW);
     authorIdList.push(singleAuthorId);
     authorNameList.push(singleAuthorName);
     notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, authorNameList.length, processQueue.currentItemMetadata);
@@ -701,7 +754,11 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       const action = listAction;
 
       if (action === "TAKIP_ET") {
-        res = await performWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
+        // Clears a block or mute first, like every other follow. The two
+        // explicit "... ve takip et" actions below stay as they are: they name
+        // one relation to undo, and undo it whether or not the list says it is
+        // there, which is what the user picked them for.
+        res = await followAfterClearing(authorId, authorNameList[i]);
       } else if (action === "TAKIPTEN_CIKAR") {
         res = await performWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, false, true);
       } else if (action === "ENGEL_KALDIR_VE_TAKIP_ET") {
@@ -804,7 +861,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size, processQueue.currentItemMetadata);
     for (const [name, value] of scrapedRelations) {
       if(programController.earlyStop) break;
-      let res = await performOnScrapedUser(banMode, value);
+      let res = await performOnScrapedUser(banMode, value, name);
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size, processQueue.currentItemMetadata);
     }
   } else if (banSource === enums.BanSource.FOLLOW) {
@@ -876,7 +933,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
           log.warn("bg", `Skipping follower with invalid ID: ${name}`);
           continue;
       }
-      let res = await performOnScrapedUser(banMode, value);
+      let res = await performOnScrapedUser(banMode, value, name);
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size, processQueue.currentItemMetadata);
     }
   } else if (banSource === enums.BanSource.FOLLOWEES) {
@@ -918,7 +975,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
           continue;
       }
       // Follow-only audience: there is no block/mute counterpart to fall back to.
-      let res = await performWithRetry(banMode, value.authorId, false, false, false, true);
+      let res = await followAfterClearing(value.authorId, name);
       notificationHandler.notifyOngoing(res.successfulAction, res.performedAction, scrapedRelations.size, processQueue.currentItemMetadata);
     }
   } else if (banSource === enums.BanSource.TITLE) {

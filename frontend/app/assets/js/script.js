@@ -199,6 +199,16 @@
       li1.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri engelle (son 24 saatte)</a>`;
       li2.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri engelle (tümü)</a>`;
 
+      // Labels only. The dispatched message carries no targetType for TITLE
+      // (background.js reads config.enableMute itself at execution time), so
+      // this fixes only what the button claims -- not what it does.
+      getConfig().then(config => {
+        if (config?.enableMute) {
+          li1.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri sessize al (son 24 saatte)</a>`;
+          li2.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri sessize al (tümü)</a>`;
+        }
+      });
+
       // append the created buttons to before last element or at the end if not enough children
       console.log("Eksi Engel: Title menu children count:", menuElement.childElementCount);
       
@@ -354,10 +364,14 @@
 
       // Only the block/mute labels vary with enableMute; the follow ones never do.
       // Relabel in place -- the click listeners hang off the <li>, so replacing
-      // the node instead would silently drop them.
+      // the node instead would silently drop them. The dispatched message
+      // already leaves the block-vs-mute choice to config.enableMute at
+      // execution time regardless of what these labels say, so this only fixes
+      // what the button claims -- not what it does.
       getConfig().then(config => {
         if (config?.enableMute) {
           newButtonBanUser.innerHTML = menuItemMarkup("yazarı sessize al");
+          newButtonBanFav.innerHTML = menuItemMarkup("favlayanları sessize al");
           newButtonBanFollow.innerHTML = menuItemMarkup("takipçilerini sessize al");
         }
       });

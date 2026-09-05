@@ -241,6 +241,36 @@ class ParityTest {
             .contains("data-added")
     }
 
+    /**
+     * A block-vs-mute label the extension forgot to relabel.
+     *
+     * bridge.js runs every "engelle" caption it injects through muteWord(), so
+     * the browsing surface always says what it is about to do. script.js copied
+     * the mechanism for "yazarı engelle" and "takipçilerini engelle" but not for
+     * "favlayanları engelle" or the two başlıktakileri captions -- each still
+     * read "engelle" under enableMute, though the dispatched action already
+     * muted correctly: background.js's FAV and TITLE branches decide block vs
+     * mute from config.enableMute themselves and never look at the label.
+     *
+     * Bridge.js is the reference here on purpose, not enums.js or a shared
+     * source: it is the one file that already got every caption right.
+     */
+    @Test fun `every mute-aware caption in bridge_js is also relabeled in script_js`() {
+        val script = read("frontend/app/assets/js/script.js")
+
+        val muteAware = listOf(
+            "favlayanları sessize al",
+            "başlıktakileri sessize al (son 24 saatte)",
+            "başlıktakileri sessize al (tümü)",
+        )
+
+        val missing = muteAware.filterNot { script.contains(it) }
+
+        assertWithMessage("captions bridge.js relabels under enableMute that script.js does not")
+            .that(missing)
+            .isEmpty()
+    }
+
     // ------------------------------------------------------- author actions
 
     @Test fun `the author list offers what the extension's page offers`() {
@@ -262,8 +292,16 @@ class ParityTest {
             "startUnmuteFollow" to "runUnmuteFollow",
         )
 
-        val missing = buttons.mapNotNull { expected[it] }.filterNot { activity.contains(it) }
+        // mapNotNull silently drops a button this map has no entry for, which is
+        // exactly the failure mode a new extension button is supposed to trip:
+        // it would need its own line above to be checked at all. Unmapped and
+        // unhandled are asserted separately so either one fails loud.
+        val unmapped = buttons.filterNot { it in expected }
+        assertWithMessage("extension author-list buttons with no entry in `expected` above")
+            .that(unmapped)
+            .isEmpty()
 
+        val missing = buttons.mapNotNull { expected[it] }.filterNot { activity.contains(it) }
         assertWithMessage("author list actions present in the extension but not here")
             .that(missing)
             .isEmpty()

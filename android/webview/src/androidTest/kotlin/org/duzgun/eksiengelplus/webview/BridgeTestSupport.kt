@@ -35,6 +35,10 @@ fun ActivityScenario<BridgeTestActivity>.loadHtml(origin: String, html: String) 
             override fun onPageFinished(view: WebView, url: String?) = loaded.countDown()
         }
         activity.web.settings.javaScriptEnabled = true
+        // configureForEksi turns this on in the app, and the bridge keeps scroll
+        // positions in sessionStorage, so a fixture without it tests a page the
+        // user never sees.
+        activity.web.settings.domStorageEnabled = true
         activity.web.loadDataWithBaseURL(origin, html, "text/html", "utf-8", null)
     }
     check(loaded.await(20, TimeUnit.SECONDS)) { "page never finished loading" }

@@ -1761,6 +1761,190 @@
     schedule();
   });
 
+  /**
+   * Puts the user back where they left a page.
+   *
+   * Reading gündem, opening the fifteenth title, and coming back to the top of
+   * the list is the single most felt defect in the browsing shell: the position
+   * is gone every time, on every list the site has.
+   *
+   * Ekşi navigates two different ways and both lose it, for different reasons:
+   *
+   *   1. Opening an entry, a profile or a (bkz:) is a document load. The
+   *      renderer's own restoration only knows the height the page had when it
+   *      finished loading, and Ekşi's lists are extended by XHR afterwards, so a
+   *      position further down than that first screenful is clamped back to the
+   *      top before the rows it referred to exist.
+   *   2. Paging within a title is pushState. No navigation happened as far as
+   *      the browser is concerned, so nothing is restored on the way back at
+   *      all -- the same reason the injectors need their own history hooks.
+   *
+   * So the position is ours to keep. sessionStorage rather than localStorage:
+   * where a page was left is worth remembering for as long as the user is
+   * browsing and no longer.
+   */
+  var SCROLL_STORE = "eksiengel:scroll";
+  // Ekşi's own pagination means a session can touch a lot of addresses; this is
+  // enough to cover any plausible back stack without growing without bound.
+  var SCROLL_MAX_ENTRIES = 60;
+  var SCROLL_RESTORE_MS = 4000;
+  var SCROLL_SAVE_DEBOUNCE_MS = 250;
+
+  /** The address without the fragment: a #entry anchor is the site's own target. */
+  function scrollKey() {
+    return location.pathname + location.search;
+  }
+
+  function scrollMap() {
+    try {
+      return JSON.parse(sessionStorage.getItem(SCROLL_STORE) || "{}") || {};
+    } catch (e) {
+      // Storage disabled or full. Losing the position is survivable; throwing
+      // out of a scroll handler is not.
+      return {};
+    }
+  }
+
+  function rememberScroll(key, y) {
+    var map = scrollMap();
+    if (y > 0) map[key] = { y: y, t: Date.now() };
+    else delete map[key];
+    var keys = Object.keys(map);
+    if (keys.length > SCROLL_MAX_ENTRIES) {
+      keys.sort(function (a, b) { return ((map[a] || {}).t || 0) - ((map[b] || {}).t || 0); });
+      for (var i = 0; i < keys.length - SCROLL_MAX_ENTRIES; i++) delete map[keys[i]];
+    }
+    try {
+      sessionStorage.setItem(SCROLL_STORE, JSON.stringify(map));
+    } catch (e) { /* see scrollMap */ }
+  }
+
+  // The key the saved position belongs to, held rather than read live: a save
+  // debounced across a navigation would otherwise file the old page's position
+  // under the new page's address.
+  var scrollCurrentKey = scrollKey();
+  var scrollSaveTimer = null;
+  var scrollRestoreTimer = null;
+
+  function saveScrollNow() {
+    if (scrollSaveTimer) { clearTimeout(scrollSaveTimer); scrollSaveTimer = null; }
+    rememberScroll(scrollCurrentKey, window.pageYOffset || 0);
+  }
+
+  function stopRestoringScroll() {
+    if (scrollRestoreTimer) { clearTimeout(scrollRestoreTimer); scrollRestoreTimer = null; }
+  }
+
+  /**
+   * Scrolls to [y], and keeps trying while the page is too short to hold it.
+   *
+   * One scrollTo is not enough on any list here: at the moment the position is
+   * known the document is a fraction of the height it will reach, and a scroll
+   * past the bottom is clamped, not queued. Retrying until the rows arrive is
+   * what makes this work on exactly the pages where it matters most.
+   *
+   * Abandoned the instant the user touches the page: they have decided where
+   * they want to be, and continuing to pull them somewhere else is worse than
+   * never having restored anything.
+   */
+  function restoreScroll(y) {
+    stopRestoringScroll();
+    if (!(y > 0)) return;
+    var deadline = Date.now() + SCROLL_RESTORE_MS;
+    // A page that is still loading gets the full window from the point it is
+    // done, rather than spending it on a document that had no rows yet.
+    window.addEventListener("load", function () {
+      if (scrollRestoreTimer) deadline = Math.max(deadline, Date.now() + SCROLL_RESTORE_MS / 2);
+    });
+    ["touchstart", "wheel", "keydown"].forEach(function (name) {
+      window.addEventListener(name, stopRestoringScroll, { passive: true, once: true });
+    });
+    (function attempt() {
+      scrollRestoreTimer = null;
+      var doc = document.documentElement;
+      var height = Math.max(doc ? doc.scrollHeight : 0, document.body ? document.body.scrollHeight : 0);
+      var target = Math.min(y, Math.max(0, height - window.innerHeight));
+      window.scrollTo(0, target);
+      if (Math.abs((window.pageYOffset || 0) - y) > 2 && Date.now() < deadline) {
+        scrollRestoreTimer = setTimeout(attempt, 100);
+      }
+    })();
+  }
+
+  /**
+   * Puts the page where [key] was left.
+   *
+   * [resetWhenUnknown] is what an in-page navigation needs and a document load
+   * does not. Turning off the renderer's restoration turned off its reset too,
+   * so going back to a page that was never scrolled would otherwise leave the
+   * user at whatever depth the page they are leaving had reached. A document
+   * load starts at the top by itself and needs no help.
+   */
+  function restoreScrollFor(key, resetWhenUnknown) {
+    if (location.hash) return;   // the site is aiming at an anchor of its own
+    var saved = scrollMap()[key];
+    if (saved) restoreScroll(saved.y);
+    else if (resetWhenUnknown) { stopRestoringScroll(); window.scrollTo(0, 0); }
+  }
+
+  // Ours is the only restoration that survives late rows, so the renderer's is
+  // turned off rather than left to fight it back to the top.
+  try {
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  } catch (e) { /* not fatal: ours still runs */ }
+
+  window.addEventListener("scroll", function () {
+    if (scrollSaveTimer) return;
+    scrollSaveTimer = setTimeout(function () {
+      scrollSaveTimer = null;
+      rememberScroll(scrollCurrentKey, window.pageYOffset || 0);
+    }, SCROLL_SAVE_DEBOUNCE_MS);
+  }, { passive: true });
+
+  // The last scroll before a document load may still be inside the debounce.
+  window.addEventListener("pagehide", saveScrollNow);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") saveScrollNow();
+  });
+
+  ["pushState", "replaceState"].forEach(function (name) {
+    var original = history[name];
+    history[name] = function () {
+      saveScrollNow();
+      var r = original.apply(this, arguments);
+      scrollCurrentKey = scrollKey();
+      // Forward navigation deliberately keeps whatever the site does with the
+      // scroll: only going back is a return to somewhere the user has been.
+      stopRestoringScroll();
+      return r;
+    };
+  });
+
+  window.addEventListener("popstate", function () {
+    saveScrollNow();
+    scrollCurrentKey = scrollKey();
+    restoreScrollFor(scrollCurrentKey, true);
+  });
+
+  /**
+   * Whether this document is the back button arriving.
+   *
+   * Restoring on any load would move the user down a page they asked for fresh,
+   * which is why the navigation type is consulted rather than the presence of a
+   * saved position.
+   */
+  function isHistoryLoad() {
+    try {
+      var entries = performance.getEntriesByType && performance.getEntriesByType("navigation");
+      if (entries && entries.length) return entries[0].type === "back_forward";
+      return !!(performance.navigation && performance.navigation.type === 2);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  if (isHistoryLoad()) restoreScrollFor(scrollCurrentKey, false);
+
   // Host -> page.
   window.__eksiEngelOnMessage = function (raw) {
     var msg;

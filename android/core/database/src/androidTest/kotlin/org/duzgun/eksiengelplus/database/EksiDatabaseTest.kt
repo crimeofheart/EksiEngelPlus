@@ -100,7 +100,10 @@ class EksiDatabaseTest {
         // The screen shows one number and the button acts on another if these
         // two predicates ever drift apart.
         val dao = db.registrationDates()
-        val now = 1_000_000_000L
+        // Past the TTL rather than a round number: with `now` inside it the
+        // cutoff is negative and epoch zero counts as the freshest row there is,
+        // which is how this read two expired rows as one.
+        val now = RegistrationDateCacheEntity.TTL_MS * 4
         val cutoff = now - RegistrationDateCacheEntity.TTL_MS
         dao.upsert(RegistrationDateCacheEntity("fresh", 1, 100, now))
         dao.upsert(RegistrationDateCacheEntity("stale", 2, 200, cutoff - 1))

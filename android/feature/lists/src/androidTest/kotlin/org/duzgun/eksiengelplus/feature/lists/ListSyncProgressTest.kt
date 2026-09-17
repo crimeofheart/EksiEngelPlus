@@ -34,6 +34,8 @@ class ListSyncProgressTest {
         val names = ListType.entries.map { ListSyncWorker.uniqueWorkName(it) }
 
         assertThat(names).containsNoDuplicates()
-        assertThat(names).hasSize(3)
+        // Counted off the enum, not written down: the literal said three and
+        // stayed saying it when title bans became a list of their own.
+        assertThat(names).hasSize(ListType.entries.size)
     }
 }

@@ -16,6 +16,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlin { jvmToolchain(17) }
+    // MigrationTestHelper reads the exported schemas off the test APK's assets,
+    // so the directory KSP writes them to has to be packaged into it.
+    sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
 }
 
 // Exported schemas are committed and CI fails when they are dirty. An

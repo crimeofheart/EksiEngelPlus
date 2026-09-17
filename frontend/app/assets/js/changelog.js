@@ -20,8 +20,9 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.4.0": {
+    date: "2026-09-17",
     app: [
-      "Bir listede aşağı inip bir entry'ye, bir yazara ya da bir (bkz:)'e girdikten sonra geri döndüğünüzde liste kaldığınız yerde açılıyor. Gündem, bir başlığın sayfaları, bir yazarın entry'leri, takipçi ve takip edilen listeleri -- kaydırılan her sayfada çalışıyor.",
+      "Bir listede aşağı inip bir entry'ye, bir yazara ya da bir (bkz:)'e girdikten sonra geri döndüğünüzde liste kaldığınız yerde açılıyor. Gündem, bir başlığın sayfaları, bir yazarın entry'leri, takipçi ve takip edilen listeleri; kaydırılan her sayfada çalışıyor.",
       "Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
       "Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
       "İşlem durumundaki satırlarda \"tekrarla\" ve \"git\" var: yarım kalan ya da biten bir işlem yeniden kuyruğa alınabiliyor, tek bir sayfaya dokunan işlemlerde o sayfa açılabiliyor."

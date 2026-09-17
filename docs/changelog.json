@@ -2,6 +2,21 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
+      "[Eklenti] Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
+      "[Eklenti] İşlem durumunda yarım kalan satırlar \"tekrarla\" ve \"git\" ile yeniden denenebiliyor.",
+      "[Eklenti] Sessize alma açıkken \"favlayanları engelle\" ve \"başlıktakileri engelle\" düğmeleri hâlâ \"engelle\" yazıyordu. İşlem doğruydu, yazan yanlıştı; artık \"sessize al\" diyorlar.",
+      "[Uygulama] Bir listede aşağı inip bir entry'ye, bir yazara ya da bir (bkz:)'e girdikten sonra geri döndüğünüzde liste kaldığınız yerde açılıyor. Gündem, bir başlığın sayfaları, bir yazarın entry'leri, takipçi ve takip edilen listeleri; kaydırılan her sayfada çalışıyor.",
+      "[Uygulama] Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
+      "[Uygulama] Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
+      "[Uygulama] İşlem durumundaki satırlarda \"tekrarla\" ve \"git\" var: yarım kalan ya da biten bir işlem yeniden kuyruğa alınabiliyor, tek bir sayfaya dokunan işlemlerde o sayfa açılabiliyor."
+    ],
+    "pub_date": "2026-09-17",
+    "version": "0.4.0"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] Bu sürümde değişiklik yok.",
       "[Uygulama] Bir başlığa uzun basıldığında üç seçenekli bir menü açılıyor: başlığı kopyala, bağlantıyı kopyala ve paylaş. Başlığın nerede göründüğü fark etmiyor: gündemde, arama sonuçlarında, bir yazarın entry'lerinde ve başlığın kendi sayfasında çalışıyor.",
       "[Uygulama] Menü ekranın ortasında açılıyor, dışına dokunmak kapatıyor ve seçenekler basıldıkları anda çalışıyor."

@@ -45,6 +45,20 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.4.0" to VersionNotes(
+            app = listOf(
+                "Bir listede aşağı inip bir entry'ye, bir yazara ya da bir (bkz:)'e girdikten sonra geri döndüğünüzde liste kaldığınız yerde açılıyor. Gündem, bir başlığın sayfaları, bir yazarın entry'leri, takipçi ve takip edilen listeleri -- kaydırılan her sayfada çalışıyor.",
+                "Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
+                "Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
+                "İşlem durumundaki satırlarda \"tekrarla\" ve \"git\" var: yarım kalan ya da biten bir işlem yeniden kuyruğa alınabiliyor, tek bir sayfaya dokunan işlemlerde o sayfa açılabiliyor.",
+            ),
+            extension = listOf(
+                "Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
+                "Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
+                "İşlem durumunda yarım kalan satırlar \"tekrarla\" ve \"git\" ile yeniden denenebiliyor.",
+                "Sessize alma açıkken \"favlayanları engelle\" ve \"başlıktakileri engelle\" düğmeleri hâlâ \"engelle\" yazıyordu. İşlem doğruydu, yazan yanlıştı; artık \"sessize al\" diyorlar.",
+            ),
+        ),
         "0.3.0" to VersionNotes(
             app = listOf(
                 "Bir başlığa uzun basıldığında üç seçenekli bir menü açılıyor: başlığı kopyala, bağlantıyı kopyala ve paylaş. Başlığın nerede göründüğü fark etmiyor: gündemde, arama sonuçlarında, bir yazarın entry'lerinde ve başlığın kendi sayfasında çalışıyor.",

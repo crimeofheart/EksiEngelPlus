@@ -19,6 +19,20 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.4.0": {
+    app: [
+      "Bir listede aşağı inip bir entry'ye, bir yazara ya da bir (bkz:)'e girdikten sonra geri döndüğünüzde liste kaldığınız yerde açılıyor. Gündem, bir başlığın sayfaları, bir yazarın entry'leri, takipçi ve takip edilen listeleri -- kaydırılan her sayfada çalışıyor.",
+      "Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
+      "Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
+      "İşlem durumundaki satırlarda \"tekrarla\" ve \"git\" var: yarım kalan ya da biten bir işlem yeniden kuyruğa alınabiliyor, tek bir sayfaya dokunan işlemlerde o sayfa açılabiliyor."
+    ],
+    extension: [
+      "Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
+      "Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
+      "İşlem durumunda yarım kalan satırlar \"tekrarla\" ve \"git\" ile yeniden denenebiliyor.",
+      "Sessize alma açıkken \"favlayanları engelle\" ve \"başlıktakileri engelle\" düğmeleri hâlâ \"engelle\" yazıyordu. İşlem doğruydu, yazan yanlıştı; artık \"sessize al\" diyorlar."
+    ]
+  },
   "0.3.0": {
     date: "2026-08-16",
     app: [

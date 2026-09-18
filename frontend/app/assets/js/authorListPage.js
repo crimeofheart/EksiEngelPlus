@@ -22,10 +22,11 @@ function applyTheme() {
 const saveAuthorListToStorage = () => {
   const userListString = document.getElementById("userList").value;
   chrome.storage.local.set({ "userList": userListString }, () => {
-    if(!chrome.runtime.error) showSavedMsg();
+    if(!chrome.runtime.lastError) showSavedMsg();
     else {
-      console.log("chrome.storage.local.set runtime error");
-      alert("chrome.storage.local.set runtime error");
+      const message = chrome.runtime.lastError.message;
+      console.log(`chrome.storage.local.set runtime error: ${message}`);
+      alert(`Yazar listesi kaydedilemedi: ${message}`);
     }
   });
 };

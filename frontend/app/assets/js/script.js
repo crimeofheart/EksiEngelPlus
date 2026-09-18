@@ -8,7 +8,7 @@
   {
     return new Promise((resolve, reject) => {
       chrome.storage.local.get("config", function(items){
-        if(!chrome.runtime.error)
+        if(!chrome.runtime.lastError)
         {
           if(items != undefined && items.config != undefined && Object.keys(items.config).length !== 0)
           {
@@ -21,6 +21,7 @@
         }
         else 
         {
+          console.error(`Eksi Engel: config could not be read: ${chrome.runtime.lastError.message}`);
           resolve(false);
         }
       }); 

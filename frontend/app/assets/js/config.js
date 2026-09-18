@@ -68,16 +68,28 @@ export function createDefaultDateBulkConfig() {
 export async function getConfig() {
   return new Promise((resolve) => {
     chrome.storage.local.get("config", (items) => {
-      if (!chrome.runtime.error && items && items.config && Object.keys(items.config).length !== 0) resolve(items.config);
+      if (chrome.runtime.lastError) {
+        log.err("config", `config could not be read: ${chrome.runtime.lastError.message}`);
+        resolve(false);
+        return;
+      }
+      if (items && items.config && Object.keys(items.config).length !== 0) resolve(items.config);
       else resolve(false);
     });
   });
 }
 
 export async function saveConfig(config) {
-  log.info("config", "A config saved into storage");
   return new Promise((resolve) => {
-    chrome.storage.local.set({ "config": config }, () => resolve(!chrome.runtime.error));
+    chrome.storage.local.set({ "config": config }, () => {
+      if (chrome.runtime.lastError) {
+        log.err("config", `config could not be saved: ${chrome.runtime.lastError.message}`);
+        resolve(false);
+        return;
+      }
+      log.info("config", "A config saved into storage");
+      resolve(true);
+    });
   });
 }
 

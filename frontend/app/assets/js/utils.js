@@ -1,4 +1,5 @@
 import * as enums from './enums.js';
+import { log } from './log.js';
 
 // clean collected user list by erasing empty inputs 
 // whitespaces will be converted into - according to ekşisözlük name rules
@@ -32,7 +33,7 @@ export async function getUserList()
 {
   return new Promise((resolve, reject) => {
     chrome.storage.local.get("userList", function(items){
-      if(!chrome.runtime.error)
+      if(!chrome.runtime.lastError)
       {
         if(items != undefined && items.userList != undefined && items.userList.length != 0)
         {
@@ -45,6 +46,7 @@ export async function getUserList()
       }
       else 
       {
+        log.err("utils", `userList could not be read: ${chrome.runtime.lastError.message}`);
         resolve([]);
       }
     }); 

@@ -146,6 +146,49 @@ unreachable on a phone; the same change makes them keyboard-reachable on desktop
 - **WHEN** a `.tooltip` element receives keyboard focus
 - **THEN** its bubble becomes visible, and hiding on blur
 
+### Requirement: An injected control says so when there is no session to act with
+
+Every operation runs on the reader's own eksisozluk session. The content script SHALL detect a
+signed-out reader — Ekşi shows `#top-login-link` and `#top-registration-link` in its header to
+nobody else — and, on a click in that state, SHALL report it through Ekşi's own notification list
+(`#user-notifications`, the `error` class) instead of dispatching. The injected controls SHALL also
+show they are inert while signed out rather than disappearing, which would read as a broken
+extension.
+
+#### Scenario: A click while signed out is refused in place
+- **WHEN** an injected entry-menu item is clicked on a page whose header carries `#top-login-link`
+- **THEN** a notice appears in `#user-notifications` telling the reader to sign in
+- **AND** no message is sent to the background script, so no task is queued
+
+#### Scenario: The controls show they are waiting
+- **WHEN** the entry menu is opened while signed out
+- **THEN** the injected items are dimmed and carry a title explaining that signing in is required,
+  while the site's own items are untouched
+
+#### Scenario: Signing in restores them
+- **WHEN** the same page is loaded with a session
+- **THEN** the injected items render at full strength and dispatch as before
+
+### Requirement: The settings and help page fits a phone
+
+`faq.html` and `welcome.html` SHALL lay their switch-and-label rows out in a single column at phone
+widths, and the label text SHALL wrap. The rows are a `240px auto` grid, which leaves a phone
+nothing for the second column, and every label is a `.tooltip` element — `.tooltip` carried
+`white-space: pre`, which the bubble needs for the line breaks in its `tip` attribute but which
+also stopped the label itself from ever wrapping.
+
+#### Scenario: Labels are readable on a phone
+- **WHEN** `faq.html` renders at 412px viewport width
+- **THEN** each switch sits above its own label, the label text wraps, and no text is clipped
+
+#### Scenario: The page does not scroll sideways
+- **WHEN** the same page renders at 412px
+- **THEN** the document has no horizontal scroll, including the `width="550"` help screenshots
+
+#### Scenario: The desktop layout is unchanged
+- **WHEN** `faq.html` renders above 768px
+- **THEN** the rows keep their two-column `240px auto` layout
+
 ### Requirement: The in-page controls work against the mobile site layout
 
 The content script SHALL keep matching Ekşi Sözlük's markup when the site is served to a mobile

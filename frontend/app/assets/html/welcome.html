@@ -66,6 +66,35 @@ tr > td:first-child {
 [data-theme="dark"] td {
   color: #cbd5e1;
 }
+
+/* Phone: the two fixed grid columns (240px + auto) leave the label a sliver it
+   cannot fit into, so stack each switch above the text it explains. The 80vw
+   content column becomes a plain full-width one with a gutter. */
+@media (max-width: 768px) {
+  .content {
+    width: auto;
+    margin: 3vh 12px 0 12px;
+  }
+  .grid-container.two-column,
+  .grid-container.three-column {
+    grid-template-columns: 1fr;
+    padding: 6px;
+  }
+  .grid-item {
+    padding: 6px;
+  }
+  .footer {
+    position: static;
+    left: auto;
+    width: auto;
+    margin-top: 16px;
+  }
+  /* The help screenshots carry width="550", which is wider than the phone. */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
 </style>
 </head>
 <body>

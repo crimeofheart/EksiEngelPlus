@@ -64,27 +64,43 @@
       simulation on), on keyboard focus, and still on hover.
 - [x] 5.3 `cd frontend/app && npm run check && npm run package`.
 
-## 6. Docs and release note
+## 6. Signed-out feedback and the settings page (found on device)
 
-- [x] 6.1 Add a Firefox-for-Android row to the load/console table in `CLAUDE.md`, recording that
+- [x] 6.1 In `script.js`, add `isSignedOut()` (Ekşi's `#top-login-link`/`#top-registration-link`)
+      and a shared `showPageNotice()` over `#user-notifications`, replacing the inline success
+      notice.
+- [x] 6.2 Refuse a dispatch while signed out: show the notice, queue nothing.
+- [x] 6.3 Dim the injected entry-menu and profile controls while signed out, with a title saying
+      why.
+- [x] 6.4 Move `white-space: pre` from `.tooltip` to `.tooltip::after` so labels wrap while the
+      bubble keeps its line breaks.
+- [x] 6.5 Stack the switch rows in `faq.html`/`welcome.html` below 768px and cap the help
+      screenshots at `max-width: 100%`.
+- [x] 6.6 `cd frontend/app && npm run check && npm run package`.
+
+## 7. Docs and release note
+
+- [x] 7.1 Add a Firefox-for-Android row to the load/console table in `CLAUDE.md`, recording that
       the add-on is installed on a phone from AMO or debugged over USB via desktop
       `about:debugging` → "This Firefox" → the connected device, and that `frontend/app` is still
       the folder for a temporary add-on.
-- [x] 6.2 Add an extension entry under the next (undated) version in
+- [x] 7.2 Add an extension entry under the next (undated) version in
       `frontend/app/assets/js/changelog.js` saying the add-on now runs on Firefox for Android, then
       `npm run changelog` so `docs/changelog.json` is regenerated and `npm run check` stays green.
-- [x] 6.3 `cd frontend/app && npm run check && npm run package`.
+- [x] 7.3 `cd frontend/app && npm run check && npm run package`.
 
-## 7. On-device verification
+## 8. On-device verification
 
-- [ ] 7.1 Install the Firefox zip on a phone (AMO test listing or `about:debugging` over USB) and
-      confirm the add-on appears in the Fenix extensions menu and its popup opens.
-- [ ] 7.2 On a logged-in `eksisozluk.com` entry list, confirm the injected entry-menu items
-      ("engelle"/"sessize al"/"takip et") appear in the dropdown and dispatch an operation.
-- [ ] 7.3 On a logged-in profile page (`/biri/<nick>`), confirm the injected relation buttons
+- [x] 8.1 Install on a phone with `web-ext run -t firefox-android` over USB and confirm the
+      add-on appears in the Fenix extensions menu and its popup opens. Done on a CPH2573: popup,
+      welcome page, settings page and the operations page all render at device width.
+- [x] 8.2 Confirm the injected entry-menu items appear in the mobile dropdown. All seven render
+      in Ekşi's own menu on a phone. Dispatching one is still open — it needs a signed-in session,
+      which is 8.4.
+- [ ] 8.3 On a logged-in profile page (`/biri/<nick>`), confirm the injected relation buttons
       appear alongside the site's own and dispatch an operation.
-- [ ] 7.4 Run one small operation end to end and confirm the "Ana İşlemler" page opens, the queue
+- [ ] 8.4 Run one small operation end to end and confirm the "Ana İşlemler" page opens, the queue
       and history tables are readable, and "Tekrarla"/"Git" are tappable on a failed row.
-- [ ] 7.5 `cd frontend/app && npm run check && npm run package`, then
+- [ ] 8.5 `cd frontend/app && npm run check && npm run package`, then
       `openspec validate firefox-android-support` clean and `openspec archive
       firefox-android-support`.

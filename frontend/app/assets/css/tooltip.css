@@ -1,9 +1,15 @@
 .tooltip {
 	position: relative;
-  white-space: pre;
 }
 
+/*
+ * The bubble keeps the line breaks written into the tip attribute -- that is what
+ * `pre` is here for. It used to sit on .tooltip itself, which also stopped the
+ * label the tooltip is attached to from ever wrapping: on a phone the settings
+ * labels ran straight off the card.
+ */
 .tooltip::after {
+  white-space: pre;
   background-color: #333;
   border-radius: 10px;
   color: #ffffff;

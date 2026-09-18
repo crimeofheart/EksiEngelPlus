@@ -28,8 +28,58 @@
     });
   }
 
+  /*
+   * Every operation runs on the reader's own eksisozluk session -- there is no
+   * login of our own to fall back on. Ekşi shows "giriş"/"kayıt ol" in the header
+   * to a signed-out reader and nothing else in their place, so the presence of
+   * those two links is the signal, read fresh at click time because signing in
+   * happens in another tab as often as not.
+   */
+  const isSignedOut = () => Boolean(document.querySelector("#top-login-link, #top-registration-link"));
+
+  /*
+   * Feedback goes through Ekşi's own notification list, which is where the
+   * "sıraya eklendi" confirmation has always appeared -- an injected button
+   * answering somewhere else would read as a different site talking.
+   */
+  function showPageNotice(message, kind = "success")
+  {
+    const container = document.getElementById("user-notifications");
+    if (!container) {
+      console.warn(`Eksi Engel: ${message}`);
+      return;
+    }
+
+    const notice = document.createElement("ul");
+    notice.innerHTML = `<ul><li class="${kind}" style=""><img src=${eksiEngelIconURL}> ${message}<a class="close">×</a></li></ul>`;
+    container.appendChild(notice);
+    setTimeout(() => notice.remove(), kind === "error" ? 6000 : 3000);
+  }
+
+  /*
+   * Injected controls stay in place while signed out rather than disappearing --
+   * the reader would otherwise conclude the extension is broken -- but they say
+   * what they are waiting for. Signing in is a navigation, so the next page load
+   * re-injects them at full strength.
+   */
+  function markSignedOutState(element)
+  {
+    if (!isSignedOut()) return element;
+    element.style.opacity = "0.55";
+    element.title = "Bu işlem için ekşi sözlük hesabınıza giriş yapmalısınız.";
+    return element;
+  }
+
   let EksiEngel_sendMessage = (banSource, banMode, entryUrl, authorName, authorId, targetType, clickSource, titleName, titleId, timeSpecifier) =>
   {
+    // Dispatching while signed out costs a queued task that can only fail: the
+    // background reaches the same conclusion, but several seconds later and on a
+    // page the reader has to go and open. Say it here instead.
+    if (isSignedOut()) {
+      showPageNotice("EksiEngelPlus: bu işlem için ekşi sözlük hesabınıza giriş yapmalısınız.", "error");
+      return;
+    }
+
     chrome.runtime.sendMessage(
       null, 
       {
@@ -62,12 +112,7 @@
           //console.log("Eksi Engel: established a connection with a page");
           
           // notify the user about their action with using eksisozluk notification API, known classes: class="success" and class="error"
-          let ul = document.createElement("ul"); 
-          ul.innerHTML = `<ul><li class="success" style=""><img src=${eksiEngelIconURL}> EksiEngelPlus, istediğiniz işlemi sıraya ekledi.<a class="close">×</a></li></ul>`;
-          document.getElementById('user-notifications').appendChild(ul);
-        
-          // close the notifications after a while automatically
-          setTimeout(() => ul.remove(), 3000);
+          showPageNotice("EksiEngelPlus, istediğiniz işlemi sıraya ekledi.");
         }
       }
     );
@@ -352,7 +397,7 @@
       const makeMenuItem = (label) => {
         const item = document.createElement("li");
         item.innerHTML = menuItemMarkup(label);
-        return item;
+        return markSignedOutState(item);
       };
 
       let newButtonBanUser = makeMenuItem("yazarı engelle");
@@ -567,7 +612,7 @@
                   item.classList.add('eksiengel-injected-button');
                   item.innerHTML = `<a><span><img src=${eksiEngelIconURL}> ${label}</span></a>`;
                   item.addEventListener("click", function(){ EksiEngel_sendMessage(banSource, enums.BanMode.BAN, null, authorName, authorId, targetType, enums.ClickSource.PROFILE) });
-                  return item;
+                  return markSignedOutState(item);
               };
 
               const followLabel = config?.enableMute ? "takipçilerini sessize al" : "takipçilerini engelle";

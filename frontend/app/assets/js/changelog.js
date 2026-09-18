@@ -24,7 +24,9 @@ export const releaseNotes = {
     extension: [
       "Eklenti artık Android'deki Firefox'a da kurulabiliyor. Telefonda da masaüstündeki bütün işlemler yapılabiliyor.",
       "Eklentinin kendi sayfaları -- işlem durumu, ayarlar ve yardım, yazar listesi -- telefon ekranına sığacak şekilde açılıyor. Tablolar sayfayı yana taşırmıyor, \"tekrarla\" ve \"git\" düğmeleri parmakla basılabilecek boyutta.",
-      "Yardım balonları dokununca da açılıyor. Eskiden yalnızca fareyle üzerine gelince göründükleri için dokunmatik ekranda hiç açılmıyorlardı."
+      "Yardım balonları dokununca da açılıyor. Eskiden yalnızca fareyle üzerine gelince göründükleri için dokunmatik ekranda hiç açılmıyorlardı.",
+      "Ekşi sözlük hesabınıza giriş yapmadan bir EksiEngelPlus düğmesine bastığınızda artık sayfanın kendi bildirim alanında uyarı çıkıyor. Eskiden işlem sessizce kuyruğa giriyor ve saniyeler sonra başka bir sayfada hata olarak beliriyordu. Giriş yapılmamışken düğmeler soluk görünüyor.",
+      "Ayarlar ve yardım sayfasındaki açıklamalar telefonda yarıda kesiliyordu; artık satır sonunda alta iniyorlar."
     ]
   },
   "0.4.0": {

@@ -209,7 +209,7 @@ jobs:
             Both browser archives contain identical files; only `manifest.json` differs.
             All assets record the same version.
 
-            Full user-facing changelog: [`docs/changelog.txt`](https://github.com/${{ github.repository }}/blob/${{ needs.verify.outputs.ref }}/docs/changelog.txt)
+            Full user-facing changelog: [`frontend/app/assets/js/changelog.js`](https://github.com/${{ github.repository }}/blob/${{ needs.verify.outputs.ref }}/frontend/app/assets/js/changelog.js) — the source every surface renders from. Pre-rename releases (1.0.0–3.2.0) are in [`docs/changelog.legacy.json`](https://github.com/${{ github.repository }}/blob/${{ needs.verify.outputs.ref }}/docs/changelog.legacy.json).
 
   play:
     name: Upload to Play internal track

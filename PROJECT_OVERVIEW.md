@@ -89,8 +89,10 @@ EksiEngel/
 ├── docs/                            # Documentation Website
 │   ├── index.html                   # Documentation homepage
 │   ├── privacypolicy.html           # Privacy policy
-│   ├── releaseNotes.html            # Release notes
-│   ├── changelog.json               # Version history
+│   ├── releaseNotes.html            # Release notes page (renders changelog.json)
+│   ├── changelog.json               # GENERATED from changelog.js by `npm run changelog`
+│   ├── changelog.legacy.json        # Pre-rename releases 1.0.0-3.2.0, verbatim
+│   ├── changelog.txt                # Archive: dev log through v3.3 + open-work list
 │   ├── ss/                          # Screenshots
 │   └── feature_plans/               # Feature planning docs
 ├── context_portal/                  # Context Database (development)

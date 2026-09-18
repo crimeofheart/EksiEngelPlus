@@ -24,11 +24,21 @@
   z-index: 999;
 }
 
-.tooltip:hover::after {
+/*
+ * Touch has no hover, so a hover-only bubble is unreachable on a phone. :active
+ * covers the tap (the bubble shows while the finger is down) and :focus-within
+ * covers both a focusable tooltip host and keyboard users on the desktop, who
+ * could not reach these either.
+ */
+.tooltip:hover::after,
+.tooltip:active::after,
+.tooltip:focus-within::after {
   display: block;
 }
 
-.tooltip:hover::before {
+.tooltip:hover::before,
+.tooltip:active::before,
+.tooltip:focus-within::before {
   display: block;
 }
 

@@ -1133,6 +1133,22 @@ body {
     .status-message { right: 5px; left: 5px; bottom: 5px; font-size: 0.9rem; }
     .form-row-compact { grid-template-columns: 1fr; }
     .cache-stats-inline { flex-direction: column; gap: 5px; }
+
+    /*
+     * The desktop 150px wrapper shows about two rows, which on a phone — where
+     * this page is the whole screen rather than one panel of it — is less queue
+     * than the card's own chrome. The wrapper still scrolls, vertically here and
+     * horizontally for the columns, so the table never widens the document.
+     */
+    .table-wrapper { max-height: 45vh; }
+
+    /* Finger-sized row actions: "Tekrarla"/"Git" and the list buttons. */
+    .task-action-btn, .stats-btn {
+        min-height: 40px;
+        min-width: 40px;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
 }
 
 @media (max-width: 480px) {

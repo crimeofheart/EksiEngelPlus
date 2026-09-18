@@ -19,6 +19,14 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.5.0": {
+    app: [],
+    extension: [
+      "Eklenti artık Android'deki Firefox'a da kurulabiliyor. Telefonda da masaüstündeki bütün işlemler yapılabiliyor.",
+      "Eklentinin kendi sayfaları -- işlem durumu, ayarlar ve yardım, yazar listesi -- telefon ekranına sığacak şekilde açılıyor. Tablolar sayfayı yana taşırmıyor, \"tekrarla\" ve \"git\" düğmeleri parmakla basılabilecek boyutta.",
+      "Yardım balonları dokununca da açılıyor. Eskiden yalnızca fareyle üzerine gelince göründükleri için dokunmatik ekranda hiç açılmıyorlardı."
+    ]
+  },
   "0.4.0": {
     date: "2026-09-17",
     app: [

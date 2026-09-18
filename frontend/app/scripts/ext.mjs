@@ -327,6 +327,29 @@ function cmdChangelog({ check = false } = {}) {
   console.log(`docs/changelog.json <- changelog.js + legacy (${count} releases)`);
 }
 
+/**
+ * Assert the Firefox variant still claims Firefox for Android.
+ *
+ * The two floors are held equal on purpose: both builds run the same code, so an
+ * Android floor below the desktop one would advertise the add-on to phones the
+ * desktop manifest has already ruled out, and a desktop bump that forgot Android
+ * would leave the phone listing behind without any other symptom.
+ */
+function checkGeckoAndroid() {
+  const settings = JSON.parse(fs.readFileSync(manifestFor("firefox"), "utf8")).browser_specific_settings;
+  const android = settings?.gecko_android;
+  if (!android) {
+    fail("manifest.firefox.json: browser_specific_settings.gecko_android is missing; " +
+         "without it the add-on is not offered on Firefox for Android");
+  }
+
+  const desktop = settings?.gecko?.strict_min_version;
+  if (android.strict_min_version !== desktop) {
+    fail(`manifest.firefox.json: gecko_android.strict_min_version ` +
+         `"${android.strict_min_version}" differs from gecko.strict_min_version "${desktop}"`);
+  }
+}
+
 /** Assert every recorded version agrees, and return it. */
 function cmdCheck() {
   const found = versionFiles().flatMap(versionsIn);
@@ -348,6 +371,12 @@ function cmdCheck() {
       fail("manifest.json matches neither variant; run `npm run switch:chrome` or `switch:firefox`");
     }
   }
+
+  // Firefox for Android only offers an add-on that declares gecko_android, and
+  // nothing on the desktop build ever exercises the key, so dropping it would
+  // cost the phone listing silently. Asserted here because `check` is what CI
+  // runs on every push.
+  checkGeckoAndroid();
 
   // The site is generated from changelog.js, so a stale docs/changelog.json is
   // the same class of drift as a hand-edited manifest.json: something that is

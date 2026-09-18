@@ -1,8 +1,26 @@
 body {
   width: 350px;
+  max-width: 100vw;
   font-family: sans-serif;
   padding: 5px;
   box-sizing: border-box;
+}
+
+/*
+ * Firefox for Android renders the popup as a full-screen panel, so a 350px body
+ * would sit in a corner of the screen with dead space beside it. Below the phone
+ * breakpoint the popup takes the panel it is given; the buttons are already
+ * width: 100%, so they follow.
+ */
+@media (max-width: 480px) {
+  body {
+    width: auto;
+  }
+
+  .button-section button {
+    min-height: 44px;
+    font-size: 15px;
+  }
 }
 
 #title {

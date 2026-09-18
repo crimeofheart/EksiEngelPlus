@@ -41,6 +41,19 @@ On "switch to Chrome/Firefox": run the script from `frontend/app`, confirm with
 `diff manifest.json manifest.<browser>.json` (must exit 0 — the switch is a plain copy), then
 report the load path and console location.
 
+**Firefox for Android** runs the same zip as desktop Firefox — one AMO listing serves both, and
+there is no third manifest variant. What makes it installable there is
+`browser_specific_settings.gecko_android` in `manifest.firefox.json`; nothing on desktop exercises
+that key, so `npm run check` asserts it is present and that its `strict_min_version` matches the
+desktop `gecko` one.
+
+Testing an unreleased build on a phone is the awkward part: release Firefox for Android installs
+only signed add-ons from AMO. Use Firefox Nightly for Android, turn on "Remote debugging via USB"
+in its settings, connect the device, and load `frontend/app/manifest.json` from desktop
+`about:debugging` → the device in the left column → Load Temporary Add-on. The desktop window is
+also where the console lives — Firefox for Android has no `about:debugging` of its own. An
+already-published version is simpler: install it from the AMO listing on the phone.
+
 ## Release notes
 
 `frontend/app/assets/js/changelog.js` is the source. One version ships the extension and the

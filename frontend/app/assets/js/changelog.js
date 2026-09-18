@@ -20,12 +20,13 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.5.0": {
+    date: "2026-09-18",
     app: [],
     extension: [
       "Eklenti artık Android'deki Firefox'a da kurulabiliyor. Telefonda da masaüstündeki bütün işlemler yapılabiliyor.",
-      "Eklentinin kendi sayfaları -- işlem durumu, ayarlar ve yardım, yazar listesi -- telefon ekranına sığacak şekilde açılıyor. Tablolar sayfayı yana taşırmıyor, \"tekrarla\" ve \"git\" düğmeleri parmakla basılabilecek boyutta.",
+      "Eklentinin kendi sayfaları — işlem durumu, ayarlar ve yardım, yazar listesi — telefon ekranına sığacak şekilde açılıyor. Tablolar sayfayı yana taşırmıyor, \"tekrarla\" ve \"git\" düğmeleri parmakla basılabilecek boyutta.",
       "Yardım balonları dokununca da açılıyor. Eskiden yalnızca fareyle üzerine gelince göründükleri için dokunmatik ekranda hiç açılmıyorlardı.",
-      "Ekşi sözlük hesabınıza giriş yapmadan bir EksiEngelPlus düğmesine bastığınızda artık sayfanın kendi bildirim alanında uyarı çıkıyor. Eskiden işlem sessizce kuyruğa giriyor ve saniyeler sonra başka bir sayfada hata olarak beliriyordu. Giriş yapılmamışken düğmeler soluk görünüyor.",
+      "Ekşi Sözlük hesabınıza giriş yapmadan bir EksiEngelPlus düğmesine bastığınızda artık sayfanın kendi bildirim alanında uyarı çıkıyor. Eskiden işlem sessizce kuyruğa giriyor ve saniyeler sonra başka bir sayfada hata olarak beliriyordu. Giriş yapılmamışken düğmeler soluk görünüyor.",
       "Ayarlar ve yardım sayfasındaki açıklamalar telefonda yarıda kesiliyordu; artık satır sonunda alta iniyorlar."
     ]
   },
@@ -97,7 +98,7 @@ export const releaseNotes = {
   "0.1.6": {
     date: "2026-07-31",
     extension: [
-      "Bu sayfa artık yüklü sürümü ve o sürüme ait notları otomatik gösteriyor."
+      "Karşılama sayfası artık yüklü sürümü ve o sürüme ait notları otomatik gösteriyor."
     ]
   },
   "0.1.5": {
@@ -115,7 +116,7 @@ export const releaseNotes = {
   "0.1.3": {
     date: "2026-07-28",
     extension: [
-      "Sürüm paketleme ve yayınlama süreci otomatikleştirildi."
+      "Yeni sürümler artık otomatik paketlenip yayınlanıyor; güncellemeler daha hızlı geliyor."
     ]
   },
   "0.1.2": {

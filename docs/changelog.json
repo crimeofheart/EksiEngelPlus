@@ -2,6 +2,19 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Eklenti artık Android'deki Firefox'a da kurulabiliyor. Telefonda da masaüstündeki bütün işlemler yapılabiliyor.",
+      "[Eklenti] Eklentinin kendi sayfaları — işlem durumu, ayarlar ve yardım, yazar listesi — telefon ekranına sığacak şekilde açılıyor. Tablolar sayfayı yana taşırmıyor, \"tekrarla\" ve \"git\" düğmeleri parmakla basılabilecek boyutta.",
+      "[Eklenti] Yardım balonları dokununca da açılıyor. Eskiden yalnızca fareyle üzerine gelince göründükleri için dokunmatik ekranda hiç açılmıyorlardı.",
+      "[Eklenti] Ekşi Sözlük hesabınıza giriş yapmadan bir EksiEngelPlus düğmesine bastığınızda artık sayfanın kendi bildirim alanında uyarı çıkıyor. Eskiden işlem sessizce kuyruğa giriyor ve saniyeler sonra başka bir sayfada hata olarak beliriyordu. Giriş yapılmamışken düğmeler soluk görünüyor.",
+      "[Eklenti] Ayarlar ve yardım sayfasındaki açıklamalar telefonda yarıda kesiliyordu; artık satır sonunda alta iniyorlar.",
+      "[Uygulama] Bu sürümde değişiklik yok."
+    ],
+    "pub_date": "2026-09-18",
+    "version": "0.5.0"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri; hem entry menüsünde hem profilde.",
       "[Eklenti] Takip etmek, engel ya da sessize alma varsa önce onu kaldırıyor. Eskiden takip başarılı görünüyor, hesap gizli kalmaya devam ediyordu.",
       "[Eklenti] İşlem durumunda yarım kalan satırlar \"tekrarla\" ve \"git\" ile yeniden denenebiliyor.",
@@ -75,7 +88,7 @@
   {
     "name": "",
     "notes": [
-      "[Eklenti] Bu sayfa artık yüklü sürümü ve o sürüme ait notları otomatik gösteriyor."
+      "[Eklenti] Karşılama sayfası artık yüklü sürümü ve o sürüme ait notları otomatik gösteriyor."
     ],
     "pub_date": "2026-07-31",
     "version": "0.1.6"
@@ -99,7 +112,7 @@
   {
     "name": "",
     "notes": [
-      "[Eklenti] Sürüm paketleme ve yayınlama süreci otomatikleştirildi."
+      "[Eklenti] Yeni sürümler artık otomatik paketlenip yayınlanıyor; güncellemeler daha hızlı geliyor."
     ],
     "pub_date": "2026-07-28",
     "version": "0.1.3"

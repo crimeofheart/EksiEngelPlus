@@ -66,7 +66,7 @@
   {
     if (!isSignedOut()) return element;
     element.style.opacity = "0.55";
-    element.title = "Bu işlem için ekşi sözlük hesabınıza giriş yapmalısınız.";
+    element.title = "Bu işlem için Ekşi Sözlük hesabınıza giriş yapmalısınız.";
     return element;
   }
 
@@ -76,7 +76,7 @@
     // background reaches the same conclusion, but several seconds later and on a
     // page the reader has to go and open. Say it here instead.
     if (isSignedOut()) {
-      showPageNotice("EksiEngelPlus: bu işlem için ekşi sözlük hesabınıza giriş yapmalısınız.", "error");
+      showPageNotice("EksiEngelPlus: bu işlem için Ekşi Sözlük hesabınıza giriş yapmalısınız.", "error");
       return;
     }
 

@@ -44,18 +44,22 @@ report the load path and console location.
 **Firefox for Android** runs the same zip as desktop Firefox — one AMO listing serves both, and
 there is no third manifest variant. What makes it installable there is
 `browser_specific_settings.gecko_android` in `manifest.firefox.json`; nothing on desktop exercises
-that key, so `npm run check` asserts it is present and that its `strict_min_version` matches the
-desktop `gecko` one.
+that key, so `npm run check` asserts it is present and that its `strict_min_version` is not below
+the desktop `gecko` one. It currently sits *above* it — Android 142 against desktop 140 — because
+`gecko.data_collection_permissions` reached Android two releases later than desktop.
 
 To run an unreleased build on a phone, install it as a temporary add-on over USB. It works on
 release Firefox (`org.mozilla.firefox`), not only Nightly:
 
 ```bash
 cd frontend/app && npm run switch:firefox      # manifest.json must be the Firefox variant
-adb devices                                     # device listed = USB debugging is on
-npx --yes web-ext@latest run -t firefox-android --firefox-apk org.mozilla.firefox \
-  --source-dir "$PWD"
+adb devices                                     # prints the device id; USB debugging is on
+npx --yes web-ext@latest run -t firefox-android --android-device=<id from adb devices> \
+  --firefox-apk org.mozilla.firefox --source-dir "$PWD"
 ```
+
+`web-ext` refuses to guess the device even when only one is attached, so
+`--android-device` is not optional (older docs call the flag `--adb-device`).
 
 On the phone first: Android USB debugging on, and "Remote debugging via USB" enabled in Firefox's
 own settings. `npx` keeps `frontend/app` at zero dependencies — never add web-ext to
@@ -100,7 +104,8 @@ what publishes it.
 `docs/changelog.legacy.json` holds the pre-rename releases (1.0.0–3.2.0), appended verbatim
 and **never sorted** with the modern list: numbering restarted at 0.1.0, so 3.2.0 is *older*
 than 0.1.2 and any version comparison of the two says the opposite. `docs/changelog.txt` is an
-archive (old dev log + TODO backlog) — never add releases there.
+archive (dev log through v3.3, plus an open-work list audited against the shipping version) —
+never add releases there.
 
 ## Versioning and packaging
 

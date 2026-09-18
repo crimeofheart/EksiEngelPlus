@@ -330,10 +330,12 @@ function cmdChangelog({ check = false } = {}) {
 /**
  * Assert the Firefox variant still claims Firefox for Android.
  *
- * The two floors are held equal on purpose: both builds run the same code, so an
- * Android floor below the desktop one would advertise the add-on to phones the
- * desktop manifest has already ruled out, and a desktop bump that forgot Android
- * would leave the phone listing behind without any other symptom.
+ * The Android floor may not sit below the desktop one — both builds run the same
+ * code, so that would advertise the add-on to phones the desktop manifest has
+ * already ruled out. It is allowed to sit above it, and currently does:
+ * `data_collection_permissions` landed on desktop in 140 but on Android only in
+ * 142, which `web-ext lint` reports as KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION
+ * if the two are simply held equal.
  */
 function checkGeckoAndroid() {
   const settings = JSON.parse(fs.readFileSync(manifestFor("firefox"), "utf8")).browser_specific_settings;
@@ -344,9 +346,16 @@ function checkGeckoAndroid() {
   }
 
   const desktop = settings?.gecko?.strict_min_version;
-  if (android.strict_min_version !== desktop) {
+  const floor = (v) => (v ?? "").split(".").map(Number);
+  const [androidMajor, androidMinor = 0] = floor(android.strict_min_version);
+  const [desktopMajor, desktopMinor = 0] = floor(desktop);
+  if (!Number.isFinite(androidMajor) || !Number.isFinite(desktopMajor)) {
+    fail(`manifest.firefox.json: strict_min_version is not x.y ` +
+         `(gecko "${desktop}", gecko_android "${android.strict_min_version}")`);
+  }
+  if (androidMajor < desktopMajor || (androidMajor === desktopMajor && androidMinor < desktopMinor)) {
     fail(`manifest.firefox.json: gecko_android.strict_min_version ` +
-         `"${android.strict_min_version}" differs from gecko.strict_min_version "${desktop}"`);
+         `"${android.strict_min_version}" is below gecko.strict_min_version "${desktop}"`);
   }
 }
 

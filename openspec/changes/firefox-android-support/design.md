@@ -43,12 +43,16 @@ responsive, not a separate mobile document.
 
 ## Decisions
 
-**`gecko_android.strict_min_version` mirrors the desktop `gecko` one (`"140.0"`) rather than the
-lowest technically possible (113).** Both builds run the same code, so a lower Android floor would
-be a claim the desktop build does not make and nobody tests. `check` asserts the two agree, which
-also means a future desktop bump cannot silently leave Android behind. Alternative considered:
-omitting `strict_min_version` entirely (allowed — the key may be empty). Rejected: it advertises
-the add-on to Fenix 113 builds that the desktop manifest has already ruled out.
+**`gecko_android.strict_min_version` is `"142.0"`, above the desktop `"140.0"`, and `check`
+enforces "not below" rather than "equal".** Mirroring the desktop floor was the first plan, and
+`web-ext lint` rejected it: KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION, because the manifest's
+own `gecko.data_collection_permissions` reached desktop Firefox in 140 but Firefox for Android only
+in 142. Declaring 140 on Android would therefore advertise the add-on to two releases that cannot
+honour its data-collection declaration. Below the desktop floor stays a failure — both builds run
+the same code, so that would be a claim the desktop manifest has already ruled out — and a future
+desktop bump past 142 still fails the check rather than leaving the phone listing behind.
+Alternative considered: omitting `strict_min_version` entirely (the key may be empty). Rejected for
+the same reason lint gave.
 
 **Viewport meta goes into each page's `<head>` as markup, not injected by script.** A `<meta>` the
 browser reads during parse cannot race the layout; a script-inserted one can, and two of the pages

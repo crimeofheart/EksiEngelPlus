@@ -1,18 +1,22 @@
 ## 1. Manifest declaration and its guard
 
-- [x] 1.1 Add `browser_specific_settings.gecko_android` with `"strict_min_version": "140.0"` to
+- [x] 1.1 Add `browser_specific_settings.gecko_android` with `"strict_min_version": "142.0"` to
       `frontend/app/manifest.firefox.json`, leaving the existing `gecko` block (id,
-      `strict_min_version`, `data_collection_permissions`) untouched.
+      `strict_min_version`, `data_collection_permissions`) untouched. 142 rather than the desktop
+      140 because `data_collection_permissions` only reached Firefox for Android in 142.
 - [x] 1.2 In `cmdCheck` (`frontend/app/scripts/ext.mjs:331`), next to the existing
       "manifest.json matches a variant" assertion, parse `manifest.firefox.json` and fail when
       `browser_specific_settings.gecko_android` is missing or when its `strict_min_version`
-      differs from `browser_specific_settings.gecko.strict_min_version`.
+      is below `browser_specific_settings.gecko.strict_min_version` (above is allowed, and is the
+      shipping state).
 - [x] 1.3 Prove both failure modes by hand: delete the key → `npm run check` exits non-zero naming
       it; set a mismatched version → exits non-zero naming both values; restore → passes.
 - [x] 1.4 `npm run switch:firefox` then `diff manifest.json manifest.firefox.json` exits 0, and
       `npm run switch:chrome` then `diff manifest.json manifest.chrome.json` exits 0 — the
       generated manifest is still a plain copy of a variant.
 - [x] 1.5 `cd frontend/app && npm run check && npm run package`.
+- [x] 1.6 `web-ext lint` the packaged Firefox zip: no errors, and no
+      `KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION` warning at the declared floor.
 
 ## 2. Pages lay out at device width
 

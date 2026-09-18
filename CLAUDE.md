@@ -47,12 +47,27 @@ there is no third manifest variant. What makes it installable there is
 that key, so `npm run check` asserts it is present and that its `strict_min_version` matches the
 desktop `gecko` one.
 
-Testing an unreleased build on a phone is the awkward part: release Firefox for Android installs
-only signed add-ons from AMO. Use Firefox Nightly for Android, turn on "Remote debugging via USB"
-in its settings, connect the device, and load `frontend/app/manifest.json` from desktop
-`about:debugging` → the device in the left column → Load Temporary Add-on. The desktop window is
-also where the console lives — Firefox for Android has no `about:debugging` of its own. An
-already-published version is simpler: install it from the AMO listing on the phone.
+To run an unreleased build on a phone, install it as a temporary add-on over USB. It works on
+release Firefox (`org.mozilla.firefox`), not only Nightly:
+
+```bash
+cd frontend/app && npm run switch:firefox      # manifest.json must be the Firefox variant
+adb devices                                     # device listed = USB debugging is on
+npx --yes web-ext@latest run -t firefox-android --firefox-apk org.mozilla.firefox \
+  --source-dir "$PWD"
+```
+
+On the phone first: Android USB debugging on, and "Remote debugging via USB" enabled in Firefox's
+own settings. `npx` keeps `frontend/app` at zero dependencies — never add web-ext to
+`package.json`. Firefox for Android has no `about:debugging` of its own, so the console is desktop
+`about:debugging` → the device in the left column; Fenix popups cannot be inspected there
+([bug 1637616](https://bugzilla.mozilla.org/show_bug.cgi?id=1637616)), so open `popup.html` in a
+tab when you need its DOM.
+
+`npx --yes web-ext@latest lint --source-dir <unzipped firefox zip>` is the Android compatibility
+check worth running before a release: it is what catches a manifest key or API the declared
+`gecko_android` floor does not support. Lint the *packaged* zip, not `frontend/app` — the source
+tree still holds the 5.9 MB `jsdom.js` that packaging replaces with the stub.
 
 ## Release notes
 

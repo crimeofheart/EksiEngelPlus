@@ -9,14 +9,19 @@ builds only the Firefox one — Chrome for Android does not load extensions, so
 `manifest.firefox.json` SHALL carry `browser_specific_settings.gecko_android` with a
 `strict_min_version`. Firefox for Android only accepts an add-on that declares this key (it was
 added in Firefox for Android 113), and AMO uses it to decide whether the listing is offered to
-Android users at all. The declared minimum SHALL equal the desktop
-`browser_specific_settings.gecko.strict_min_version`, since both builds run the same code and the
-same MV3 requirements.
+Android users at all. The declared minimum SHALL NOT be below the desktop
+`browser_specific_settings.gecko.strict_min_version`, since both builds run the same code; it MAY
+be above it, and is: the manifest's own `gecko.data_collection_permissions` reached desktop in 140
+but Android only in 142, so the Android floor is `"142.0"` against a desktop `"140.0"`.
 
 #### Scenario: The generated Firefox manifest is Android-eligible
 - **WHEN** `npm run switch:firefox` has written `manifest.json`
-- **THEN** it contains `browser_specific_settings.gecko_android.strict_min_version`
-- **AND** that value equals `browser_specific_settings.gecko.strict_min_version` (`"140.0"`)
+- **THEN** it contains `browser_specific_settings.gecko_android.strict_min_version` (`"142.0"`)
+- **AND** that value is not below `browser_specific_settings.gecko.strict_min_version` (`"140.0"`)
+
+#### Scenario: Every manifest key is supported at the declared Android floor
+- **WHEN** `web-ext lint` runs over the packaged Firefox zip
+- **THEN** it reports no `KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION` warning and no errors
 
 #### Scenario: The Chrome build is untouched
 - **WHEN** `manifest.chrome.json` is read after this change
@@ -34,10 +39,15 @@ future manifest edit.
   `npm run check` runs
 - **THEN** the command exits non-zero naming the missing key
 
-#### Scenario: Version drift fails the check
+#### Scenario: An Android floor below the desktop one fails the check
 - **WHEN** `gecko.strict_min_version` is `"140.0"` and `gecko_android.strict_min_version` is
   `"115.0"`, and `npm run check` runs
 - **THEN** the command exits non-zero naming both values
+
+#### Scenario: An Android floor above the desktop one is allowed
+- **WHEN** `gecko.strict_min_version` is `"140.0"` and `gecko_android.strict_min_version` is
+  `"142.0"`, and `npm run check` runs
+- **THEN** the command exits zero
 
 #### Scenario: A correct manifest still passes
 - **WHEN** both keys agree and `npm run check` runs

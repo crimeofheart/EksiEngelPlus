@@ -1149,6 +1149,45 @@ body {
         padding: 8px 12px;
         font-size: 13px;
     }
+
+    /*
+     * The control buttons are centred by taking them out of flow, which works
+     * only while the counters beside them leave the middle of the row empty. On
+     * a phone they do not, so the buttons were drawn on top of the counters and
+     * their labels ran past the card. Stack the row instead: counters, then the
+     * controls on their own line, each one finger-sized.
+     */
+    .action-section {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .stats-buttons-left {
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-right: 0;
+    }
+
+    .control-buttons-center {
+        position: static;
+        left: auto;
+        transform: none;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .control-buttons-center .btn {
+        flex: 1 1 0;
+        min-height: 40px;
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .op-desc {
+        margin-left: 0;
+        text-align: center;
+    }
 }
 
 @media (max-width: 480px) {

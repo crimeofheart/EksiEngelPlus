@@ -114,6 +114,24 @@ difference between the retry feature being usable on a phone and not.
 - **WHEN** a failed task row renders at 412px viewport width
 - **THEN** each of its "Tekrarla" and "Git" buttons measures at least 40px in both dimensions
 
+### Requirement: The operation controls do not overlap the counters on a phone
+
+The control row on `notification.html` — the counters (`.stats-buttons-left`) and the
+pause/resume/stop buttons (`.control-buttons-center`) — SHALL keep both groups readable and
+tappable at phone widths. The buttons are centred by being taken out of flow
+(`position: absolute`), which holds only while the middle of the row is empty; at phone widths the
+counters occupy it, so the buttons are drawn on top of them and their labels run past the card.
+
+#### Scenario: Controls and counters do not collide
+- **WHEN** the status card renders at 412px viewport width with the controls labelled
+  ("Duraklat", "Devam Et", "Erken Durdur")
+- **THEN** the counters and the three buttons occupy separate lines, no label is clipped, and each
+  button is at least 40px tall
+
+#### Scenario: The desktop row is unchanged
+- **WHEN** the same card renders above 768px
+- **THEN** the counters stay left and the buttons stay centred on the same line, as today
+
 ### Requirement: Hover-only help text is reachable by touch
 
 `tooltip.css` SHALL reveal the tooltip bubble on keyboard focus and on activation, not only on

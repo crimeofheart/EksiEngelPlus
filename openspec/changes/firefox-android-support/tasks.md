@@ -51,7 +51,10 @@
       and the table itself scrolls sideways inside its card.
 - [x] 4.4 Confirm at desktop width that the table rows are still the dense 11px layout — the new
       rules live only inside the ≤768px block.
-- [x] 4.5 `cd frontend/app && npm run check && npm run package`.
+- [x] 4.5 Stack the status card's control row below 768px: `.control-buttons-center` back into
+      flow, counters on their own line, each control finger-sized. Found on device — the absolute
+      centring drew the buttons on top of the counters.
+- [x] 4.6 `cd frontend/app && npm run check && npm run package`.
 
 ## 5. Tooltips reachable without hover
 

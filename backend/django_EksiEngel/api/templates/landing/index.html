@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EksiEngelPlus - Ekşi Sözlük Toplu Engelleme Eklentisi ve Android Uygulaması</title>
-    <meta name="description" content="Ekşi Sözlük'te toplu engelleme, sessize alma ve liste yönetimi. Chrome ve Firefox eklentisi ile Android uygulaması.">
+    <meta name="description" content="Ekşi Sözlük'te toplu engelleme, sessize alma ve liste yönetimi. Chrome, masaüstü ve Android Firefox eklentisi ile Android uygulaması.">
     <meta property="og:title" content="EksiEngelPlus">
-    <meta property="og:description" content="Ekşi Sözlük'te toplu engelleme ve yönetim. Chrome, Firefox ve Android.">
+    <meta property="og:description" content="Ekşi Sözlük'te toplu engelleme ve yönetim. Chrome, Firefox (masaüstü ve Android) ve Android uygulaması.">
     <meta property="og:image" content="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/frontend/app/assets/img/eksiengel128.png">
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/crimeofheart/EksiEngelPlus/master/frontend/app/assets/img/eksiengel128.png">
     <style>
@@ -328,7 +328,7 @@
                     <button class="lang-btn" onclick="setLanguage('en')">English</button>
                 </div>
             </div>
-            <p class="tagline" data-tr="Ekşi Sözlük'te toplu engelleme ve yönetim işlemleri artık çok kolay! Tarayıcı eklentisi ve Android uygulaması." data-en="Mass blocking and management on Ekşi Sözlük is now easier than ever! Browser extension and Android app."></p>
+            <p class="tagline" data-tr="Ekşi Sözlük'te toplu engelleme ve yönetim işlemleri artık çok kolay! Masaüstü ve telefon tarayıcıları için eklenti, ayrıca Android uygulaması." data-en="Mass blocking and management on Ekşi Sözlük is now easier than ever! A browser extension for desktop and mobile, plus an Android app."></p>
             <div class="cta-buttons">
                 <a href="https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh" class="btn btn-primary" target="_blank">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -353,10 +353,11 @@
                     <span data-tr="GitHub'da İncele" data-en="View on GitHub"></span>
                 </a>
             </div>
+            <p class="tagline" data-tr="Telefonda mı okuyorsunuz? Firefox bağlantısını telefonunuzdaki Firefox'ta açın: masaüstüyle aynı eklenti, aynı işlemler. APK'ya gerek yok." data-en="Reading this on your phone? Open the Firefox link in Firefox for Android: the same extension as on desktop, with the same operations. No APK needed."></p>
         </header>
 
         <section class="card">
-            <h2><span data-tr="Eklenti Özellikleri" data-en="Extension Features"></span> <span class="platform-tag">Chrome &middot; Firefox</span></h2>
+            <h2><span data-tr="Eklenti Özellikleri" data-en="Extension Features"></span> <span class="platform-tag">Chrome &middot; Firefox &middot; Firefox (Android)</span></h2>
             <div class="features-grid">
                 <div class="feature">
                     <h3>🚫 <span data-tr="Toplu Engelleme" data-en="Mass Blocking"></span></h3>
@@ -368,7 +369,7 @@
                 </div>
                 <div class="feature">
                     <h3>📅 <span data-tr="Tarih Filtresi" data-en="Date Filter"></span></h3>
-                    <p data-tr="Kayıt tarihine göre kullanıcıları filtreleyin. Örneğin 10 yıldan yeni hesapları engelleyin." data-en="Filter users by registration date. For example, block accounts newer than 10 years."></p>
+                    <p data-tr="Kayıt tarihine göre kural koyun. Varsayılan kural on beş yıldan eski hesapları toplu işlemlerin dışında tutar; kuralı değiştirebilir ya da yenisini ekleyebilirsiniz." data-en="Set rules by registration date. The default rule keeps accounts older than fifteen years out of bulk operations; you can change it or add your own."></p>
                 </div>
                 <div class="feature">
                     <h3>📊 <span data-tr="CSV İçe/Dışa Aktarım" data-en="CSV Import/Export"></span></h3>
@@ -421,6 +422,18 @@
                 <div class="feature">
                     <h3>🌱 <span data-tr="Çaylak Engeli" data-en="Newcomer Blocking"></span></h3>
                     <p data-tr="Favori/takipçi engelinde çaylak (yeni) kullanıcıları dahil edin." data-en="Include newcomer (new) users in favorite/follower blocking."></p>
+                </div>
+                <div class="feature">
+                    <h3>➕ <span data-tr="Toplu Takip Etme" data-en="Bulk Follow"></span></h3>
+                    <p data-tr="Engelleme ve sessize almanın olduğu her yerde takip etme de var: bir entry'nin yazarı, favlayanları, takipçileri ve takip ettikleri." data-en="Following is available everywhere blocking and muting are: an entry's author, its favoriters, and a user's followers and followees."></p>
+                </div>
+                <div class="feature">
+                    <h3>📱 <span data-tr="Telefonda Firefox" data-en="Firefox on Android"></span></h3>
+                    <p data-tr="Eklenti Android'deki Firefox'a da kuruluyor. Eklentinin kendi sayfaları telefon ekranına sığacak şekilde açılıyor, düğmeler parmakla basılabilecek boyutta." data-en="The extension installs on Firefox for Android too. Its own pages fit a phone screen, and the buttons are sized for touch."></p>
+                </div>
+                <div class="feature">
+                    <h3>🧾 <span data-tr="Kuyruk Yönetimi" data-en="Queue Control"></span></h3>
+                    <p data-tr="Sıradaki bir işlemi kuyruktan çıkarın; biten ya da yarım kalan bir işlemi tekrarlayın veya başladığı sayfayı açın." data-en="Drop a waiting task from the queue; repeat a finished or interrupted one, or open the page it started from."></p>
                 </div>
             </div>
         </section>
@@ -478,6 +491,22 @@
                     <p data-tr="Ayarlarda kullanım kılavuzu ve o sürüme ait notlar var. Kayıt tarihi önbelleğinin boyutu da buradan görülüp temizlenebiliyor." data-en="Settings carries a usage guide and the notes for the installed version. The registration-date cache can be inspected and cleared from there too."></p>
                 </div>
             </div>
+        </section>
+
+        <section class="card">
+            <h2><span data-tr="Telefonda Eklentiyi Kurma" data-en="Installing the Extension on Your Phone"></span> <span class="platform-tag">Firefox (Android)</span></h2>
+            <p class="subhead" data-tr="Telefonda uygulama istemiyorsanız eklenti aynı işi görüyor. Ayrı bir sürüm değil: masaüstündeki Firefox eklentisinin ta kendisi, aynı mağaza sayfasından kuruluyor." data-en="If you would rather not install an app, the extension does the same job. It is not a separate build: it is the desktop Firefox extension, from the same listing."></p>
+            <div class="instructions">
+                <ol>
+                    <li data-tr="Telefonunuzda Firefox'u açın (Chrome değil; Android'de yalnızca Firefox eklenti kurulmasına izin veriyor)." data-en="Open Firefox on your phone (not Chrome; on Android only Firefox allows extensions to be installed)."></li>
+                    <li data-tr="Bu sayfadaki Firefox bağlantısını o tarayıcıda açın ve 'Firefox'a Ekle' deyin." data-en="Open this page's Firefox link in that browser and tap 'Add to Firefox'."></li>
+                    <li data-tr="İzin isteğini onaylayın, ardından eksisozluk.com'a gidip hesabınıza giriş yapın." data-en="Approve the permission prompt, then go to eksisozluk.com and log in to your account."></li>
+                    <li data-tr="Engelleme düğmeleri entry menülerinde ve profil sayfalarında masaüstündeki gibi çıkar." data-en="The blocking buttons appear in entry menus and on profile pages, exactly as on desktop."></li>
+                </ol>
+            </div>
+            <a href="https://addons.mozilla.org/firefox/addon/eksiengelplus" class="github-link" target="_blank">
+                <span data-tr="Firefox eklenti sayfasını aç" data-en="Open the Firefox add-on listing"></span>
+            </a>
         </section>
 
         <section class="card">

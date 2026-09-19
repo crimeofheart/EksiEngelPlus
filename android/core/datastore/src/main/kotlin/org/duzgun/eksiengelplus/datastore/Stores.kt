@@ -109,8 +109,13 @@ class IdentityRepository(private val store: DataStore<Identity>) {
     }
 
     /**
-     * Whether the release notes for [version] still need showing, marking them
-     * shown if so.
+     * The version [version] is replacing, if its notes still need showing, and
+     * null when they have been seen already.
+     *
+     * The version rather than a yes/no, because the screen shows everything
+     * released since it -- someone upgrading from an old store build has missed
+     * more than one release. Blank, not null, on a fresh install: that is a
+     * claim, and it renders as the whole list.
      *
      * Read and write in one `updateData` on purpose. Two launches racing -- the
      * activity restarting under a configuration change is the ordinary case --
@@ -121,18 +126,18 @@ class IdentityRepository(private val store: DataStore<Identity>) {
      * extension's behaviour too: background.js:1096 fires on INSTALL as well as
      * UPDATE.
      */
-    suspend fun claimReleaseNotes(version: String): Boolean {
-        if (version.isBlank()) return false
-        var claimed = false
+    suspend fun claimReleaseNotes(version: String): String? {
+        if (version.isBlank()) return null
+        var previous: String? = null
         store.updateData { current ->
             if (current.lastNotesVersion == version) {
                 current
             } else {
-                claimed = true
+                previous = current.lastNotesVersion
                 current.copy(lastNotesVersion = version)
             }
         }
-        return claimed
+        return previous
     }
 
     /**

@@ -45,6 +45,75 @@ class ReleaseNotesTest {
             .containsExactly(ReleaseNotes.FALLBACK)
     }
 
+    @Test fun `versions sort numerically, not lexically`() {
+        assertThat(ReleaseNotes.compareVersions("0.10.0", "0.9.0")).isGreaterThan(0)
+        assertThat(ReleaseNotes.compareVersions("0.5.1", "0.5.0")).isGreaterThan(0)
+        assertThat(ReleaseNotes.compareVersions("0.5.0", "0.5.0")).isEqualTo(0)
+        // Short and long forms of the same version are the same version.
+        assertThat(ReleaseNotes.compareVersions("0.5", "0.5.0")).isEqualTo(0)
+    }
+
+    @Test fun `upgrading from an old store build shows every release since`() {
+        // The case this exists for: the listing sat on 0.2.0 while four
+        // releases went out, and this screen is the only place their notes are
+        // ever shown.
+        val since = ReleaseNotes.versionsSince("0.2.0")
+
+        assertThat(since).contains("0.5.1")
+        assertThat(since.none { ReleaseNotes.compareVersions(it, "0.2.0") <= 0 }).isTrue()
+        assertThat(since).isInOrder { a, b ->
+            ReleaseNotes.compareVersions(b as String, a as String)
+        }
+    }
+
+    @Test fun `a fresh install is shown everything`() {
+        // Blank is what claimReleaseNotes hands back on a first run.
+        assertThat(ReleaseNotes.versionsSince("")).isNotEmpty()
+        assertThat(ReleaseNotes.versionsSince("")).contains("0.1.0")
+    }
+
+    @Test fun `an unparseable previous version degrades to everything`() {
+        assertThat(ReleaseNotes.versionsSince("bozuk"))
+            .isEqualTo(ReleaseNotes.versionsSince(""))
+    }
+
+    @Test fun `a release written but not yet shipped is never announced`() {
+        // An entry can land before its version does. Running 0.4.0 must not
+        // reveal 0.5.0's notes.
+        assertThat(ReleaseNotes.versionsToShow("0.4.0", "0.4.0")).containsExactly("0.4.0")
+        assertThat(ReleaseNotes.versionsToShow("0.4.0", "0.2.0"))
+            .doesNotContain("0.5.0")
+    }
+
+    @Test fun `the Settings entry point shows one version`() {
+        // It re-opens the notes for what is running, not a history of upgrades.
+        assertThat(ReleaseNotes.versionsToShow("0.5.1", "0.5.1")).containsExactly("0.5.1")
+    }
+
+    @Test fun `the range matches the extension's for the same input`() {
+        // Feature parity is the point: both clients answer "what have I not
+        // seen" the same way, so the two screens cannot drift apart.
+        val fromJs = changelogJsVersionsSince("0.2.0")
+        assertWithMessage("versionsSince disagrees with getVersionsSince in changelog.js")
+            .that(ReleaseNotes.versionsSince("0.2.0"))
+            .isEqualTo(fromJs)
+    }
+
+    /**
+     * The versions changelog.js lists after [previous], newest first.
+     *
+     * Parsed out of the source the same way [changelogJsSections] does, rather
+     * than running the JS: the point is that the two files agree, and a test
+     * that needed node to say so would be skipped wherever node is absent.
+     */
+    private fun changelogJsVersionsSince(previous: String): List<String> =
+        Regex("^  \"([0-9.]+)\":", RegexOption.MULTILINE)
+            .findAll(changelogJs())
+            .map { it.groupValues[1] }
+            .filter { ReleaseNotes.compareVersions(it, previous) > 0 }
+            .sortedWith { a, b -> ReleaseNotes.compareVersions(b, a) }
+            .toList()
+
     /**
      * The drift guard.
      *
@@ -111,8 +180,12 @@ class ReleaseNotesTest {
      * `[ ... ]` the same way, and fails loudly if the shape is not what it
      * expects.
      */
+    /** The one copy of the path, so the two readers cannot drift apart. */
+    private fun changelogJs(): String =
+        File("../../../frontend/app/assets/js/changelog.js").canonicalFile.readText()
+
     private fun changelogJsSections(version: String): Map<ReleaseNotes.Platform, List<String>> {
-        val source = File("../../../frontend/app/assets/js/changelog.js").canonicalFile.readText()
+        val source = changelogJs()
         val block = balanced(source, """"${Regex.escape(version)}"\s*:\s*\{""", '{', '}')
             ?: return emptyMap()
 

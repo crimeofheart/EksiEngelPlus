@@ -452,10 +452,11 @@ class BrowserActivity : AppCompatActivity() {
         }.getOrNull().orEmpty()
 
         lifecycleScope.launch {
-            if (identityRepository.claimReleaseNotes(version)) {
+            val previous = identityRepository.claimReleaseNotes(version)
+            if (previous != null) {
                 startActivity(
                     org.duzgun.eksiengelplus.feature.settings.ReleaseNotesActivity
-                        .intent(this@BrowserActivity, version),
+                        .intent(this@BrowserActivity, version, previous),
                 )
             }
         }

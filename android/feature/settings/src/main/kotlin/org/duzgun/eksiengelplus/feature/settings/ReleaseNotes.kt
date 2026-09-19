@@ -49,11 +49,14 @@ object ReleaseNotes {
             app = listOf(
                 "Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
                 "İşlem durumundaki \"sıradakiler\" listesinde artık \"tekrarla\" düğmesi yok: henüz çalışmamış bir işlemin tekrarlanacak bir sonucu da yok. O satırlarda \"git\" ve \"kaldır\" var, ikisi de aynı düğme biçiminde. \"Tekrarla\" yalnızca tamamlananlarda çıkıyor.",
+                "Yükseltmeden sonra açılan sürüm notları artık yalnızca en son sürümü değil, kullandığınız sürümden bu yana çıkan bütün sürümleri gösteriyor.",
             ),
             extension = listOf(
                 "Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
                 "Ayarlarda yıl ya da ay olarak girilen kural değeri listede yanlış görünüyordu: on beş yıllık bir kural \"5475 yıl\" diye yazıyordu. Artık girildiği birimde görünüyor, kuralı açıp kaydetmek de değeri büyütmüyor.",
                 "Tarih filtresi artık gerçekten koruyor: kuralın kapsamadığı hesaplara dokunulmuyor ve işlem sonunda kaç hesabın korunduğu yazıyor. Eskiden kural ne olursa olsun listedeki herkes işleme giriyordu, yani varsayılan kural kimseyi korumuyordu.",
+                "Eklenti güncellendiğinde ayarlarınız korunuyor; eskiden her güncelleme hepsini sıfırlıyordu. Bu sürüme geçerken son bir kez sıfırlanır, sonraki güncellemelerde durur.",
+                "Yükseltmeden sonra açılan sürüm notları artık yalnızca en son sürümü değil, kullandığınız sürümden bu yana çıkan bütün sürümleri gösteriyor.",
             ),
         ),
         "0.5.0" to VersionNotes(
@@ -186,6 +189,57 @@ object ReleaseNotes {
         }
         return sections.ifEmpty { listOf(Section(null, "", listOf(FALLBACK))) }
     }
+
+    /**
+     * Numeric, not lexical: 0.10.0 is newer than 0.9.0.
+     *
+     * Mirrors compareVersions in changelog.js. A segment that is not a number
+     * counts as zero rather than throwing -- this runs to decide what to show
+     * on a screen, and a malformed version must not take the screen down.
+     */
+    fun compareVersions(a: String, b: String): Int {
+        val pa = a.split(".")
+        val pb = b.split(".")
+        for (i in 0 until maxOf(pa.size, pb.size)) {
+            val diff = (pa.getOrNull(i)?.toIntOrNull() ?: 0) - (pb.getOrNull(i)?.toIntOrNull() ?: 0)
+            if (diff != 0) return if (diff < 0) -1 else 1
+        }
+        return 0
+    }
+
+    private val VERSION_PATTERN = Regex("^\\d+(\\.\\d+)*$")
+
+    /**
+     * Every version newer than [previousVersion], newest first.
+     *
+     * Mirrors getVersionsSince in changelog.js, and for the same reason:
+     * someone upgrading from an old store build has missed every release in
+     * between, and this screen is the only place those notes are ever shown.
+     *
+     * Only the modern numbering is in this file, which is what makes comparing
+     * these keys safe -- docs/changelog.legacy.json holds 1.0.0-3.2.0 from
+     * before the rename, and numbering restarted at 0.1.0 afterwards, so 3.2.0
+     * is *older* than 0.1.2 while every comparison says the opposite.
+     *
+     * A blank or unparseable [previousVersion] yields everything, which is what
+     * a fresh install should see.
+     */
+    fun versionsSince(previousVersion: String): List<String> {
+        val all = notes.keys.sortedWith { a, b -> compareVersions(b, a) }
+        if (previousVersion.isBlank() || !VERSION_PATTERN.matches(previousVersion)) return all
+        return all.filter { compareVersions(it, previousVersion) > 0 }
+    }
+
+    /**
+     * The versions this screen should show, newest first.
+     *
+     * Clamped to what is actually installed: an entry can be written before its
+     * release is cut, and the screen must not announce one.
+     */
+    fun versionsToShow(installedVersion: String, previousVersion: String): List<String> =
+        versionsSince(previousVersion)
+            .filter { compareVersions(it, installedVersion) <= 0 }
+            .ifEmpty { listOf(installedVersion) }
 
     /** Whether [version] has notes of its own. Used by the drift test. */
     fun has(version: String): Boolean = notes.containsKey(version)

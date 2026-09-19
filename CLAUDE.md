@@ -6,6 +6,25 @@ Android app in `android/`. One version number ships all three.
 All extension tooling is `frontend/app/scripts/ext.mjs`, exposed as npm scripts. Zero
 dependencies — `npm install` is never needed.
 
+## Feature parity
+
+The extension and the app are one product on one version number, so **a user-visible
+change lands on both** unless it is genuinely impossible on one — and then the gap is
+stated, not left to be discovered. A fix to one client is not finished while the other
+still has the bug. When only one side is in scope, say which and why.
+
+Shared behaviour is mirrored deliberately rather than shared at runtime, because the two
+cannot import each other:
+
+| Extension | Android | Guarded by |
+| --- | --- | --- |
+| `assets/js/changelog.js` | `ReleaseNotes.kt` | `ReleaseNotesTest` reads the JS and fails on drift |
+| `config.js` defaults, `utils.js` predicates | `Config.kt`, `DateFilter.kt` | `ConfigTest`, field-for-field, with `config.js` line refs in the comments |
+
+Mirrored code carries a comment naming its counterpart. When you change one side, change
+the other in the same commit — a mirror that is only correct half the time is worse than
+no mirror, because the tests stop meaning anything.
+
 ## Manifests
 
 Chrome and Firefox ship **identical files**; only `manifest.json` differs.

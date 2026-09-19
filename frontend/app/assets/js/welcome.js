@@ -1,7 +1,7 @@
 import * as enums from './enums.js';
 import {commHandler} from './commHandler.js';
 import {config} from './config.js';
-import {getSections} from './changelog.js';
+import {getSections, getVersionsSince, compareVersions} from './changelog.js';
 
 console.log("welcome.js: has been started.");
 
@@ -21,11 +21,30 @@ function showVersion() {
   }
 
   const notesElem = document.getElementById('versionNotes');
-  if (notesElem) {
-    notesElem.replaceChildren();
+  if (!notesElem) return;
+  notesElem.replaceChildren();
+  
+  // Set by background.js on an update. Everything after it is what this reader
+  // has not seen yet; without it they are new here and get the whole list.
+  const from = new URLSearchParams(window.location.search).get('from');
+  
+  // Never anything newer than what is actually installed: an entry can be
+  // written before its release is cut, and this page must not announce it.
+  let versions = getVersionsSince(from)
+    .filter((candidate) => compareVersions(candidate, version) <= 0);
+  if (versions.length === 0) versions = [version];
+  
+  // The heading only earns its place when there is more than one release to
+  // tell apart.
+  const showVersions = versions.length > 1;
+  
+  for (const shown of versions) {
+    if (showVersions) {
+      notesElem.appendChild(noteRow(`Sürüm ${shown}`, 'note-version'));
+    }
     // Extension first: this is the extension's own welcome page, and the first
     // thing its reader is asking is what changed for them.
-    for (const section of getSections(version, ['extension', 'app'])) {
+    for (const section of getSections(shown, ['extension', 'app'])) {
       if (section.label) {
         notesElem.appendChild(noteRow(section.label, 'note-platform'));
       }

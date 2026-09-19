@@ -381,10 +381,17 @@ class OperationsActivity : AppCompatActivity() {
      *
      * Bulk and list-sourced runs have no single page to open, so "git" is left
      * off those rather than pointing somewhere arbitrary.
+     *
+     * [withRetry] is off for a waiting row. The run has not happened yet, so
+     * there is nothing to repeat -- the button could only queue a second copy
+     * of what is already queued, one line above its own duplicate. "tekrarla"
+     * belongs to the finished rows, where a run has an outcome worth redoing.
      */
-    private fun addRowActions(into: ViewGroup, json: String?) {
+    private fun addRowActions(into: ViewGroup, json: String?, withRetry: Boolean = true) {
         val request = requestOf(json) ?: return
-        into.addView(action(R.string.ops_retry) { retry(request) })
+        if (withRetry) {
+            into.addView(action(R.string.ops_retry) { retry(request) })
+        }
         if (sourceUrl(request, org.duzgun.eksiengelplus.datastore.EksiConfig.DEFAULT_BASE_URL) != null) {
             into.addView(action(R.string.ops_open_source) { openSource(request) })
         }
@@ -427,20 +434,12 @@ class OperationsActivity : AppCompatActivity() {
         labels.addView(label(whenText, small = true))
         row.addView(labels)
 
-        addRowActions(row, requestJson)
+        addRowActions(row, requestJson, withRetry = false)
 
-        row.addView(
-            TextView(this).apply {
-                text = getString(R.string.ops_remove)
-                textSize = 12f
-                setPadding(dp(12), dp(8), dp(12), dp(8))
-                background = android.util.TypedValue().let {
-                    theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-                    androidx.core.content.ContextCompat.getDrawable(this@OperationsActivity, it.resourceId)
-                }
-                setOnClickListener { onRemove() }
-            },
-        )
+        // Same button as "git" beside it. It used to be a bare TextView, which
+        // put the row's only destructive verb in the one shape on the screen
+        // that did not look like a button.
+        row.addView(action(R.string.ops_remove) { onRemove() })
         return row
     }
 

@@ -597,13 +597,24 @@ function applyDateFiltersToRelations(relations) {
  * @param {Object} filterResults - Results from applyDateFiltersToRelations
  */
 function logDateFilterResults(filterResults) {
-  const total = filterResults.block.length + filterResults.unknown.length;
+  const protectedUsers = filterResults.protect || [];
+  const total = filterResults.block.length + protectedUsers.length + filterResults.unknown.length;
   
   log.info("bg", `Date filtering complete: ${filterResults.block.length} to block, ` +
+           `${protectedUsers.length} protected, ` +
            `${filterResults.unknown.length} unknown (total: ${total})`);
   
+  // One notification, not two: they land in the same status line and the
+  // second would simply replace the first.
+  const parts = [];
+  if (protectedUsers.length > 0) {
+    parts.push(`${protectedUsers.length} kullanıcı tarih filtresiyle korundu`);
+  }
   if (filterResults.unknown.length > 0) {
-    notificationHandler.notify(`${filterResults.unknown.length} kullanıcının kayıt tarihi bilinmiyor`);
+    parts.push(`${filterResults.unknown.length} kullanıcının kayıt tarihi bilinmiyor`);
+  }
+  if (parts.length > 0) {
+    notificationHandler.notify(parts.join(", "));
   }
 }
 
@@ -1209,11 +1220,27 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
 }
 
 chrome.runtime.onInstalled.addListener(async (details) => {
-  if (details.reason === chrome.runtime.OnInstalledReason.INSTALL ||
-      details.reason === chrome.runtime.OnInstalledReason.UPDATE) {
+  const isInstall = details.reason === chrome.runtime.OnInstalledReason.INSTALL;
+  const isUpdate = details.reason === chrome.runtime.OnInstalledReason.UPDATE;
+  if (!isInstall && !isUpdate) return;
+  
+  // Only a fresh install starts from a clean slate. An update used to clear
+  // storage too, which threw away every setting on every release -- and left
+  // the config migrations in config.js nothing to migrate, since handleConfig
+  // then always ran against an empty store.
+  if (isInstall) {
     await chrome.storage.local.clear();
-    await handleConfig();
-    await commHandler.sendAnalyticsData({click_type:enums.ClickType.INSTALL_OR_UPDATE});
-    await chrome.tabs.create({ url: chrome.runtime.getURL("assets/html/welcome.html") });
   }
+  
+  await handleConfig();
+  await commHandler.sendAnalyticsData({click_type:enums.ClickType.INSTALL_OR_UPDATE});
+  
+  // The welcome page shows everything that changed since the version being
+  // replaced, which is more than one release for anyone upgrading from an old
+  // store build. A fresh install carries no `from` and is shown the lot.
+  const welcome = new URL(chrome.runtime.getURL("assets/html/welcome.html"));
+  if (isUpdate && details.previousVersion) {
+    welcome.searchParams.set("from", details.previousVersion);
+  }
+  await chrome.tabs.create({ url: welcome.toString() });
 });

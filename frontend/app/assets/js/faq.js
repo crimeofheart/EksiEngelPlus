@@ -324,10 +324,10 @@ function createDefaultRule() {
   return {
     id: 'block-new-users',
     criteria: 'NEWER_THAN',
-    value: 3650,
-    valueType: 'days',
+    value: 5475,
+    valueType: 'years',
     action: 'ENGELLE',
-    description: 'Yapılacak işlem 10 yıldan yeni hesapları kapsar',
+    description: 'Yapılacak işlem 15 yıldan yeni hesapları kapsar',
     isDefault: true
   };
 }
@@ -383,6 +383,22 @@ function createRuleElement(rule, index) {
   return div;
 }
 
+// rule.value is always stored in days; rule.valueType only records the unit the
+// user typed it in. Convert back for display so a 15-year rule does not read
+// "5475 yıl".
+const UNIT_IN_DAYS = { days: 1, months: 30, years: 365 };
+const UNIT_LABEL = { days: 'gün', months: 'ay', years: 'yıl' };
+
+function toDisplayUnit(rule) {
+  const days = parseInt(rule.value, 10);
+  const factor = UNIT_IN_DAYS[rule.valueType] || 1;
+
+  if (isNaN(days) || factor === 1 || days % factor !== 0) {
+    return { value: rule.value, unit: 'days', label: UNIT_LABEL.days };
+  }
+  return { value: days / factor, unit: rule.valueType, label: UNIT_LABEL[rule.valueType] };
+}
+
 function formatCriteriaText(rule) {
   const criteriaMap = {
     'NEWER_THAN': 'Seçilen zamandan yeni kullanıcılar',
@@ -395,9 +411,8 @@ function formatCriteriaText(rule) {
     const date = new Date(rule.value);
     return `${criteriaMap[rule.criteria]} ${date.toLocaleDateString('tr-TR')}`;
   } else {
-    let value = rule.value;
-    let unit = rule.valueType === 'days' ? 'gün' : (rule.valueType === 'months' ? 'ay' : 'yıl');
-    return `${criteriaMap[rule.criteria]} ${value} ${unit}`;
+    const display = toDisplayUnit(rule);
+    return `${criteriaMap[rule.criteria]} ${display.value} ${display.label}`;
   }
 }
 
@@ -415,6 +430,13 @@ function showRuleForm() {
   document.getElementById('ruleId').value = '';
   document.getElementById('ruleIsDefault').value = 'false';
   
+  // NEWER_THAN, and deliberately not the OLDER_THAN the bulk chooser opens on:
+  // the two forms are not asking the same question. The bulk chooser selects
+  // targets, where OLDER_THAN reads as "everyone who has been muted a long
+  // time". A rule here is standing protection, and protection is expressed by
+  // covering the accounts that MAY be acted on -- so sparing established
+  // accounts is a NEWER_THAN rule. Defaulting to OLDER_THAN here would open the
+  // form on the one criterion that inverts what the rule is for.
   document.getElementById('ruleCriteria').value = 'NEWER_THAN';
   document.getElementById('ruleValueDays').value = '30';
   document.getElementById('ruleUnit').value = 'days';
@@ -451,8 +473,9 @@ function editRule(ruleId) {
   if (rule.criteria === 'BEFORE_DATE' || rule.criteria === 'AFTER_DATE') {
     document.getElementById('ruleValueDate').value = rule.value;
   } else {
-    document.getElementById('ruleValueDays').value = rule.value;
-    document.getElementById('ruleUnit').value = rule.valueType || 'days';
+    const display = toDisplayUnit(rule);
+    document.getElementById('ruleValueDays').value = display.value;
+    document.getElementById('ruleUnit').value = display.unit;
   }
   
   handleCriteriaChange();
@@ -511,8 +534,9 @@ async function saveRule() {
       return;
     }
     
-    if (valueType === 'months') value = value * 30;
-    else if (valueType === 'years') value = value * 365;
+    // stored in days; valueType is kept only to render the value back in the
+    // unit it was entered in
+    value = value * (UNIT_IN_DAYS[valueType] || 1);
   }
   
   const rule = {

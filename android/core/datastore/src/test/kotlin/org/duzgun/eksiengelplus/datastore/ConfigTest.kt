@@ -77,23 +77,23 @@ class ConfigTest {
         assertThat(back.sendLog).isFalse()
     }
 
-    @Test fun `a fresh install already protects decade-old accounts`() {
+    @Test fun `a fresh install already protects fifteen-year-old accounts`() {
         val rule = EksiConfig().dateFilterRules.single()
 
         // The extension's values, field for field (config.js:43-55).
         assertThat(rule.id).isEqualTo("block-new-users")
         assertThat(rule.criteria).isEqualTo(DateCriteria.NEWER_THAN)
-        assertThat(rule.days).isEqualTo(3650)
+        assertThat(rule.days).isEqualTo(5475)
         assertThat(rule.enabled).isTrue()
     }
 
-    @Test fun `the default rule spares an eleven-year-old account and acts on a young one`() {
+    @Test fun `the default rule spares a sixteen-year-old account and acts on a young one`() {
         // The rule is only worth shipping if it decides these two the right way
         // round, which is the half a value check cannot cover.
         val rules = EksiConfig().dateFilterRules
         val today = 20_000L
 
-        assertThat(DateFilter.allows(rules, today - 4015, today)).isFalse()  // ~11 years
+        assertThat(DateFilter.allows(rules, today - 5840, today)).isFalse()  // ~16 years
         assertThat(DateFilter.allows(rules, today - 400, today)).isTrue()    // ~1 year
     }
 
@@ -117,6 +117,40 @@ class ConfigTest {
         val edited = DateFilterRule.PROTECT_OLD_ACCOUNTS.copy(days = 1825)
 
         assertThat(DateFilterRule.withDefault(listOf(edited))).containsExactly(edited)
+    }
+
+    @Test fun `widening rewrites the untouched ten-year rule`() {
+        val old = DateFilterRule.PROTECT_OLD_ACCOUNTS.copy(
+            days = DateFilterRule.LEGACY_DEFAULT_DAYS,
+            description = "Yapılacak işlem 10 yıldan yeni hesapları kapsar",
+        )
+
+        val after = DateFilterRule.withWidenedDefault(listOf(old)).single()
+
+        assertThat(after.days).isEqualTo(5475)
+        assertThat(after.description).isEqualTo(DateFilterRule.PROTECT_OLD_ACCOUNTS.description)
+    }
+
+    @Test fun `widening leaves a rule the user retuned alone`() {
+        // Same id, their own number: this is the case the migration must not
+        // touch, or it reverts a deliberate choice every upgrade.
+        val theirs = DateFilterRule.PROTECT_OLD_ACCOUNTS.copy(days = 1825)
+
+        assertThat(DateFilterRule.withWidenedDefault(listOf(theirs))).containsExactly(theirs)
+    }
+
+    @Test fun `widening leaves someone else's ten-year rule alone`() {
+        // Same value, different id: matching on the value alone would rewrite
+        // a rule the user wrote themselves.
+        val mine = DateFilterRule("mine", DateCriteria.NEWER_THAN, days = 3650)
+
+        assertThat(DateFilterRule.withWidenedDefault(listOf(mine))).containsExactly(mine)
+    }
+
+    @Test fun `widening a fresh install changes nothing`() {
+        val fresh = EksiConfig().dateFilterRules
+
+        assertThat(DateFilterRule.withWidenedDefault(fresh)).isEqualTo(fresh)
     }
 
     @Test fun `rule list round trips`() {

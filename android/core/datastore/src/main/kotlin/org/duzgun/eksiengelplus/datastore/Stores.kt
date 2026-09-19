@@ -48,20 +48,23 @@ class ConfigRepository(private val store: DataStore<EksiConfig>) {
      * Corrects a config written before its defaults were checked against the
      * extension.
      *
-     * enableMute and enableProtectFollowedUsers shipped false here while
-     * config.js has both true, and a stored false beats a corrected default --
-     * so every install from before the fix keeps the wrong behaviour forever
-     * unless something rewrites it.
-     *
-     * This does overwrite a deliberate choice, which is why it happens once and
-     * is recorded in the version rather than run on every launch.
+     * Each step is gated on the version that introduced it, not on the config
+     * being stale in general. Every step here overwrites a deliberate choice,
+     * so re-running step 2 while adding step 3 would undo settings an install
+     * has already been corrected past.
      */
     suspend fun migrate() {
         store.updateData { current ->
-            if (current.configVersion >= EksiConfig.CURRENT_VERSION) {
-                current
-            } else {
-                current.copy(
+            if (current.configVersion >= EksiConfig.CURRENT_VERSION) return@updateData current
+
+            var next = current
+
+            // v2: enableMute and enableProtectFollowedUsers shipped false here
+            // while config.js has both true, and a stored false beats a
+            // corrected default -- so every install from before the fix keeps
+            // the wrong behaviour forever unless something rewrites it.
+            if (next.configVersion < 2) {
+                next = next.copy(
                     enableMute = true,
                     enableProtectFollowedUsers = true,
                     // Switched on for existing installs too. A stored false
@@ -72,10 +75,21 @@ class ConfigRepository(private val store: DataStore<EksiConfig>) {
                     enableDateFilter = true,
                     // Version 2 adds the ten-year rule, without disturbing rules
                     // the user wrote. See DateFilterRule.withDefault.
-                    dateFilterRules = DateFilterRule.withDefault(current.dateFilterRules),
-                    configVersion = EksiConfig.CURRENT_VERSION,
+                    dateFilterRules = DateFilterRule.withDefault(next.dateFilterRules),
                 )
             }
+
+            // v3: the default rule widened from ten years to fifteen. A stored
+            // 3650 beats the corrected default the same way a stored false did,
+            // so the untouched rule is rewritten once here. See
+            // DateFilterRule.withWidenedDefault for what counts as untouched.
+            if (next.configVersion < 3) {
+                next = next.copy(
+                    dateFilterRules = DateFilterRule.withWidenedDefault(next.dateFilterRules),
+                )
+            }
+
+            next.copy(configVersion = EksiConfig.CURRENT_VERSION)
         }
     }
 }

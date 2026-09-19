@@ -112,7 +112,7 @@ data class EksiConfig(
         const val DEFAULT_BASE_URL = "https://eksisozluk.com"
 
         /** Raise this, and add a step to ConfigRepository.migrate, together. */
-        const val CURRENT_VERSION = 2
+        const val CURRENT_VERSION = 3
     }
 }
 
@@ -130,7 +130,7 @@ data class EksiConfig(
 data class DateBulkPrefs(
     val source: DateBulkSource = DateBulkSource.MUTED_USERS,
     val criteria: DateCriteria = DateCriteria.OLDER_THAN,
-    val days: Int = 3650,
+    val days: Int = 5475,
     /** Epoch day, for the two calendar criteria. Null until one is used. */
     val epochDay: Long? = null,
     val action: DateBulkAction = DateBulkAction.SESSIZDEN_CIKAR,

@@ -200,11 +200,12 @@ export function evaluateDateFilter(registrationDate, rule) {
  * Applies date filter rules to a list of users
  * @param {Map<string, Object>} users - Map of username to user data (should include registrationDate)
  * @param {Array} rules - Array of date filter rules
- * @returns {Object} - Object with categorized users: block, unknown
+ * @returns {Object} - Object with categorized users: block, protect, unknown
  */
 export function applyDateFilters(users, rules) {
   const result = {
-    block: [],      // Users to block
+    block: [],      // Users the operation may act on
+    protect: [],    // Users no rule covers, and so are spared
     unknown: []     // Users with unknown registration date
   };
   
@@ -238,8 +239,13 @@ export function applyDateFilters(users, rules) {
       }
     }
     
+    // Matching a rule is what makes a user eligible; matching none is what
+    // spares them. The default rule covers accounts *newer* than its boundary,
+    // so an account older than it matches nothing and must be protected. This
+    // branch used to push them into `block` instead, which meant every user
+    // ended up there and the filter protected nobody.
     if (!matched) {
-      result.block.push({ username, ...userData });
+      result.protect.push({ username, ...userData });
     }
   }
   

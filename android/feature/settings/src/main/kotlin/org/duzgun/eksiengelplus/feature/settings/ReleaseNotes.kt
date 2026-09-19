@@ -45,6 +45,17 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.5.1" to VersionNotes(
+            app = listOf(
+                "Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
+                "İşlem durumundaki \"sıradakiler\" listesinde artık \"tekrarla\" düğmesi yok: henüz çalışmamış bir işlemin tekrarlanacak bir sonucu da yok. O satırlarda \"git\" ve \"kaldır\" var, ikisi de aynı düğme biçiminde. \"Tekrarla\" yalnızca tamamlananlarda çıkıyor.",
+            ),
+            extension = listOf(
+                "Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
+                "Ayarlarda yıl ya da ay olarak girilen kural değeri listede yanlış görünüyordu: on beş yıllık bir kural \"5475 yıl\" diye yazıyordu. Artık girildiği birimde görünüyor, kuralı açıp kaydetmek de değeri büyütmüyor.",
+                "Tarih filtresi artık gerçekten koruyor: kuralın kapsamadığı hesaplara dokunulmuyor ve işlem sonunda kaç hesabın korunduğu yazıyor. Eskiden kural ne olursa olsun listedeki herkes işleme giriyordu, yani varsayılan kural kimseyi korumuyordu.",
+            ),
+        ),
         "0.5.0" to VersionNotes(
             app = emptyList(),
             extension = listOf(

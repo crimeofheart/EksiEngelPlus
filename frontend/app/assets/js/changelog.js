@@ -19,6 +19,18 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.5.1": {
+    date: "2026-09-19",
+    app: [
+      "Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
+      "İşlem durumundaki \"sıradakiler\" listesinde artık \"tekrarla\" düğmesi yok: henüz çalışmamış bir işlemin tekrarlanacak bir sonucu da yok. O satırlarda \"git\" ve \"kaldır\" var, ikisi de aynı düğme biçiminde. \"Tekrarla\" yalnızca tamamlananlarda çıkıyor."
+    ],
+    extension: [
+      "Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
+      "Ayarlarda yıl ya da ay olarak girilen kural değeri listede yanlış görünüyordu: on beş yıllık bir kural \"5475 yıl\" diye yazıyordu. Artık girildiği birimde görünüyor, kuralı açıp kaydetmek de değeri büyütmüyor.",
+      "Tarih filtresi artık gerçekten koruyor: kuralın kapsamadığı hesaplara dokunulmuyor ve işlem sonunda kaç hesabın korunduğu yazıyor. Eskiden kural ne olursa olsun listedeki herkes işleme giriyordu, yani varsayılan kural kimseyi korumuyordu."
+    ]
+  },
   "0.5.0": {
     date: "2026-09-18",
     app: [],
@@ -157,6 +169,43 @@ export const platformLabels = {
  * yields one line saying exactly that. A caller that had to handle emptiness
  * would have to decide what to render, and every caller would decide separately.
  */
+export function compareVersions(a, b) {
+  const pa = String(a).split(".").map(Number);
+  const pb = String(b).split(".").map(Number);
+  
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+/** Anything else is treated as "no usable previous version". */
+const VERSION_PATTERN = /^\d+(\.\d+)*$/;
+
+/**
+ * Every version newer than [previousVersion], newest first.
+ *
+ * Someone upgrading from an old store build has missed every release in
+ * between, and showing them only the newest one hides the rest for good --
+ * the welcome page is the only place these notes are ever shown.
+ *
+ * Only the modern numbering lives in this file, which is what makes comparing
+ * these keys safe: docs/changelog.legacy.json holds 1.0.0-3.2.0 from before the
+ * rename, and numbering restarted at 0.1.0 afterwards, so 3.2.0 is *older* than
+ * 0.1.2 while every version comparison says the opposite. Never merge the two
+ * lists and then sort them.
+ *
+ * A missing or unparseable previousVersion yields everything, which is what a
+ * fresh install should see.
+ */
+export function getVersionsSince(previousVersion) {
+  const all = Object.keys(releaseNotes).sort((a, b) => compareVersions(b, a));
+  
+  if (!previousVersion || !VERSION_PATTERN.test(String(previousVersion))) return all;
+  return all.filter((version) => compareVersions(version, previousVersion) > 0);
+}
+
 export function getSections(version, order = ["extension", "app"]) {
   const entry = releaseNotes[version];
   const sections = [];

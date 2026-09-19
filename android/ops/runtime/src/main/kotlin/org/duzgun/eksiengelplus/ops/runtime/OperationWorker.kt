@@ -789,7 +789,7 @@ class OperationWorker @AssistedInject constructor(
  *
  * A run's **own criterion** is a target selector the user just typed, and it
  * applies whatever the run does. The extension's default composition is itself
- * an unmute -- muted users, older than 3650 days, sessizden çıkar
+ * an unmute -- muted users, older than 5475 days, sessizden çıkar
  * (config.js:58-66) -- so a criterion that only worked on blocking would be no
  * feature at all.
  *

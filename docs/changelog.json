@@ -2,6 +2,18 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
+      "[Eklenti] Ayarlarda yıl ya da ay olarak girilen kural değeri listede yanlış görünüyordu: on beş yıllık bir kural \"5475 yıl\" diye yazıyordu. Artık girildiği birimde görünüyor, kuralı açıp kaydetmek de değeri büyütmüyor.",
+      "[Eklenti] Tarih filtresi artık gerçekten koruyor: kuralın kapsamadığı hesaplara dokunulmuyor ve işlem sonunda kaç hesabın korunduğu yazıyor. Eskiden kural ne olursa olsun listedeki herkes işleme giriyordu, yani varsayılan kural kimseyi korumuyordu.",
+      "[Uygulama] Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
+      "[Uygulama] İşlem durumundaki \"sıradakiler\" listesinde artık \"tekrarla\" düğmesi yok: henüz çalışmamış bir işlemin tekrarlanacak bir sonucu da yok. O satırlarda \"git\" ve \"kaldır\" var, ikisi de aynı düğme biçiminde. \"Tekrarla\" yalnızca tamamlananlarda çıkıyor."
+    ],
+    "pub_date": "2026-09-19",
+    "version": "0.5.1"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] Eklenti artık Android'deki Firefox'a da kurulabiliyor. Telefonda da masaüstündeki bütün işlemler yapılabiliyor.",
       "[Eklenti] Eklentinin kendi sayfaları — işlem durumu, ayarlar ve yardım, yazar listesi — telefon ekranına sığacak şekilde açılıyor. Tablolar sayfayı yana taşırmıyor, \"tekrarla\" ve \"git\" düğmeleri parmakla basılabilecek boyutta.",
       "[Eklenti] Yardım balonları dokununca da açılıyor. Eskiden yalnızca fareyle üzerine gelince göründükleri için dokunmatik ekranda hiç açılmıyorlardı.",

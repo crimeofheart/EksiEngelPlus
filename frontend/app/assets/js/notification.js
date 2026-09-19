@@ -1830,8 +1830,8 @@ async function loadDateBulkPreferences() {
     const defaults = {
       source: 'MUTED_USERS',
       criteria: 'OLDER_THAN',
-      value: 3650,  // stored in days
-      valueType: 'days',
+      value: 5475,  // stored in days
+      valueType: 'years',
       action: 'SESSIZDEN_CIKAR'
     };
     
@@ -1864,8 +1864,8 @@ async function loadDateBulkPreferences() {
     } else {
       document.getElementById('bulkSource').value = defaults.source;
       document.getElementById('bulkCriteria').value = defaults.criteria;
-      // Default is 10 years (3650 days), display as years
-      document.getElementById('bulkValueDays').value = 10;
+      // Default is 15 years (5475 days), display as years
+      document.getElementById('bulkValueDays').value = 15;
       document.getElementById('bulkUnit').value = 'years';
       document.getElementById('bulkUnit').dataset.previousUnit = 'years';
       document.getElementById('bulkAction').value = defaults.action;

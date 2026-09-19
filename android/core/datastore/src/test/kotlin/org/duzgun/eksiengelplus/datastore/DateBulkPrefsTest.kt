@@ -23,7 +23,7 @@ class DateBulkPrefsTest {
         val prefs = DateBulkPrefs()
         assertThat(prefs.source).isEqualTo(DateBulkSource.MUTED_USERS)
         assertThat(prefs.criteria).isEqualTo(DateCriteria.OLDER_THAN)
-        assertThat(prefs.days).isEqualTo(3650)
+        assertThat(prefs.days).isEqualTo(5475)
         assertThat(prefs.action).isEqualTo(DateBulkAction.SESSIZDEN_CIKAR)
     }
 

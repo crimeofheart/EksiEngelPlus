@@ -44,6 +44,18 @@ tr > td:first-child {
   font-weight: bold;
   padding-top: 10px;
 }
+/* The release a run of notes belongs to. Only rendered when the page is showing
+   more than one, i.e. after an upgrade that skipped releases. The rule colour is
+   translucent so it holds up in both themes. */
+#versionNotes > tr > td.note-version {
+  font-weight: bold;
+  padding-top: 20px;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+}
+#versionNotes > tr:first-child > td.note-version {
+  padding-top: 6px;
+  border-top: none;
+}
 
 /* Dark mode styles for welcome page */
 [data-theme="dark"] body {

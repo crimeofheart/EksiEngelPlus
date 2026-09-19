@@ -28,6 +28,7 @@ import org.duzgun.eksiengelplus.ops.engine.UndoBanAllTask
 import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.model.TargetType
 import org.duzgun.eksiengelplus.ops.runtime.InMemoryCommandBus
+import org.duzgun.eksiengelplus.ops.runtime.OperationCollecting
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommandBus
 import org.duzgun.eksiengelplus.ops.runtime.OperationWaits
 import org.duzgun.eksiengelplus.ops.runtime.OperationTaskFactory
@@ -53,6 +54,9 @@ object OpsModule {
 
     @Provides @Singleton
     fun operationWaits(): OperationWaits = OperationWaits()
+
+    @Provides @Singleton
+    fun operationCollecting(): OperationCollecting = OperationCollecting()
 
     @Provides @Singleton
     fun notifier(@ApplicationContext context: Context): OpsNotifier = OpsNotifier(context)

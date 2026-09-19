@@ -30,7 +30,21 @@ private val Json = Json { ignoreUnknownKeys = true }
 class OperationReconciler @Inject constructor(
     private val db: EksiDatabase,
     private val workManager: WorkManager,
+    private val commands: OperationCommandBus,
 ) {
+
+    private companion object {
+        /**
+         * How long a live worker gets to honour Durdur before it is cut off.
+         *
+         * Long enough for a cooperative stop: the command bus is polled four
+         * times a second inside a pacing wait, and the worst case is one action
+         * already in flight. Short enough that a run which is never going to
+         * answer does not keep the user waiting to find that out.
+         */
+        const val STOP_GRACE_MS = 8_000L
+        const val STOP_POLL_MS = 400L
+    }
 
     suspend fun reconcile(): List<String> {
         val stale = mutableListOf<String>()
@@ -44,14 +58,13 @@ class OperationReconciler @Inject constructor(
          * nothing behind it. Deleted rather than marked: there is no state worth
          * keeping in a run that never began.
          */
-        if (!isWorkLive()) {
-            for (cp in db.checkpoints().withState(OperationState.IDLE.name)) {
-                db.checkpoints().remove(cp.operationId)
-            }
+        for (cp in db.checkpoints().withState(OperationState.IDLE.name)) {
+            if (isWorkLive(cp.operationId)) continue
+            db.checkpoints().remove(cp.operationId)
         }
 
         for (cp in db.checkpoints().withState(OperationState.RUNNING.name)) {
-            if (isWorkLive()) continue
+            if (isWorkLive(cp.operationId)) continue
             db.checkpoints().upsert(
                 cp.copy(
                     state = OperationState.INTERRUPTED.name,
@@ -61,42 +74,51 @@ class OperationReconciler @Inject constructor(
             stale += cp.operationId
         }
 
-        /*
-         * Start whatever is waiting, if nothing is running.
-         *
-         * The queue was drained only when a run reached a terminal state, so a
-         * queue that outlived the process -- the app killed, or simply
-         * reinstalled -- had nothing left to trigger it and sat there
-         * indefinitely. Startup is exactly the moment to check.
-         */
-        if (db.checkpoints().liveCount() == 0) {
-            val next = db.queuedTasks().next()
-            if (next != null) {
-                val request = runCatching {
-                    Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
-                }.getOrNull()
-                if (request != null) {
-                    db.queuedTasks().remove(next.id)
-                    OperationWorker.startNow(
-                        workManager,
-                        db,
-                        java.util.UUID.randomUUID().toString(),
-                        request,
-                    )
-                }
-            }
-        }
+        drainQueue()
 
         return stale
     }
 
     /**
-     * Checked against the unique work name rather than a stored request id: the
-     * id is written at enqueue time, so a crash between enqueue and the first
-     * checkpoint would leave it null and make the check silently pass.
+     * Starts whatever is waiting, if nothing is running.
+     *
+     * The queue was drained only when a run reached a terminal state, so a queue
+     * that outlived the process -- the app killed, or simply reinstalled -- had
+     * nothing left to trigger it and sat there indefinitely. Startup is exactly
+     * the moment to check, and so is the moment a dead run is cleared away.
      */
-    private fun isWorkLive(): Boolean =
-        workManager.getWorkInfosForUniqueWork(OperationWorker.UNIQUE_WORK).get()
+    private suspend fun drainQueue() {
+        if (db.checkpoints().liveCount() != 0) return
+        val next = db.queuedTasks().next() ?: return
+        val request = runCatching {
+            Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
+        }.getOrNull() ?: return
+        db.queuedTasks().remove(next.id)
+        OperationWorker.startNow(
+            workManager,
+            db,
+            java.util.UUID.randomUUID().toString(),
+            request,
+        )
+    }
+
+    /**
+     * Whether *this* operation's work is still scheduled or executing.
+     *
+     * Asked per operation, by the tag the work carries. It used to be asked of
+     * the unique work name, which answers a different question -- "is anything
+     * live" -- and so let a single enqueued run vouch for every orphaned row in
+     * the table. A checkpoint left RUNNING by a killed process then stayed
+     * RUNNING through every reconcile, kept liveCount() above zero, and queued
+     * every later request behind a run that had not existed for days. Pull to
+     * refresh looked broken because it was: the loop it drives skipped the very
+     * row it was there to fix.
+     *
+     * A tag rather than the stored work id, which is written at enqueue time and
+     * so is null exactly when a crash makes the check matter.
+     */
+    private fun isWorkLive(operationId: String): Boolean =
+        workManager.getWorkInfosByTag(OperationWorker.tagFor(operationId)).get()
             .any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
 
     /** Operations the user could pick up again. */
@@ -145,8 +167,61 @@ class OperationReconciler @Inject constructor(
      * scheduled work start over from nothing.
      */
     suspend fun cancel(operationId: String) {
-        workManager.cancelUniqueWork(OperationWorker.UNIQUE_WORK)
+        forceEnd(operationId)
+    }
+
+    /**
+     * Durdur, with an end guaranteed.
+     *
+     * Stopping was a post to the command bus and nothing else, which works only
+     * while a worker is alive to read it. Every other case left the button inert:
+     * a run whose process was killed, one wedged somewhere that never reaches
+     * ensureActive(), or a row the reconciler could not correct. The operation
+     * then sat in "süren ve bekleyen" with no progress and no way out, and
+     * because liveCount() counts anything non-terminal, it queued every later
+     * request behind itself -- an app that looked entirely broken over one
+     * mistaken tap, recoverable only by clearing its data.
+     *
+     * So: ask nicely, then insist. A live worker gets [graceMs] to park itself
+     * properly, which is what keeps a stop clean -- the cursor is written, the
+     * report is sent, the queue moves on. Anything still standing after that is
+     * not going to answer, and the row is ended here instead.
+     *
+     * Returns true when it had to be forced, which is worth telling the user:
+     * the run ended without the tidy finish, and the counts it shows are the
+     * last ones that reached the database.
+     */
+    suspend fun stop(operationId: String, graceMs: Long = STOP_GRACE_MS): Boolean {
+        commands.post(operationId, OperationCommand.STOP)
+
+        if (isWorkLive(operationId)) {
+            val deadline = System.currentTimeMillis() + graceMs
+            while (System.currentTimeMillis() < deadline) {
+                val cp = db.checkpoints().get(operationId) ?: return false
+                val state = runCatching { OperationState.valueOf(cp.state) }.getOrNull()
+                if (state == null || state.isTerminal) return false
+                kotlinx.coroutines.delay(STOP_POLL_MS)
+            }
+        }
+
+        forceEnd(operationId)
+        return true
+    }
+
+    /**
+     * Removes the row and whatever work still claims it, then lets the queue
+     * move.
+     *
+     * Cancelling by tag rather than by the unique work name: the name covers
+     * whatever is scheduled under it, so abandoning a dead run used to cancel a
+     * healthy one that had since taken its place.
+     */
+    private suspend fun forceEnd(operationId: String) {
+        workManager.cancelAllWorkByTag(OperationWorker.tagFor(operationId))
         db.checkpoints().remove(operationId)
+        // The reason the stuck row mattered: with it gone, whatever queued behind
+        // it can finally start, and nothing else is going to notice that it can.
+        drainQueue()
     }
 
     fun resume(operation: PausedOperation) {

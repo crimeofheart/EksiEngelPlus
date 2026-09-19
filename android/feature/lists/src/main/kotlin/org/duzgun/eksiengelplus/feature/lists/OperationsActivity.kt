@@ -29,6 +29,7 @@ import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
 import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.ops.engine.OperationState
+import org.duzgun.eksiengelplus.ops.runtime.OperationCollecting
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommand
 import org.duzgun.eksiengelplus.ops.runtime.OperationCommandBus
 import org.duzgun.eksiengelplus.ops.runtime.OperationLabel
@@ -53,6 +54,7 @@ class OperationsActivity : AppCompatActivity() {
     @Inject lateinit var db: EksiDatabase
     @Inject lateinit var commands: OperationCommandBus
     @Inject lateinit var waits: OperationWaits
+    @Inject lateinit var collecting: OperationCollecting
     @Inject lateinit var reconciler: OperationReconciler
     @Inject lateinit var config: org.duzgun.eksiengelplus.datastore.ConfigRepository
 
@@ -95,7 +97,20 @@ class OperationsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    db.checkpoints().observeAll().collect { renderRunning(it, waits.remaining.value) }
+                    db.checkpoints().observeAll().collect { renderRunning(it) }
+                }
+                launch {
+                    /*
+                     * Collection has no denominator, so it retexts rather than
+                     * renders, exactly like the countdown below and for the same
+                     * reason: rebuilding the section would take the buttons out
+                     * from under the user's finger, and a walk over a big
+                     * account ticks this several times a minute.
+                     */
+                    collecting.found.collect {
+                        foundSoFar = it
+                        retimeRunning()
+                    }
                 }
                 launch {
                     /*
@@ -110,7 +125,10 @@ class OperationsActivity : AppCompatActivity() {
                      * and only ever during a cooldown, which is exactly when
                      * they are most wanted.
                      */
-                    waits.remaining.collect(::retimeRunning)
+                    waits.remaining.collect {
+                        waiting = it
+                        retimeRunning()
+                    }
                 }
                 launch {
                     db.queuedTasks().observeAll().collect { renderQueued(it) }
@@ -126,23 +144,42 @@ class OperationsActivity : AppCompatActivity() {
     private val progressLabels = mutableMapOf<String, TextView>()
     private var runningCheckpoints: List<OperationCheckpointEntity> = emptyList()
 
-    private fun retimeRunning(waiting: Map<String, Long>) {
+    /** The API-limit countdown and the collection count, per run. */
+    private var waiting: Map<String, Long> = emptyMap()
+    private var foundSoFar: Map<String, Int> = emptyMap()
+
+    private fun retimeRunning() {
         for (cp in runningCheckpoints) {
-            progressLabels[cp.operationId]?.text = progressText(cp, waiting[cp.operationId] ?: 0L)
+            progressLabels[cp.operationId]?.text = progressText(cp)
         }
     }
 
-    private fun progressText(cp: OperationCheckpointEntity, waitMs: Long): String =
-        getString(R.string.ops_progress, cp.processed, cp.total, cp.successful, cp.failed) +
+    /**
+     * What the run has done, or -- before it can know that -- what it has found.
+     *
+     * A run spends its opening minutes walking pages to build its target list,
+     * and during that there is nothing to divide by: the line read
+     * "0 / 0 · 0 başarılı · 0 başarısız", which is also what a run against
+     * nobody reads, and what a wedged run reads. Saying "toplanıyor · 1.300
+     * hesap" instead distinguishes the three, and the number moving is the proof
+     * that something is happening.
+     */
+    private fun progressText(cp: OperationCheckpointEntity): String {
+        val found = foundSoFar[cp.operationId]
+        val waitMs = waiting[cp.operationId] ?: 0L
+        val head = if (found != null) {
+            getString(R.string.ops_collecting, found)
+        } else {
+            getString(R.string.ops_progress, cp.processed, cp.total, cp.successful, cp.failed)
+        }
+        return head +
             if (waitMs > 0L) " · " + getString(R.string.ops_rate_wait, (waitMs + 999) / 1000) else ""
+    }
 
     private var queuedTasks: List<org.duzgun.eksiengelplus.database.QueuedTaskEntity> = emptyList()
     private var pendingCheckpoints: List<OperationCheckpointEntity> = emptyList()
 
-    private fun renderRunning(
-        all: List<OperationCheckpointEntity>,
-        waiting: Map<String, Long>,
-    ) {
+    private fun renderRunning(all: List<OperationCheckpointEntity>) {
         pendingCheckpoints = all
             .filter { runCatching { OperationState.valueOf(it.state) }.getOrNull() == OperationState.IDLE }
             .distinctBy { it.operationId }
@@ -178,7 +215,7 @@ class OperationsActivity : AppCompatActivity() {
             row.addView(label(whenText(cp.startedAt), small = true))
             // The API-limit wait, the same number the notification counts down.
             // Held so retimeRunning can update it in place each second.
-            val progress = label(progressText(cp, waiting[cp.operationId] ?: 0L), small = true)
+            val progress = label(progressText(cp), small = true)
             progressLabels[cp.operationId] = progress
             row.addView(progress)
 
@@ -198,8 +235,31 @@ class OperationsActivity : AppCompatActivity() {
                     },
                 )
             }
+            /*
+             * Durdur ends the run, whether or not anything is listening.
+             *
+             * Posting the command was the whole of it, which is fine while a
+             * worker is alive to read it and useless otherwise -- and "otherwise"
+             * is exactly when the user presses it. A run whose process had been
+             * killed sat here permanently, unstoppable, blocking every later
+             * operation behind a liveCount() it kept above zero.
+             *
+             * The reconciler gives a live worker a few seconds to park itself
+             * properly and cuts off anything that does not answer, so the button
+             * now has one meaning: after this, the run is over.
+             */
             controls.addView(
-                action(R.string.ops_stop) { commands.post(cp.operationId, OperationCommand.STOP) },
+                action(R.string.ops_stop) {
+                    lifecycleScope.launch {
+                        if (reconciler.stop(cp.operationId)) {
+                            android.widget.Toast.makeText(
+                                this@OperationsActivity,
+                                getString(R.string.ops_stop_forced),
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                },
             )
             row.addView(controls)
             running.addView(row)

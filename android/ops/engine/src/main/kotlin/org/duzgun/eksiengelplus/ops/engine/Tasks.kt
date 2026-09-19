@@ -12,6 +12,37 @@ import org.duzgun.eksiengelplus.model.toEksiSlug
 data class Target(val nick: String, val id: Long?)
 
 /**
+ * What every paginated scrape does between pages.
+ *
+ * Collecting targets is the half of a run that happens before TargetRunner sees
+ * anything, and it used to be a straight walk: one read permit taken for the
+ * whole thing, then as many requests as the author had pages, with no
+ * ensureActive() anywhere. Duraklat and Durdur post to the command bus, which
+ * only ensureActive() and the pacing waits read, so during collection both
+ * buttons did nothing at all -- on a large account, for minutes -- and İşlem
+ * durumu had no counts to show because none existed yet. The run was
+ * indistinguishable from a hung one, and the only way out was to wait.
+ *
+ * Passed to ScrapeClient's pagination as onPage, so all three of those become
+ * true per page instead of per operation:
+ *
+ *  - the signal is seen between pages, never mid-page, so a cancelled walk still
+ *    leaves the response it already paid for consistent;
+ *  - the page is paced, which is what the read limit was always for -- one
+ *    permit for 120 requests paced nothing;
+ *  - the count so far reaches the screen, so collection reads as "toplanıyor"
+ *    rather than 0 / 0.
+ *
+ * Deliberately in this order. A run being stopped must not first wait out a
+ * read permit it will never use.
+ */
+suspend fun OperationContext.collectPage(found: Int) {
+    ensureActive()
+    publishCollecting(found)
+    awaitReadPermit()
+}
+
+/**
  * The loop every task shares.
  *
  * Each source differs only in how it resolves its target set; applying the
@@ -285,10 +316,10 @@ class TargetRunner(
     private suspend fun restrictionsToLift(ctx: OperationContext): Restrictions {
         // Reads, not mutations, so they take the read permit rather than the
         // action one -- the same pacing every other list walk in the engine uses.
-        ctx.awaitReadPermit()
-        val blocked = scrape.allRelations(TargetType.USER).nicks.map { it.toEksiSlug() }.toSet()
-        ctx.awaitReadPermit()
-        val muted = scrape.allRelations(TargetType.MUTE).nicks.map { it.toEksiSlug() }.toSet()
+        val blocked = scrape.allRelations(TargetType.USER) { _, found -> ctx.collectPage(found) }
+            .nicks.map { it.toEksiSlug() }.toSet()
+        val muted = scrape.allRelations(TargetType.MUTE) { _, found -> ctx.collectPage(found) }
+            .nicks.map { it.toEksiSlug() }.toSet()
         return Restrictions(blocked, muted)
     }
 
@@ -401,10 +432,13 @@ class FavActionTask(
 
     override suspend fun run(ctx: OperationContext): OperationOutcome {
         val entryId = ctx.request.entryId ?: return OperationOutcome.COMPLETED
-        ctx.awaitReadPermit()
+        // Two requests rather than a walk, but the same contract as the paged
+        // sources: a stop between them is honoured, and the novice pass is not
+        // spent on a run the user has already abandoned.
+        ctx.collectPage(0)
         val nicks = LinkedHashSet(scrape.favouriters(entryId))
         if (includeNovices()) {
-            ctx.awaitReadPermit()
+            ctx.collectPage(nicks.size)
             nicks += scrape.noviceFavouriters(entryId)
         }
         return runner.applyToAll(ctx, nicks.map { Target(it, null) })
@@ -420,8 +454,9 @@ class FollowActionTask(
 
     override suspend fun run(ctx: OperationContext): OperationOutcome {
         val nick = ctx.request.authorNick?.toEksiSlug() ?: return OperationOutcome.COMPLETED
-        ctx.awaitReadPermit()
-        val followers = scrape.allFollow(FollowEndpoint.FOLLOWER, nick)
+        val followers = scrape.allFollow(FollowEndpoint.FOLLOWER, nick) { _, found ->
+            ctx.collectPage(found)
+        }
         return runner.applyToAll(
             ctx,
             followers.map { Target(it.nick.value.toEksiSlug(), it.id) },
@@ -444,8 +479,9 @@ class FolloweesActionTask(
 
     override suspend fun run(ctx: OperationContext): OperationOutcome {
         val nick = ctx.request.authorNick?.toEksiSlug() ?: return OperationOutcome.COMPLETED
-        ctx.awaitReadPermit()
-        val followees = scrape.allFollow(FollowEndpoint.FOLLOWING, nick)
+        val followees = scrape.allFollow(FollowEndpoint.FOLLOWING, nick) { _, found ->
+            ctx.collectPage(found)
+        }
         return runner.applyToAll(
             ctx,
             followees.map { Target(it.nick.value.toEksiSlug(), it.id) },
@@ -468,10 +504,11 @@ class TitleActionTask(
     override suspend fun run(ctx: OperationContext): OperationOutcome {
         val slug = ctx.request.titleSlug ?: return OperationOutcome.COMPLETED
         val id = ctx.request.titleId ?: return OperationOutcome.COMPLETED
-        ctx.awaitReadPermit()
-        val authors = scrape.allTopicAuthors(slug, id, lastDayOnly = ctx.request.lastDayOnly) {
+        val authors = scrape.allTopicAuthors(slug, id, lastDayOnly = ctx.request.lastDayOnly) { _, found ->
             // Paced per page rather than a fixed sleep, so a long thread does not
-            // outrun the read budget.
+            // outrun the read budget -- and interruptible per page, so a title
+            // deep enough to take minutes to walk can still be stopped.
+            ctx.collectPage(found)
         }
         return runner.applyToAll(ctx, authors.map { Target(it.nick, it.authorId) })
     }
@@ -490,8 +527,7 @@ class UndoBanAllTask(
     override val source = BanSource.UNDOBANALL
 
     override suspend fun run(ctx: OperationContext): OperationOutcome {
-        ctx.awaitReadPermit()
-        val page = scrape.allRelations(TargetType.USER)
+        val page = scrape.allRelations(TargetType.USER) { _, found -> ctx.collectPage(found) }
         val targets = page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) }
         return runner.applyToAll(ctx, targets, checkpointEvery = 1)
     }
@@ -523,8 +559,7 @@ class RelationListTask(
     private val scrape: ScrapeClient,
 ) : OperationTask {
     override suspend fun run(ctx: OperationContext): OperationOutcome {
-        ctx.awaitReadPermit()
-        val page = scrape.allRelations(listOf)
+        val page = scrape.allRelations(listOf) { _, found -> ctx.collectPage(found) }
         val targets = page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) }
         return runner.applyToAll(ctx, targets, checkpointEvery = 1)
     }
@@ -543,8 +578,7 @@ class MigrateBlockedToMutedTask(
 ) : OperationTask {
     override val source = BanSource.MIGRATE_BLOCKED_TO_MUTED
     override suspend fun run(ctx: OperationContext): OperationOutcome {
-        ctx.awaitReadPermit()
-        val page = scrape.allRelations(TargetType.USER)
+        val page = scrape.allRelations(TargetType.USER) { _, found -> ctx.collectPage(found) }
         return runner.applyPairToAll(
             ctx,
             page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) },

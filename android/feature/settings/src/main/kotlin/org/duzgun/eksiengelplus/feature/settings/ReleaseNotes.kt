@@ -45,6 +45,16 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.5.2" to VersionNotes(
+            app = listOf(
+                "Yanlışlıkla başlatılan bir işlem artık durdurulabiliyor. İşlem hedeflerini toplarken (bir yazarın takipçileri, engellenenler listesi gibi) \"duraklat\" ve \"durdur\" düğmeleri çalışmıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor.",
+                "\"Durdur\" her durumda işlemi bitiriyor. Arka planı kapanmış ya da yanıt vermeyen bir işlem de kaldırılıyor; eskiden böyle bir kayıt ekranda kalıyor, uygulamayı kapatıp açmak da temizlemiyordu.",
+                "Ekranda kalan böyle bir işlem, ondan sonraki bütün işlemleri de engelliyordu: yeni bir işlem başlatılamıyor, sıradakiler çalışmıyordu. Artık takılı kalan kayıt kaldırıldığında sıradaki işlem kendiliğinden başlıyor.",
+                "Hedefler toplanırken işlem durumu ekranı \"0 / 0\" yerine kaç hesabın bulunduğunu yazıyor, yani işlemin çalıştığı görülüyor.",
+                "Hedef toplama sırasında yapılan istekler de artık sayfa sayfa yavaşlatılıyor; büyük listelerde işlem daha en başında API limitine takılmıyor.",
+            ),
+            extension = emptyList(),
+        ),
         "0.5.1" to VersionNotes(
             app = listOf(
                 "Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",

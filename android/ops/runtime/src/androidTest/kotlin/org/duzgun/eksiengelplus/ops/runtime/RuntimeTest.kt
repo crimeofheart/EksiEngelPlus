@@ -206,14 +206,42 @@ class RuntimeTest {
         ctx.checkpoint(OperationCursor(index = 2))
         assertThat(db.checkpoints().get("op1")!!.state).isEqualTo("RUNNING")
 
-        val reconciler = OperationReconciler(db, androidx.work.WorkManager.getInstance(
-            ApplicationProvider.getApplicationContext(),
-        ))
+        val reconciler = reconciler()
         val stale = reconciler.reconcile()
         assertThat(stale).contains("op1")
         assertThat(db.checkpoints().get("op1")!!.state).isEqualTo("INTERRUPTED")
         // Surfaced for the user to choose, never silently restarted.
         assertThat(reconciler.resumable()).contains("op1")
+    }
+
+    private fun reconciler() = OperationReconciler(
+        db,
+        androidx.work.WorkManager.getInstance(ApplicationProvider.getApplicationContext()),
+        commands,
+    )
+
+    /**
+     * Durdur has to work when there is nothing left to ask.
+     *
+     * A checkpoint whose worker was killed answers no command, because the bus is
+     * in memory and the reader is gone. Stopping used to be a post to that bus
+     * and nothing more, so the row stayed, liveCount() kept counting it, and
+     * every later operation queued behind a run that no longer existed -- the
+     * app looked broken over one mistaken tap, with no way back short of
+     * clearing its data.
+     */
+    @Test fun stopEndsARunWhoseWorkerIsAlreadyGone() = runTest {
+        seedCheckpoint()
+        val ctx = context()
+        ctx.checkpoint(OperationCursor(index = 2))
+        assertThat(db.checkpoints().get("op1")!!.state).isEqualTo("RUNNING")
+
+        // No work is live for this id, so the request has nobody to honour it.
+        assertThat(reconciler().stop("op1", graceMs = 0)).isTrue()
+
+        assertThat(db.checkpoints().get("op1")).isNull()
+        // The reason it mattered: with the row gone, the next run can start.
+        assertThat(db.checkpoints().liveCount()).isEqualTo(0)
     }
 
     @Test fun budgetWarningFiresOnceAtTheThreshold() = runTest {

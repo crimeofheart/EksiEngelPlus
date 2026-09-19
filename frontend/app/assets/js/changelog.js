@@ -19,6 +19,17 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.5.2": {
+    date: "2026-09-19",
+    app: [
+      "Yanlışlıkla başlatılan bir işlem artık durdurulabiliyor. İşlem hedeflerini toplarken (bir yazarın takipçileri, engellenenler listesi gibi) \"duraklat\" ve \"durdur\" düğmeleri çalışmıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor.",
+      "\"Durdur\" her durumda işlemi bitiriyor. Arka planı kapanmış ya da yanıt vermeyen bir işlem de kaldırılıyor; eskiden böyle bir kayıt ekranda kalıyor, uygulamayı kapatıp açmak da temizlemiyordu.",
+      "Ekranda kalan böyle bir işlem, ondan sonraki bütün işlemleri de engelliyordu: yeni bir işlem başlatılamıyor, sıradakiler çalışmıyordu. Artık takılı kalan kayıt kaldırıldığında sıradaki işlem kendiliğinden başlıyor.",
+      "Hedefler toplanırken işlem durumu ekranı \"0 / 0\" yerine kaç hesabın bulunduğunu yazıyor, yani işlemin çalıştığı görülüyor.",
+      "Hedef toplama sırasında yapılan istekler de artık sayfa sayfa yavaşlatılıyor; büyük listelerde işlem daha en başında API limitine takılmıyor."
+    ],
+    extension: []
+  },
   "0.5.1": {
     date: "2026-09-19",
     app: [

@@ -138,6 +138,18 @@ interface OperationContext {
     suspend fun publishProgress(progress: OperationProgress)
 
     /**
+     * How many targets the run has gathered, before it knows how many there are.
+     *
+     * Its own hook rather than a publishProgress with a made-up total: during
+     * collection the denominator genuinely does not exist yet, and inventing one
+     * would put a number on the screen that later moves backwards.
+     *
+     * A no-op by default, so a context that has no surface to show it is
+     * unaffected.
+     */
+    suspend fun publishCollecting(found: Int) {}
+
+    /**
      * Notes a target the run is about to act on, for the action report.
      *
      * The backend ranks users by plaintext nick and id (api/views.py:44-65), and

@@ -2,6 +2,19 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Bu sürümde değişiklik yok.",
+      "[Uygulama] Yanlışlıkla başlatılan bir işlem artık durdurulabiliyor. İşlem hedeflerini toplarken (bir yazarın takipçileri, engellenenler listesi gibi) \"duraklat\" ve \"durdur\" düğmeleri çalışmıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor.",
+      "[Uygulama] \"Durdur\" her durumda işlemi bitiriyor. Arka planı kapanmış ya da yanıt vermeyen bir işlem de kaldırılıyor; eskiden böyle bir kayıt ekranda kalıyor, uygulamayı kapatıp açmak da temizlemiyordu.",
+      "[Uygulama] Ekranda kalan böyle bir işlem, ondan sonraki bütün işlemleri de engelliyordu: yeni bir işlem başlatılamıyor, sıradakiler çalışmıyordu. Artık takılı kalan kayıt kaldırıldığında sıradaki işlem kendiliğinden başlıyor.",
+      "[Uygulama] Hedefler toplanırken işlem durumu ekranı \"0 / 0\" yerine kaç hesabın bulunduğunu yazıyor, yani işlemin çalıştığı görülüyor.",
+      "[Uygulama] Hedef toplama sırasında yapılan istekler de artık sayfa sayfa yavaşlatılıyor; büyük listelerde işlem daha en başında API limitine takılmıyor."
+    ],
+    "pub_date": "2026-09-19",
+    "version": "0.5.2"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] Tarih filtresinin varsayılan kuralı on yıldan on beş yıla çıktı. Daha önceden kurulu sürümlerde de kural kendiliğinden güncelleniyor; kuralın değerini kendiniz değiştirdiyseniz sizin girdiğiniz değere dokunulmuyor.",
       "[Eklenti] Ayarlarda yıl ya da ay olarak girilen kural değeri listede yanlış görünüyordu: on beş yıllık bir kural \"5475 yıl\" diye yazıyordu. Artık girildiği birimde görünüyor, kuralı açıp kaydetmek de değeri büyütmüyor.",
       "[Eklenti] Tarih filtresi artık gerçekten koruyor: kuralın kapsamadığı hesaplara dokunulmuyor ve işlem sonunda kaç hesabın korunduğu yazıyor. Eskiden kural ne olursa olsun listedeki herkes işleme giriyordu, yani varsayılan kural kimseyi korumuyordu.",

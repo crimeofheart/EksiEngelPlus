@@ -47,6 +47,7 @@ class OperationWorker @AssistedInject constructor(
     private val db: EksiDatabase,
     private val commands: OperationCommandBus,
     private val waits: OperationWaits,
+    private val collecting: OperationCollecting,
     private val notifier: OpsNotifier,
     private val taskFactory: OperationTaskFactory,
     private val pacerState: PacerStateStore,
@@ -83,6 +84,22 @@ class OperationWorker @AssistedInject constructor(
         private const val COUNTDOWN_MIN_MS = 1_000L
 
         const val UNIQUE_WORK = "eksiengel-operation"
+
+        /**
+         * Which operation a piece of work belongs to, readable from outside.
+         *
+         * The unique work name answers "is anything running", which is not the
+         * question the reconciler has to ask. It asks whether *this* checkpoint's
+         * work is alive, and answering it with the unique name meant one enqueued
+         * run vouched for every stale row in the table: a checkpoint orphaned by
+         * a killed process stayed RUNNING for good, kept liveCount() above zero,
+         * and queued every later request behind a run that no longer existed.
+         *
+         * A tag rather than the stored work id, which is written at enqueue time
+         * and so is null exactly when a crash makes the check matter.
+         */
+        fun tagFor(operationId: String) = "operation:$operationId"
+
         const val KEY_OPERATION_ID = "operationId"
         const val KEY_REQUEST_JSON = "requestJson"
         const val KEY_TELEMETRY_KEY = "telemetryKey"
@@ -181,6 +198,7 @@ class OperationWorker @AssistedInject constructor(
                 ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<OperationWorker>()
                     .setInputData(data)
+                    .addTag(tagFor(operationId))
                     .setConstraints(
                         Constraints.Builder()
                             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -204,6 +222,7 @@ class OperationWorker @AssistedInject constructor(
                 ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<OperationWorker>()
                     .setInputData(Data.Builder().putString(KEY_OPERATION_ID, operationId).build())
+                    .addTag(tagFor(operationId))
                     .setConstraints(
                         Constraints.Builder()
                             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -232,6 +251,7 @@ class OperationWorker @AssistedInject constructor(
                 ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<OperationWorker>()
                     .setInputData(data)
+                    .addTag(tagFor(operationId))
                     .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
                     .setConstraints(
                         Constraints.Builder()
@@ -447,7 +467,12 @@ class OperationWorker @AssistedInject constructor(
                     }
                 notifier.budgetWarning(remainingItems = lastRemaining, launchIntent = launch)
             },
+            onCollecting = { found -> collecting.set(operationId, found) },
             onProgress = { p ->
+                // The target list exists now, so the collecting line must go:
+                // leaving it would have the row showing both a count of what was
+                // gathered and progress against it.
+                collecting.clear(operationId)
                 lastRemaining = (p.total - p.processed).coerceAtLeast(0)
                 lastProcessed = p.processed
                 lastTotal = p.total
@@ -470,11 +495,34 @@ class OperationWorker @AssistedInject constructor(
             ?: return Result.failure()
 
         val outcome = runCatching { task.run(ctx) }.getOrElse {
-            notifier.alert("İşlem başarısız", it.message ?: it.javaClass.simpleName)
-            recordState(OperationState.INTERRUPTED)
-            return Result.failure()
+            // Before anything else: a run that ended while collecting would
+            // otherwise leave "toplanıyor" on a row nothing is working on.
+            collecting.clear(operationId)
+            /*
+             * A signal is an answer, not a crash.
+             *
+             * TargetRunner converts these itself, so nothing raised inside the
+             * action loop reaches here -- but collection happens before that loop
+             * exists, and now that it honours Durdur and Duraklat, that is
+             * exactly where a signal comes from. Landing in the failure branch
+             * meant stopping a run during its first minutes reported "İşlem
+             * başarısız" and left the row INTERRUPTED: a stop that looked like a
+             * crash, and a row that still counted as live.
+             */
+            when (it) {
+                is StopSignal -> OperationOutcome.STOPPED
+                is PauseSignal -> OperationOutcome.PAUSED
+                is org.duzgun.eksiengelplus.ops.engine.BudgetExhaustedSignal ->
+                    OperationOutcome.PAUSED_BUDGET
+                else -> {
+                    notifier.alert("İşlem başarısız", it.message ?: it.javaClass.simpleName)
+                    recordState(OperationState.INTERRUPTED)
+                    return Result.failure()
+                }
+            }
         }
 
+        collecting.clear(operationId)
         commands.clear(operationId)
 
         return when (outcome) {

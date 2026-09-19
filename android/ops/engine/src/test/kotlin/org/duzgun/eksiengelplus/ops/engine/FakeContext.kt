@@ -38,6 +38,10 @@ class FakeContext(
     }
 
     override suspend fun publishProgress(progress: OperationProgress) { this.progress += progress }
+
+    /** What each collection page reported having found before it was fetched. */
+    val collected = mutableListOf<Int>()
+    override suspend fun publishCollecting(found: Int) { collected += found }
     override suspend fun awaitActionPermit() { actionPermits++; permitSignal?.let { throw it() } }
     override suspend fun awaitReadPermit() { readPermits++; readPermitSignal?.let { throw it() } }
     override suspend fun log(message: String) { logs += message }

@@ -107,6 +107,14 @@ class RoomOperationContext(
     private val readPacer: ReadPacer,
     private val onProgress: suspend (OperationProgress) -> Unit = {},
     /**
+     * Targets gathered so far, while the run is still collecting them.
+     *
+     * Not written to the checkpoint: the row's processed/total describe work
+     * done against a known list, and borrowing them for "found 1,300 so far"
+     * would make İşlem durumu claim progress that has not happened.
+     */
+    private val onCollecting: suspend (Int) -> Unit = {},
+    /**
      * The user's date filter, already resolved to a predicate.
      *
      * A lambda rather than the rules themselves, so ops:runtime does not have to
@@ -211,6 +219,8 @@ class RoomOperationContext(
         )
         onProgress(progress)
     }
+
+    override suspend fun publishCollecting(found: Int) = onCollecting(found)
 
     override suspend fun awaitActionPermit() = actionPacer.acquire()
 

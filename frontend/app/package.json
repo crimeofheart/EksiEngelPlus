@@ -1,6 +1,6 @@
 {
   "name": "eksiengelplus",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "EksiEngelPlus Chrome Extension",
   "scripts": {
     "switch:chrome": "node scripts/ext.mjs switch chrome",

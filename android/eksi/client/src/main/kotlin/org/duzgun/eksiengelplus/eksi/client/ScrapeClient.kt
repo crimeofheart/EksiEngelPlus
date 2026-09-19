@@ -99,12 +99,12 @@ class ScrapeClient(
         slug: String,
         titleId: Long,
         lastDayOnly: Boolean = false,
-        onPage: suspend (Int) -> Unit = {},
+        onPage: suspend (page: Int, collected: Int) -> Unit = { _, _ -> },
     ): List<org.duzgun.eksiengelplus.eksi.parser.TopicAuthor> {
         val seen = LinkedHashMap<String, org.duzgun.eksiengelplus.eksi.parser.TopicAuthor>()
         var page = FIRST_PAGE
         while (true) {
-            onPage(page)
+            onPage(page, seen.size)
             val daily = if (lastDayOnly) "a=dailynice&" else ""
             val body = try {
                 get("${baseUrlProvider()}/$slug--$titleId?$daily" + "p=$page")
@@ -134,14 +134,22 @@ class ScrapeClient(
         )
     }
 
-    /** Terminates on IsLast. */
-    suspend fun allRelations(targetType: TargetType, onPage: (RelationPage) -> Unit = {}): RelationPage {
+    /**
+     * Terminates on IsLast.
+     *
+     * See [allFollow] for why onPage runs before the request rather than after
+     * the response.
+     */
+    suspend fun allRelations(
+        targetType: TargetType,
+        onPage: suspend (page: Int, collected: Int) -> Unit = { _, _ -> },
+    ): RelationPage {
         val nicks = mutableListOf<String>()
         val ids = mutableListOf<Long>()
         var page = FIRST_PAGE
         while (true) {
+            onPage(page, nicks.size)
             val p = relationPage(targetType, page)
-            onPage(p)
             nicks += p.nicks; ids += p.ids
             if (p.isLast) break
             page++
@@ -157,11 +165,29 @@ class ScrapeClient(
         return EksiJson.decodeFromString(ListSerializer(FollowUser.serializer()), body)
     }
 
-    /** No IsLast on these two: an empty array is the terminator. */
-    suspend fun allFollow(endpoint: FollowEndpoint, nick: String): List<FollowUser> {
+    /**
+     * No IsLast on these two: an empty array is the terminator.
+     *
+     * onPage runs *before* each request, and is the only thing standing between
+     * the caller and a walk it cannot interrupt. An author with 12,000 followers
+     * is 120 requests; with nothing hooked in between them, Duraklat and Durdur
+     * had nobody reading the command bus for the whole walk and the operation
+     * screen sat at 0 / 0 -- a run that looked hung and could only be waited out.
+     * Before rather than after, so the caller can refuse the next page instead of
+     * paying for it and then throwing the answer away.
+     *
+     * The collected count is passed for the same reason: it is the only progress
+     * that exists before the target list is known.
+     */
+    suspend fun allFollow(
+        endpoint: FollowEndpoint,
+        nick: String,
+        onPage: suspend (page: Int, collected: Int) -> Unit = { _, _ -> },
+    ): List<FollowUser> {
         val out = mutableListOf<FollowUser>()
         var page = FIRST_PAGE
         while (true) {
+            onPage(page, out.size)
             val p = followPage(endpoint, nick, page)
             if (p.isEmpty()) break
             out += p

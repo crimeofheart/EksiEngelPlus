@@ -87,9 +87,14 @@
     <string name="bulk_act_sessizden_cikar_takip">sessizden çıkar ve takip et</string>
     <string name="bulk_needs_filter">önce ayarlardan tarih filtresini açın</string>
     <string name="ops_progress">%1$d / %2$d · %3$d başarılı · %4$d başarısız</string>
+    <!-- Shown while the run is still walking pages to build its target list,
+         where processed/total do not exist yet. -->
+    <string name="ops_collecting">hedefler toplanıyor · %1$d hesap bulundu</string>
     <string name="ops_resume">devam et</string>
     <string name="ops_pause">duraklat</string>
     <string name="ops_stop">durdur</string>
+    <!-- The run did not answer the stop request and was ended outright. -->
+    <string name="ops_stop_forced">işlem yanıt vermedi, zorla sonlandırıldı</string>
     <string name="lists_blocked">engellenenler</string>
     <string name="lists_muted">sessize alınanlar</string>
     <string name="lists_followed">takip edilenler</string>

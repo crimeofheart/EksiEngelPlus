@@ -195,6 +195,20 @@ export function generateUnifiedDescription(banSource, metadata = {}) {
   return baseDescription;
 }
 
+/**
+ * What a removed task settles with.
+ *
+ * A single frozen instance, compared by identity rather than by shape: a task
+ * handler is free to resolve with whatever it likes, and a future one returning
+ * `{ cancelled: true }` must not be mistaken for a task the reader dropped.
+ */
+export const CANCELLED_TASK = Object.freeze({ cancelled: true });
+
+/** Whether a settled task was removed from the queue rather than run. */
+export function isCancelledTask(result) {
+  return result === CANCELLED_TASK;
+}
+
 let taskIdCounter = 0;
 
 /** Unique within a session, and stable across a save/restore of the queue. */
@@ -428,7 +442,7 @@ class AutoQueue extends Queue {
     // items restored from storage carry no resolve and are simply dropped.
     for (const item of removed) {
       try {
-        item.resolve?.({ cancelled: true });
+        item.resolve?.(CANCELLED_TASK);
       } catch (error) {
         console.debug("Queue: removed item had no settleable promise", error);
       }

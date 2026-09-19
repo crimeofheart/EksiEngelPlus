@@ -7,7 +7,7 @@ import {log} from './log.js';
 import {Action, createEksiSozlukEntry, createEksiSozlukTitle, createEksiSozlukUser, commHandler, ActionConfig} from './commHandler.js';
 import {relationHandler} from './relationHandler.js';
 import {scrapingHandler} from './scrapingHandler.js';
-import {processQueue, generateUnifiedDescription} from './queue.js';
+import {processQueue, generateUnifiedDescription, isCancelledTask} from './queue.js';
 import {programController} from './programController.js';
 import {handleEksiSozlukURL} from './urlHandler.js';
 import { notificationHandler } from './notificationHandler.js';
@@ -201,7 +201,7 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
       };
 
       const handleProcessQueue = (wrapperProcessHandler, successMessage) => {
-        processQueue.enqueue(wrapperProcessHandler);
+        watchQueuedTask(processQueue.enqueue(wrapperProcessHandler), wrapperProcessHandler.banSource);
         notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
         sendResponse({ status: 'ok', message: successMessage });
       };
@@ -495,7 +495,7 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
         listAction: obj.action || null
       };
       
-      processQueue.enqueue(wrapperProcessHandler);
+      watchQueuedTask(processQueue.enqueue(wrapperProcessHandler), wrapperProcessHandler.banSource);
       notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
       sendResponse({status: 'ok', message: 'Process enqueued.'});
     }).catch(error => {
@@ -505,6 +505,29 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
     return true;  // Keep message port open for async response
   }
 });
+
+/**
+ * Owns the promise enqueue hands back.
+ *
+ * Nothing awaits a queued task -- the page has already been answered by the
+ * time it runs -- so an unowned promise is one rejection away from an unhandled
+ * rejection with no one to attribute it to.
+ *
+ * Removal is an ordinary outcome here, not a failure: the reader pressed
+ * "kaldır", the queue redrew the planned list without the task, and there is
+ * nothing further to do. Distinguishing it is what keeps a cancelled task from
+ * being logged as one that finished, which is what a bare `.catch` would have
+ * left it looking like.
+ */
+function watchQueuedTask(queued, banSource) {
+  Promise.resolve(queued).then(result => {
+    if (isCancelledTask(result)) {
+      log.info("bg", `Queued task removed before it ran: ${banSource}`);
+    }
+  }).catch(error => {
+    log.err("bg", `Queued task failed: ${banSource}: ${error?.message || error}`);
+  });
+}
 
 function getActionDescription(banSource, obj) {
   return generateUnifiedDescription(banSource, obj);

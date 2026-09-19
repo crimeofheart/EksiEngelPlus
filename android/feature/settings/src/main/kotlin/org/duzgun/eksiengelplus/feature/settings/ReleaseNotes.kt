@@ -56,6 +56,7 @@ object ReleaseNotes {
                 "Ayarlarda yıl ya da ay olarak girilen kural değeri listede yanlış görünüyordu: on beş yıllık bir kural \"5475 yıl\" diye yazıyordu. Artık girildiği birimde görünüyor, kuralı açıp kaydetmek de değeri büyütmüyor.",
                 "Tarih filtresi artık gerçekten koruyor: kuralın kapsamadığı hesaplara dokunulmuyor ve işlem sonunda kaç hesabın korunduğu yazıyor. Eskiden kural ne olursa olsun listedeki herkes işleme giriyordu, yani varsayılan kural kimseyi korumuyordu.",
                 "İşlem durumundaki \"sıradakiler\" listesinde \"tekrarla\" yerine \"kaldır\" var: henüz çalışmamış bir işlemin tekrarlanacak bir sonucu yok, ama sıradan çıkarılabiliyor. O satırlarda \"git\" ve \"kaldır\", tamamlananlarda \"tekrarla\" ve \"git\" çıkıyor.",
+                "Eklenti güncellendikten sonra açık kalan Ekşi Sözlük sekmelerinde düğmeler sessizce çalışmıyor, konsola da hata düşüyordu. Artık sayfanın kendi bildirim alanında \"sayfayı yenileyin\" uyarısı çıkıyor.",
                 "Eklenti güncellendiğinde ayarlarınız korunuyor; eskiden her güncelleme hepsini sıfırlıyordu. Bu sürüme geçerken son bir kez sıfırlanır, sonraki güncellemelerde durur.",
                 "Yükseltmeden sonra açılan sürüm notları artık yalnızca en son sürümü değil, kullandığınız sürümden bu yana çıkan bütün sürümleri gösteriyor.",
             ),

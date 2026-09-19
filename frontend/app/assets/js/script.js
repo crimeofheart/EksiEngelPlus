@@ -4,27 +4,70 @@
   const enums = await import(src);
   console.log("Eksi Engel: Enums loaded", enums);
 
+  /*
+   * A content script outlives the extension that injected it. Reloading or
+   * updating the extension tears its context down while this script keeps
+   * running in a page that is already open, and every chrome.* call then
+   * throws "Extension context invalidated" -- synchronously, so one made
+   * inside a Promise executor rejects it and surfaces as an unhandled
+   * rejection rather than anything this file can see.
+   *
+   * chrome.runtime.id goes undefined the moment that happens, which is the
+   * only cheap way to ask before calling. The try/catch is still needed: the
+   * context can die between the question and the call.
+   */
+  const isExtensionAlive = () => Boolean(chrome.runtime?.id);
+
+  let contextInvalidatedReported = false;
+
+  /*
+   * Said once per page. Nothing this script injected works until the reader
+   * reloads, and repeating it on every click would bury the one instruction
+   * that helps.
+   */
+  function reportContextInvalidated()
+  {
+    if (contextInvalidatedReported) return;
+    contextInvalidatedReported = true;
+    console.warn("Eksi Engel: extension context invalidated (updated or reloaded); reload the page to use EksiEngelPlus in this tab.");
+    showPageNotice("EksiEngelPlus güncellendi. Bu sekmede kullanmak için sayfayı yenileyin.", "error");
+  }
+
   async function getConfig()
   {
-    return new Promise((resolve, reject) => {
-      chrome.storage.local.get("config", function(items){
-        if(!chrome.runtime.lastError)
-        {
-          if(items != undefined && items.config != undefined && Object.keys(items.config).length !== 0)
+    if(!isExtensionAlive())
+    {
+      reportContextInvalidated();
+      return false;
+    }
+    
+    return new Promise((resolve) => {
+      try
+      {
+        chrome.storage.local.get("config", function(items){
+          if(!chrome.runtime.lastError)
           {
-            resolve(items.config);  
+            if(items != undefined && items.config != undefined && Object.keys(items.config).length !== 0)
+            {
+              resolve(items.config);  
+            }
+            else 
+            {
+              resolve(false);
+            }
           }
           else 
           {
+            console.error(`Eksi Engel: config could not be read: ${chrome.runtime.lastError.message}`);
             resolve(false);
           }
-        }
-        else 
-        {
-          console.error(`Eksi Engel: config could not be read: ${chrome.runtime.lastError.message}`);
-          resolve(false);
-        }
-      }); 
+        }); 
+      }
+      catch (error)
+      {
+        reportContextInvalidated();
+        resolve(false);
+      }
     });
   }
 
@@ -80,42 +123,55 @@
       return;
     }
 
-    chrome.runtime.sendMessage(
-      null, 
-      {
-        banSource:banSource, 
-        banMode:banMode,
-        entryUrl:entryUrl,
-        authorName:authorName,
-        authorId:authorId,
-        targetType:targetType,
-        clickSource:clickSource,
-        titleName: titleName,
-        titleId: titleId,
-        timeSpecifier: timeSpecifier
-      }, 
-      function(response)
-      {
-        if (chrome.runtime.lastError) {
-          // Check if the error is due to context invalidation
-          if (chrome.runtime.lastError.message?.includes("Extension context invalidated")) {
-            console.warn("Eksi Engel: Connection to background script lost (Extension updated/reloaded?). Please reload the page.");
-            // Optionally, display a user-friendly message on the page itself
-          } else {
-            // Log other potential errors
-            console.error("Eksi Engel: Error sending message:", chrome.runtime.lastError.message);
+    if(!isExtensionAlive())
+    {
+      reportContextInvalidated();
+      return;
+    }
+    
+    try
+    {
+      chrome.runtime.sendMessage(
+        null, 
+        {
+          banSource:banSource, 
+          banMode:banMode,
+          entryUrl:entryUrl,
+          authorName:authorName,
+          authorId:authorId,
+          targetType:targetType,
+          clickSource:clickSource,
+          titleName: titleName,
+          titleId: titleId,
+          timeSpecifier: timeSpecifier
+        }, 
+        function(response)
+        {
+          if (chrome.runtime.lastError) {
+            // Check if the error is due to context invalidation
+            if (chrome.runtime.lastError.message?.includes("Extension context invalidated")) {
+              reportContextInvalidated();
+            } else {
+              // Log other potential errors
+              console.error("Eksi Engel: Error sending message:", chrome.runtime.lastError.message);
+            }
+          }
+          else if (response && response.status === 'ok')
+          {
+            //console.log("Eksi Engel: established a connection with a page");
+            //console.log("Eksi Engel: established a connection with a page");
+          
+            // notify the user about their action with using eksisozluk notification API, known classes: class="success" and class="error"
+            showPageNotice("EksiEngelPlus, istediğiniz işlemi sıraya ekledi.");
           }
         }
-        else if (response && response.status === 'ok')
-        {
-          //console.log("Eksi Engel: established a connection with a page");
-          //console.log("Eksi Engel: established a connection with a page");
-          
-          // notify the user about their action with using eksisozluk notification API, known classes: class="success" and class="error"
-          showPageNotice("EksiEngelPlus, istediğiniz işlemi sıraya ekledi.");
-        }
-      }
-    );
+      );
+    }
+    catch (error)
+    {
+      // Died between the check above and the call itself.
+      reportContextInvalidated();
+    }
   }
 
   function waitForElm(selector, debugComment) 

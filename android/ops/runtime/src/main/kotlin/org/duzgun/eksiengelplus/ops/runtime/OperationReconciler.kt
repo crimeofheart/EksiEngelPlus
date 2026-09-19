@@ -117,9 +117,14 @@ class OperationReconciler @Inject constructor(
      * A tag rather than the stored work id, which is written at enqueue time and
      * so is null exactly when a crash makes the check matter.
      */
-    private fun isWorkLive(operationId: String): Boolean =
-        workManager.getWorkInfosByTag(OperationWorker.tagFor(operationId)).get()
-            .any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+    private suspend fun isWorkLive(operationId: String): Boolean =
+        // get() blocks on WorkManager's own database, and Durdur now asks this
+        // from a tap: off the main thread, where reconcile() should also have
+        // been asking it.
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            workManager.getWorkInfosByTag(OperationWorker.tagFor(operationId)).get()
+                .any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+        }
 
     /** Operations the user could pick up again. */
     suspend fun resumable(): List<String> =

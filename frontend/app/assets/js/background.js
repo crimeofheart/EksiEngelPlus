@@ -654,6 +654,25 @@ function logDateFilterResults(filterResults) {
   }
 }
 
+/**
+ * Ends a run that was stopped while it was still gathering its targets.
+ *
+ * The collection walks now break out of pagination the moment "erken durdur" is
+ * pressed (scrapingHandler.scrapeFollower and friends), which leaves the caller
+ * holding a partial list. Acting on it would do a fraction of what the user
+ * asked for after they asked for none of it, and returning without a finish
+ * would leave İşlem durumu waiting on a run that had ended. So: report the stop
+ * the same way the action loop's does, clear the flag the way the normal exit
+ * does, and let the queue move on to whatever is behind it.
+ */
+function finishStoppedWhileCollecting(banSource, banMode) {
+  log.info("bg", "Operation stopped by user while collecting targets; nothing was acted on.");
+  notificationHandler.finishErrorEarlyStop(banSource, banMode, processQueue.currentItemMetadata);
+  // Left set, the next queued run would see it and stop before its first action.
+  programController.earlyStop = false;
+  log.resetData();
+}
+
 async function processHandler(banSource, banMode, entryUrl, singleAuthorName, singleAuthorId, targetType, clickSource, titleName, titleId, timeSpecifier, listAction) {
   log.info("bg", `Process started: banSource=${banSource}, banMode=${banMode}, entryUrl=${entryUrl}, singleAuthorName=${singleAuthorName}, singleAuthorId=${singleAuthorId}, targetType=${targetType}, clickSource=${clickSource}, titleName=${titleName}, titleId=${titleId}`);
   
@@ -740,6 +759,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   if (isFollowRun) {
     notificationHandler.notifyScrapeBanned();
     const scraped = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
+    if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
     followClearState = new Map();
     for (const [name, relation] of scraped) followClearState.set(nickKey(name), relation);
   }
@@ -837,6 +857,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN) {
       notificationHandler.notifyScrapeFollowings();
       let mapFollowing = await scrapingHandler.scrapeFollowing(clientName);
+      if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
       notificationHandler.notifyAnalysisProtectFollowedUsers();
       for (let name of scrapedRelations.keys()) {
         if (mapFollowing.has(name))
@@ -847,6 +868,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     if(config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
       notificationHandler.notifyScrapeBanned();
       let mapBlocked = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
+      if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
       notificationHandler.notifyAnalysisOnlyRequiredActions();
       for (let name of scrapedRelations.keys()) {
         if (mapBlocked.has(name)) {
@@ -913,7 +935,9 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     }
   } else if (banSource === enums.BanSource.FOLLOW) {
     notificationHandler.notifyScrapeFollowers();
-    let scrapedRelations = await scrapingHandler.scrapeFollower(singleAuthorName);
+    let scrapedRelations = await scrapingHandler.scrapeFollower(singleAuthorName,
+      (found) => notificationHandler.notifyStatus(`Takipçiler toplanıyor · ${found} hesap bulundu`));
+    if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
     if(scrapedRelations.size === 0) {
       notificationHandler.finishErrorNoAccount(banSource, banMode, processQueue.currentItemMetadata);
       log.info("bg", "No users found in FOLLOW operation");
@@ -923,6 +947,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN) {
       notificationHandler.notifyScrapeFollowings();
       let mapFollowing = await scrapingHandler.scrapeFollowing(clientName);
+      if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
       notificationHandler.notifyAnalysisProtectFollowedUsers();
       for (let name of scrapedRelations.keys()) {
         if (mapFollowing.has(name))
@@ -933,6 +958,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     if(config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
       notificationHandler.notifyScrapeBanned();
       let mapBlocked = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
+      if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
       notificationHandler.notifyAnalysisOnlyRequiredActions();
       for (let name of scrapedRelations.keys()) {
         if (mapBlocked.has(name)) {
@@ -985,7 +1011,9 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     }
   } else if (banSource === enums.BanSource.FOLLOWEES) {
     notificationHandler.notifyStatus("Takip edilenler getiriliyor...");
-    let scrapedRelations = await scrapingHandler.scrapeFollowing(singleAuthorName);
+    let scrapedRelations = await scrapingHandler.scrapeFollowing(singleAuthorName,
+      (found) => notificationHandler.notifyStatus(`Takip edilenler toplanıyor · ${found} hesap bulundu`));
+    if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
     if(scrapedRelations.size === 0) {
       notificationHandler.finishErrorNoAccount(banSource, banMode, processQueue.currentItemMetadata);
       log.info("bg", "No users found in FOLLOWEES operation");
@@ -1027,7 +1055,9 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     }
   } else if (banSource === enums.BanSource.TITLE) {
     notificationHandler.notifyScrapeTitleAuthors(timeSpecifier);
-    let scrapedRelations = await scrapingHandler.scrapeAuthorsFromTitle(titleName, titleId, timeSpecifier);
+    let scrapedRelations = await scrapingHandler.scrapeAuthorsFromTitle(titleName, titleId, timeSpecifier,
+      (found) => notificationHandler.notifyStatus(`Başlıktaki yazarlar toplanıyor · ${found} hesap bulundu`));
+    if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
     if(scrapedRelations.size === 0) {
       notificationHandler.finishErrorNoAccount(banSource, banMode, processQueue.currentItemMetadata);
       log.info("bg", "No users found in TITLE operation");
@@ -1037,6 +1067,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN) {
       notificationHandler.notifyScrapeFollowings();
       let mapFollowing = await scrapingHandler.scrapeFollowing(clientName);
+      if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
       notificationHandler.notifyAnalysisProtectFollowedUsers();
       for (let name of scrapedRelations.keys()) {
         if (mapFollowing.has(name))
@@ -1047,6 +1078,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     if(config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
       notificationHandler.notifyScrapeBanned();
       let mapBlocked = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
+      if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
       notificationHandler.notifyAnalysisOnlyRequiredActions();
       for (let name of scrapedRelations.keys()) {
         if (mapBlocked.has(name)) {

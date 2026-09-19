@@ -2,7 +2,8 @@
   {
     "name": "",
     "notes": [
-      "[Eklenti] Bu sürümde değişiklik yok.",
+      "[Eklenti] \"Erken durdur\" artık hedefler toplanırken de çalışıyor. Bir yazarın takipçilerini ya da takip ettiklerini, bir başlıktaki yazarları toplarken düğme yanıtsız kalıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor ve işlem hiç kimseye dokunmadan bitiyor.",
+      "[Eklenti] Toplama sırasında kaç hesabın bulunduğu yazıyor, yani işlemin çalıştığı görülüyor.",
       "[Uygulama] Yanlışlıkla başlatılan bir işlem artık durdurulabiliyor. İşlem hedeflerini toplarken (bir yazarın takipçileri, engellenenler listesi gibi) \"duraklat\" ve \"durdur\" düğmeleri çalışmıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor.",
       "[Uygulama] \"Durdur\" her durumda işlemi bitiriyor. Arka planı kapanmış ya da yanıt vermeyen bir işlem de kaldırılıyor; eskiden böyle bir kayıt ekranda kalıyor, uygulamayı kapatıp açmak da temizlemiyordu.",
       "[Uygulama] Ekranda kalan böyle bir işlem, ondan sonraki bütün işlemleri de engelliyordu: yeni bir işlem başlatılamıyor, sıradakiler çalışmıyordu. Artık takılı kalan kayıt kaldırıldığında sıradaki işlem kendiliğinden başlıyor.",

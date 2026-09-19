@@ -28,7 +28,10 @@ export const releaseNotes = {
       "Hedefler toplanırken işlem durumu ekranı \"0 / 0\" yerine kaç hesabın bulunduğunu yazıyor, yani işlemin çalıştığı görülüyor.",
       "Hedef toplama sırasında yapılan istekler de artık sayfa sayfa yavaşlatılıyor; büyük listelerde işlem daha en başında API limitine takılmıyor."
     ],
-    extension: []
+    extension: [
+      "\"Erken durdur\" artık hedefler toplanırken de çalışıyor. Bir yazarın takipçilerini ya da takip ettiklerini, bir başlıktaki yazarları toplarken düğme yanıtsız kalıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor ve işlem hiç kimseye dokunmadan bitiyor.",
+      "Toplama sırasında kaç hesabın bulunduğu yazıyor, yani işlemin çalıştığı görülüyor."
+    ]
   },
   "0.5.1": {
     date: "2026-09-19",

@@ -355,6 +355,12 @@ class ScrapingHandler
       let isLast = false;
       let index = 0;
       while(!isLast) {
+        // Between pages, as [scrapeFollower]: this runs inside the analysis
+        // step of an otherwise stoppable operation.
+        if(programController.earlyStop) {
+          log.info("scraping", "scrapeAuthorNamesFromBannedAuthorPage: stopped by user between pages.");
+          break;
+        }
         index++;
         let partialListObj = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(enums.TargetType.USER, index);
         let partialNameList = partialListObj.authorNameList;
@@ -374,6 +380,12 @@ class ScrapingHandler
       isLast = false;
       index = 0;
       while(!isLast) {
+        // Between pages, as [scrapeFollower]: this runs inside the analysis
+        // step of an otherwise stoppable operation.
+        if(programController.earlyStop) {
+          log.info("scraping", "scrapeAuthorNamesFromBannedAuthorPage: stopped by user between pages.");
+          break;
+        }
         index++;
         let partialListObj = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(enums.TargetType.TITLE, index);
         let partialNameList = partialListObj.authorNameList;
@@ -396,6 +408,12 @@ class ScrapingHandler
       isLast = false;
       index = 0;
       while(!isLast) {
+        // Between pages, as [scrapeFollower]: this runs inside the analysis
+        // step of an otherwise stoppable operation.
+        if(programController.earlyStop) {
+          log.info("scraping", "scrapeAuthorNamesFromBannedAuthorPage: stopped by user between pages.");
+          break;
+        }
         index++;
         let partialListObj = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(enums.TargetType.MUTE, index);
         let partialNameList = partialListObj.authorNameList;
@@ -811,12 +829,36 @@ class ScrapingHandler
     }
   }
 
-  async scrapeFollower(authorName) {
+  /**
+   * Every follower of an author, page by page.
+   *
+   * The loop checks earlyStop between pages, and that check is the only thing
+   * standing between the user and a walk they cannot interrupt. An author with
+   * 12,000 followers is 120 requests, and "erken durdur" sets exactly this flag
+   * -- so without the check the button did nothing at all until the last page
+   * was in, which on a large account is minutes of a run that looks hung. The
+   * scrapeAll* walks over the user's own lists have always checked; these did
+   * not, and they are the ones reached by "takipçilerini engelle".
+   *
+   * Stopping returns what has been collected so far. The caller must not act on
+   * a partial list -- see processHandler, which ends the run instead.
+   */
+  async scrapeFollower(authorName, onPage = null) {
     let scrapedRelations = new Map();
     
     let isLast = false;
     let index = 0;
     while(!isLast) {
+      if(programController.earlyStop) {
+        log.info("scraping", "scrapeFollower: stopped by user between pages.");
+        break;
+      }
+      // What has been gathered so far, before the next request: until the walk
+      // ends there is no total to show progress against, and a run that says
+      // nothing for minutes reads as a stuck one.
+      // Not on the first page: there is nothing to report yet, and it would
+      // replace the "toplanıyor" line with a count of zero.
+      if(onPage && scrapedRelations.size > 0) await onPage(scrapedRelations.size);
       index++;
       isLast = await this.#scrapeFollowerPartially(scrapedRelations, authorName, index);
     }
@@ -861,12 +903,29 @@ class ScrapingHandler
     }
   }
 
-  async scrapeFollowing(authorName) {
+  /**
+   * Everyone an author follows. Interruptible per page, as [scrapeFollower].
+   *
+   * Also walked for the *client's own* following list during the "takip
+   * ettiklerimi koru" analysis, which made a second uninterruptible walk out of
+   * a run the user could otherwise stop.
+   */
+  async scrapeFollowing(authorName, onPage = null) {
     let scrapedRelations = new Map();
     
     let isLast = false;
     let index = 0;
     while(!isLast) {
+      if(programController.earlyStop) {
+        log.info("scraping", "scrapeFollowing: stopped by user between pages.");
+        break;
+      }
+      // What has been gathered so far, before the next request: until the walk
+      // ends there is no total to show progress against, and a run that says
+      // nothing for minutes reads as a stuck one.
+      // Not on the first page: there is nothing to report yet, and it would
+      // replace the "toplanıyor" line with a count of zero.
+      if(onPage && scrapedRelations.size > 0) await onPage(scrapedRelations.size);
       index++;
       isLast = await this.#scrapeFollowingPartially(scrapedRelations, authorName, index);
     }
@@ -1231,12 +1290,23 @@ class ScrapingHandler
     }
   }
   
-  async scrapeAuthorsFromTitle(titleName, titleId, timeSpecifier) {
+  /** Every author in a title. Interruptible per page, as [scrapeFollower]. */
+  async scrapeAuthorsFromTitle(titleName, titleId, timeSpecifier, onPage = null) {
     let scrapedRelations = new Map();
     
     let isLast = false;
     let index = 0;
     while(!isLast) {
+      if(programController.earlyStop) {
+        log.info("scraping", "scrapeAuthorsFromTitle: stopped by user between pages.");
+        break;
+      }
+      // What has been gathered so far, before the next request: until the walk
+      // ends there is no total to show progress against, and a run that says
+      // nothing for minutes reads as a stuck one.
+      // Not on the first page: there is nothing to report yet, and it would
+      // replace the "toplanıyor" line with a count of zero.
+      if(onPage && scrapedRelations.size > 0) await onPage(scrapedRelations.size);
       index++;
       isLast = await this.#scrapeAuthorsFromTitlePartially(scrapedRelations, titleName, titleId, timeSpecifier, index);
     }

@@ -131,14 +131,20 @@ tr > td:first-child {
   <tbody id="versionNotes"></tbody>
   </table>
    
-  <div style="padding: 20px;
+  <!-- Shown only to an install upgrading past the release that stopped clearing
+       storage; welcome.js decides. Hidden here so it never flashes before that
+       decision, and so a fresh install -- which had no settings to lose -- is
+       not told it lost them. -->
+  <div id="settingsResetNotice"
+       style="display: none;
+              padding: 20px;
               background-color: #f44336;
               color: white;
               opacity: 1;
               transition: opacity 0.6s;
               margin-bottom: 15px;
               margin-top: 40px;">
-    Bu güncelleme ile mevcut ayarlarınız default değerlerine geri döndü. Çünkü geriye yönelik uyumluluğu bir buga neden olmadan çözmek oldukça fazla test ve dolayısıyla insan gücüne ihtiyaç duyuyor.
+    Bu güncellemede ayarlarınız son kez varsayılan değerlere döndü: eski sürüm her güncellemede eklentinin deposunu temizliyordu. Bundan sonraki güncellemelerde ayarlarınız olduğu gibi kalacak.
   </div>
   
   <img src="../img/semsiye.png" id="semsiye">

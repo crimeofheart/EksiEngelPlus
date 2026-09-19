@@ -11,6 +11,30 @@ function applyTheme() {
   document.documentElement.setAttribute('data-theme', savedTheme);
 }
 
+/*
+ * The release that stopped clearing storage on update.
+ *
+ * The clearing is done by the *outgoing* worker, so upgrading into this version
+ * still loses the settings one last time -- the fix cannot reach back into the
+ * version being replaced. Anyone arriving from here or later kept theirs and
+ * must not be told otherwise.
+ */
+const SETTINGS_KEPT_FROM = "0.5.1";
+
+/*
+ * The warning retires itself: no `from` is a fresh install, which never had
+ * settings to lose, and every upgrade from SETTINGS_KEPT_FROM onwards kept
+ * them. Left as static markup it would have to be remembered and deleted by
+ * hand, one release after it stopped being true.
+ */
+function showSettingsResetNotice(from) {
+  const notice = document.getElementById('settingsResetNotice');
+  if (!notice) return;
+  
+  const wasCleared = Boolean(from) && compareVersions(from, SETTINGS_KEPT_FROM) < 0;
+  notice.style.display = wasCleared ? 'block' : 'none';
+}
+
 // Show the installed version and its release notes instead of hard-coded ones
 function showVersion() {
   const version = chrome.runtime.getManifest().version;
@@ -27,6 +51,7 @@ function showVersion() {
   // Set by background.js on an update. Everything after it is what this reader
   // has not seen yet; without it they are new here and get the whole list.
   const from = new URLSearchParams(window.location.search).get('from');
+  showSettingsResetNotice(from);
   
   // Never anything newer than what is actually installed: an entry can be
   // written before its release is cut, and this page must not announce it.

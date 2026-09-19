@@ -1,7 +1,7 @@
 import * as enums from './enums.js';
 import {commHandler} from './commHandler.js';
 import {config} from './config.js';
-import {getSections, getVersionsSince, compareVersions} from './changelog.js';
+import {getSections, getVersionsSince, compareVersions, isVersion} from './changelog.js';
 
 console.log("welcome.js: has been started.");
 
@@ -26,13 +26,38 @@ const SETTINGS_KEPT_FROM = "0.5.1";
  * settings to lose, and every upgrade from SETTINGS_KEPT_FROM onwards kept
  * them. Left as static markup it would have to be remembered and deleted by
  * hand, one release after it stopped being true.
+ *
+ * isVersion, not a truthiness check: compareVersions reads an unparseable
+ * segment as zero, so a `from` of "abc" would compare below every release and
+ * show the warning with nonsense in the sentence.
  */
-function showSettingsResetNotice(from) {
+function showSettingsResetNotice(from, version) {
   const notice = document.getElementById('settingsResetNotice');
   if (!notice) return;
   
-  const wasCleared = Boolean(from) && compareVersions(from, SETTINGS_KEPT_FROM) < 0;
+  const wasCleared = isVersion(from) && compareVersions(from, SETTINGS_KEPT_FROM) < 0;
   notice.style.display = wasCleared ? 'block' : 'none';
+  if (!wasCleared) return;
+  
+  // Built as nodes rather than a template: `from` comes off the query string,
+  // and the versions are the part worth reading twice, so they are emphasised.
+  notice.replaceChildren(
+    document.createTextNode('Sürüm '),
+    strong(from),
+    document.createTextNode(' → '),
+    strong(version),
+    document.createTextNode(
+      '. Bu güncellemede ayarlarınız son kez varsayılan değerlere döndü: ' +
+      `${from} sürümü her güncellemede eklentinin deposunu temizliyordu. ` +
+      'Bundan sonraki güncellemelerde ayarlarınız olduğu gibi kalacak.',
+    ),
+  );
+}
+
+function strong(text) {
+  const node = document.createElement('strong');
+  node.textContent = text;
+  return node;
 }
 
 // Show the installed version and its release notes instead of hard-coded ones
@@ -51,7 +76,7 @@ function showVersion() {
   // Set by background.js on an update. Everything after it is what this reader
   // has not seen yet; without it they are new here and get the whole list.
   const from = new URLSearchParams(window.location.search).get('from');
-  showSettingsResetNotice(from);
+  showSettingsResetNotice(from, version);
   
   // Never anything newer than what is actually installed: an entry can be
   // written before its release is cut, and this page must not announce it.

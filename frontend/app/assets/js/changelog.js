@@ -185,8 +185,19 @@ export function compareVersions(a, b) {
   return 0;
 }
 
-/** Anything else is treated as "no usable previous version". */
 const VERSION_PATTERN = /^\d+(\.\d+)*$/;
+
+/**
+ * Whether a value is a version this file can reason about.
+ *
+ * Anything else is "no usable previous version". Worth exporting rather than
+ * leaving private: compareVersions reads an unparseable segment as zero, so
+ * "abc" compares equal to 0.0.0 and would silently look like the oldest
+ * release there has ever been.
+ */
+export function isVersion(value) {
+  return typeof value === "string" && VERSION_PATTERN.test(value);
+}
 
 /**
  * Every version newer than [previousVersion], newest first.
@@ -207,7 +218,7 @@ const VERSION_PATTERN = /^\d+(\.\d+)*$/;
 export function getVersionsSince(previousVersion) {
   const all = Object.keys(releaseNotes).sort((a, b) => compareVersions(b, a));
   
-  if (!previousVersion || !VERSION_PATTERN.test(String(previousVersion))) return all;
+  if (!isVersion(previousVersion)) return all;
   return all.filter((version) => compareVersions(version, previousVersion) > 0);
 }
 

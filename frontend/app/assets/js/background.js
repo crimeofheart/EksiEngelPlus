@@ -350,6 +350,19 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
       sendResponse({ success: false, error: error.message });
     });
     return true;
+  } else if (message.action === "removeQueuedTask") {
+    // Waiting tasks only. Removing the running one would leave a half-finished
+    // run with nothing tracking it; that is what stopOperation is for.
+    processQueue.removeByTaskId(message.taskId).then(removed => {
+      if (removed) {
+        notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+      }
+      sendResponse({ success: removed });
+    }).catch(error => {
+      log.err("bg", `Error removing queued task: ${error}`);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
   } else if (message.action === "getCurrentOperation") {
     // Handle sync get current operation
     try {

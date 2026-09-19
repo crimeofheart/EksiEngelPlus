@@ -1538,33 +1538,65 @@ function retryTask(retryParams) {
   });
 }
 
+function removeQueuedTask(taskId) {
+  chrome.runtime.sendMessage(null, { action: "removeQueuedTask", taskId }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error("notification.js: remove failed:", chrome.runtime.lastError.message);
+      notificationHandler.showStatusMessage("İşlem kuyruktan çıkarılamadı.", "error");
+      return;
+    }
+    if (!response || !response.success) {
+      // Already started, or already gone: either way the row is stale and the
+      // list the background sends next is the truth.
+      notificationHandler.showStatusMessage("İşlem kuyrukta bulunamadı.", "error");
+      return;
+    }
+    notificationHandler.showStatusMessage("İşlem kuyruktan çıkarıldı.", "success");
+  });
+}
+
+function taskActionButton(label, title, onClick) {
+  const button = document.createElement("button");
+  button.className = "task-action-btn";
+  button.type = "button";
+  button.textContent = label;
+  button.title = title;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 /**
  * Fills a row's action cell. Each button appears only when the stored task
  * actually carries what it needs, so bulk tasks and rows persisted before these
  * fields existed simply show nothing rather than failing on click.
+ *
+ * [withRetry] is off for a waiting row. The task has not run yet, so there is
+ * nothing to repeat -- the button could only queue a second copy of what is
+ * already queued. "Tekrarla" belongs to the completed table, where a task has
+ * an outcome worth redoing. A waiting row gets "Kaldır" instead, which the
+ * completed table has no use for. Same split as OperationsActivity on Android.
  */
-function fillTaskActionsCell(cell, retryParams) {
+function fillTaskActionsCell(cell, retryParams, { withRetry = true, taskId = null } = {}) {
   cell.classList.add("task-actions");
-  if (!retryParams) return;
 
-  const repeatBtn = document.createElement("button");
-  repeatBtn.className = "task-action-btn";
-  repeatBtn.type = "button";
-  repeatBtn.textContent = "Tekrarla";
-  repeatBtn.title = "Bu işlemi aynı hedefle yeniden sıraya al";
-  repeatBtn.addEventListener("click", () => retryTask(retryParams));
-  cell.appendChild(repeatBtn);
+  if (retryParams && withRetry) {
+    cell.appendChild(
+      taskActionButton("Tekrarla", "Bu işlemi aynı hedefle yeniden sıraya al", () => retryTask(retryParams)),
+    );
+  }
 
   const sourceUrl = sourceUrlForTask(retryParams);
-  if (!sourceUrl) return;
+  if (sourceUrl) {
+    cell.appendChild(
+      taskActionButton("Git", "İşlemin başlatıldığı sayfayı aç", () => chrome.tabs.create({ url: sourceUrl })),
+    );
+  }
 
-  const gotoBtn = document.createElement("button");
-  gotoBtn.className = "task-action-btn";
-  gotoBtn.type = "button";
-  gotoBtn.textContent = "Git";
-  gotoBtn.title = "İşlemin başlatıldığı sayfayı aç";
-  gotoBtn.addEventListener("click", () => chrome.tabs.create({ url: sourceUrl }));
-  cell.appendChild(gotoBtn);
+  if (taskId) {
+    cell.appendChild(
+      taskActionButton("Kaldır", "Bu işlemi kuyruktan çıkar", () => removeQueuedTask(taskId)),
+    );
+  }
 }
 
 function updatePlannedProcessesTable(plannedProcesses) {
@@ -1631,7 +1663,12 @@ function updatePlannedProcessesTable(plannedProcesses) {
     cell2.innerHTML = `${categoryIndicator} ${categoryDisplayName}`;
     cell2.title = `Kategori: ${categoryDisplayName}\nKarmaşıklık: ${process.taskComplexity}\nÖncelik: ${process.taskPriority}`;
 
-    fillTaskActionsCell(row.insertCell(4), process.retryParams);
+    // Waiting rows: "Git" and "Kaldır". A queued task has no outcome to repeat,
+    // and the running row cannot be removed -- that is what durdur is for.
+    fillTaskActionsCell(row.insertCell(4), process.retryParams, {
+      withRetry: false,
+      taskId: process.taskStatus === enums.TaskStatus.PROCESSING ? null : process.taskId,
+    });
   }
 }
 

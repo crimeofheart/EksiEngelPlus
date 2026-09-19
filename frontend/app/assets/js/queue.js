@@ -195,6 +195,13 @@ export function generateUnifiedDescription(banSource, metadata = {}) {
   return baseDescription;
 }
 
+let taskIdCounter = 0;
+
+/** Unique within a session, and stable across a save/restore of the queue. */
+function newTaskId() {
+  return `task-${Date.now().toString(36)}-${(taskIdCounter++).toString(36)}`;
+}
+
 class AutoQueue extends Queue {
   constructor() {
     super();
@@ -357,6 +364,7 @@ class AutoQueue extends Queue {
         // The arguments processHandler was bound to, carried through so İşlem
         // durumu can replay the task or open what it acted on.
         retryParams: buildRetryParams(action, metadata),
+        taskId: action.taskId || null,
         taskStatus: enums.TaskStatus.PROCESSING,
         operationNotes: metadata.operationNotes || "",
         requiresUserInteraction: metadata.requiresUserInteraction || false,
@@ -386,6 +394,7 @@ class AutoQueue extends Queue {
         // The arguments processHandler was bound to, carried through so İşlem
         // durumu can replay the task or open what it acted on.
         retryParams: buildRetryParams(action, metadata),
+        taskId: action.taskId || null,
         taskStatus: enums.TaskStatus.QUEUED,
         operationNotes: metadata.operationNotes || "",
         requiresUserInteraction: metadata.requiresUserInteraction || false,
@@ -394,6 +403,39 @@ class AutoQueue extends Queue {
       });
     }
     return attrs;
+  }
+
+
+  /**
+   * Drops a waiting task.
+   *
+   * Only ever a waiting one: the running task is not in `_items`, and stopping
+   * a run that has already started is what the stop button is for. A task
+   * persisted before ids existed carries none, matches nothing here, and its
+   * row simply offers no "kaldır" -- the same way the other row actions appear
+   * only when the stored task carries what they need.
+   */
+  async removeByTaskId(taskId) {
+    if (!taskId) return false;
+    
+    const removed = this._items.filter(item => item?.action?.taskId === taskId);
+    if (removed.length === 0) return false;
+    
+    this._items = this._items.filter(item => item?.action?.taskId !== taskId);
+    
+    // Whoever called enqueue is still awaiting the promise it handed back.
+    // Settling it keeps that await from hanging for the life of the page;
+    // items restored from storage carry no resolve and are simply dropped.
+    for (const item of removed) {
+      try {
+        item.resolve?.({ cancelled: true });
+      } catch (error) {
+        console.debug("Queue: removed item had no settleable promise", error);
+      }
+    }
+    
+    await this._saveQueueState();
+    return true;
   }
 
 
@@ -406,6 +448,11 @@ class AutoQueue extends Queue {
 
   async enqueue(action) {
     return new Promise(async (resolve, reject) => {
+      // A stable handle for the row in İşlem durumu. Queue positions shift as
+      // tasks finish, so "remove the third one" would race the queue and drop
+      // whichever task had moved into that slot. It lives on `action` because
+      // that is the only part of an item persistence keeps.
+      if (action && !action.taskId) action.taskId = newTaskId();
       super.enqueue({ action, resolve, reject });
       await this._saveQueueState();
       this.dequeue();

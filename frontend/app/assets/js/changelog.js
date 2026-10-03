@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.5.3": {
+    date: "2026-10-03",
     app: [
       "\"Takip et\" seçenekleri (yazarı, favlayanları, takipçilerini ve takip ettiklerini takip et) artık yalnızca takip edilecek hesapları sayıyor. Takipten önce varsa engel ya da sessize alma kaldırılsın diye her seferinde bütün engellenenler ve sessize alınanlar listeniz baştan sona okunuyor, ekranda da bu sayılıyordu: birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor ve dakikalarca sürebiliyordu.",
       "Bu listeler artık yalnızca işlemin büyüklüğüne göre değdiği kadar okunuyor. Uzun bir engel listesiyle birkaç hesabı takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor.",

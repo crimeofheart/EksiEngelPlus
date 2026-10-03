@@ -2,6 +2,20 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] \"Takip et\" seçenekleri (yazarı, favlayanları, takipçilerini ve takip ettiklerini takip et) artık yalnızca takip edilecek hesapları sayıyor. Takipten önce varsa engel ya da sessize alma kaldırılsın diye her seferinde bütün engellenenler ve sessize alınanlar listeniz baştan sona okunuyor, ekranda da bu sayılıyordu: birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor ve dakikalarca sürebiliyordu.",
+      "[Eklenti] Bu listeler artık yalnızca işlemin büyüklüğüne göre değdiği kadar okunuyor. Uzun bir engel listesiyle birkaç hesabı takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor.",
+      "[Eklenti] Takip işlemleri artık engelleme için yapılan ön hazırlığı yapmıyor: takip ettiklerinizin listesini ve engel listesini ikinci kez okumuyor. Tarih filtresi de takipte uygulanmıyor; açıkken takip işlemi yalnızca kuralın kapsadığı hesapları takip ediyordu.",
+      "[Eklenti] İşlem durumundaki \"Tür\" sütunu artık işlemin ne yaptığını gösteriyor: takip, takipten çıkarma, sessize alma, sessizden çıkarma, engelleme ya da engel kaldırma. Takip, sessize alma ve engel kaldırma işlemleri hem sıradakilerde hem tamamlananlarda \"Engelleme\" olarak görünüyordu; açıklamada da takip \"Engelle\" diye yazıyordu.",
+      "[Uygulama] \"Takip et\" seçenekleri (yazarı, favlayanları, takipçilerini ve takip ettiklerini takip et) artık yalnızca takip edilecek hesapları sayıyor. Takipten önce varsa engel ya da sessize alma kaldırılsın diye her seferinde bütün engellenenler ve sessize alınanlar listeniz baştan sona okunuyor, ekranda da bu sayılıyordu: birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor ve dakikalarca sürebiliyordu.",
+      "[Uygulama] Bu listeler artık yalnızca işlemin büyüklüğüne göre değdiği kadar okunuyor. Uzun bir engel listesiyle birkaç hesabı takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor.",
+      "[Uygulama] İşlem durumunda ve bildirimde her işlemin ne yaptığı yazıyor: \"takip: favlayanlar (coh)\" gibi. Eskiden aynı kişileri takip etmek ile engellemek aynı satır olarak görünüyordu; engelli ve sessizlerin başlıklarının engelini kaldırma işlemi de \"başlık engelleme\" diye görünüyordu."
+    ],
+    "pub_date": "2026-10-03",
+    "version": "0.5.3"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] \"Erken durdur\" artık hedefler toplanırken de çalışıyor. Bir yazarın takipçilerini ya da takip ettiklerini, bir başlıktaki yazarları toplarken düğme yanıtsız kalıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor ve işlem hiç kimseye dokunmadan bitiyor.",
       "[Eklenti] Toplama sırasında kaç hesabın bulunduğu yazıyor, yani işlemin çalıştığı görülüyor.",
       "[Uygulama] Yanlışlıkla başlatılan bir işlem artık durdurulabiliyor. İşlem hedeflerini toplarken (bir yazarın takipçileri, engellenenler listesi gibi) \"duraklat\" ve \"durdur\" düğmeleri çalışmıyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. Artık her sayfa arasında isteğiniz görülüyor.",

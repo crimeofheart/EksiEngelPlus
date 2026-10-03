@@ -352,7 +352,7 @@ class ProgramController {
       
       // One lookup for the whole run, and only when a follow will need it.
       const followClearState = bulkAction === 'TAKIP_ET'
-        ? await this._followClearState(source)
+        ? await this._followClearState(source, matchingUsers.length)
         : null;
 
       for (let i = 0; i < matchingUsers.length; i++) {
@@ -625,16 +625,12 @@ class ProgramController {
    *
    * A run over the blocked list is all blocked accounts and a run over the muted
    * list is all muted ones, so those need no lookup at all. Only an author list
-   * is unknown, and it costs one pass over the relation lists for the whole run.
+   * is unknown, and it reads the relation lists only as far as the run's size
+   * makes worth it (scrapeFollowRestrictions).
    */
-  async _followClearState(source) {
+  async _followClearState(source, pendingTargets) {
     if (source === 'BLOCKED_USERS' || source === 'MUTED_USERS') return null;
-    const scraped = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
-    const byNick = new Map();
-    for (const [name, relation] of scraped) {
-      byNick.set(String(name).replace(/ /g, "-").toLowerCase(), relation);
-    }
-    return byNick;
+    return await scrapingHandler.scrapeFollowRestrictions(pendingTargets);
   }
 
   /**
@@ -651,12 +647,10 @@ class ProgramController {
     } else if (source === 'MUTED_USERS') {
       await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
     } else {
-      const key = String(username || "").replace(/ /g, "-").toLowerCase();
-      const state = blockedState ? blockedState.get(key) : null;
-      if (state && state.isBannedUser) {
+      if (blockedState && blockedState.isBlocked(username)) {
         await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
       }
-      if (state && state.isBannedMute) {
+      if (blockedState && blockedState.isMuted(username)) {
         await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
       }
     }
@@ -2933,7 +2927,7 @@ notificationHandler.notify(`${totalCount} adet başlıkları engellenen kullanı
       // Rebuilt on resume rather than restored: the checkpoint may be hours old
       // and the relation lists move underneath it.
       const followClearState = params.bulkAction === 'TAKIP_ET'
-        ? await this._followClearState(params.source)
+        ? await this._followClearState(params.source, matchingUsers.length - resumeIndex)
         : null;
 
       for (let i = resumeIndex; i < matchingUsers.length; i++) {

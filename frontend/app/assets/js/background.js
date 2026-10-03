@@ -738,6 +738,16 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   // un-following someone is no reason to unblock them.
   const isFollowTarget = targetType == enums.TargetType.FOLLOW && banMode == enums.BanMode.BAN;
 
+  // The pre-run analysis is for restricting runs, so a follow skips all three
+  // parts. Protecting followed authors keeps them out of a block, which a follow
+  // is not, and costs a walk of the whole followings list. Only-required-actions
+  // reads the blocked lists for flags only the restricting path of
+  // performOnScrapedUser consults, a second full walk. The date filter decides
+  // whom to block: Android's activeDateRules already skips anything that does
+  // not add a restriction, and the follow was taking its "block" list as the
+  // accounts to follow.
+  const runsRestrictionAnalysis = !isFollowTarget;
+
   /*
    * What a follow has to undo first.
    *
@@ -749,20 +759,23 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
    * One pass over the relation lists serves every target in the run, and the
    * lists are the authority -- the locally cached ones go stale the moment a
    * block happens anywhere else.
+   *
+   * Looked up once the targets are known, not before: how much of the lists is
+   * worth reading depends on how many there are (scrapeFollowRestrictions). It
+   * used to run first and in full, so every follow -- one author or three
+   * followers -- spent its start counting the whole blocked list.
+   *
+   * Every follow path calls this before its first action; the author list's
+   * TAKIP_ET included, which spells a follow as an action name rather than a
+   * target type. Answers false when the user stopped the run during it.
    */
-  // The author list expresses a follow as an action name rather than a target
-  // type, so both spellings have to arm the lookup or a list follow silently
-  // keeps the block it was meant to lift.
-  const isFollowRun = isFollowTarget || listAction === "TAKIP_ET";
   let followClearState = null;
-  const nickKey = (name) => String(name || "").replace(/ /g, "-").toLowerCase();
-  if (isFollowRun) {
-    notificationHandler.notifyScrapeBanned();
-    const scraped = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
-    if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
-    followClearState = new Map();
-    for (const [name, relation] of scraped) followClearState.set(nickKey(name), relation);
-  }
+  const prepareFollowClear = async (pendingTargets) => {
+    notificationHandler.notifyStatus("Engel ve sessize alma durumu kontrol ediliyor...");
+    followClearState = await scrapingHandler.scrapeFollowRestrictions(pendingTargets);
+    if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return false; }
+    return true;
+  };
 
   /*
    * Clearing a restriction is bookkeeping for the follow behind it, not
@@ -780,11 +793,10 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   };
 
   const followAfterClearing = async (id, name) => {
-    const state = followClearState ? followClearState.get(nickKey(name)) : null;
-    if (state && state.isBannedUser) {
+    if (followClearState && followClearState.isBlocked(name)) {
       await withoutCounting(() => performWithRetry(enums.BanMode.UNDOBAN, id, true, false, false));
     }
-    if (state && state.isBannedMute) {
+    if (followClearState && followClearState.isMuted(name)) {
       await withoutCounting(() => performWithRetry(enums.BanMode.UNDOBAN, id, false, false, true));
     }
     return await performWithRetry(enums.BanMode.BAN, id, false, false, false, true);
@@ -796,6 +808,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       : await performWithRetry(banMode, value.authorId, (!value.isBannedUser && !config.enableMute), (!value.isBannedTitle && config.enableTitleBan), (!value.isBannedMute && config.enableMute), targetType == enums.TargetType.FOLLOW);
 
   if(banSource === enums.BanSource.SINGLE) {
+    if (isFollowTarget && !await prepareFollowClear(1)) return;
     notificationHandler.notifyOngoing(0, 0, 1, processQueue.currentItemMetadata);
     let res = isFollowTarget
       ? await followAfterClearing(singleAuthorId, singleAuthorName)
@@ -811,6 +824,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       log.info("bg", "No users found in LIST operation - completing with 0 results");
       return;
     }
+    if (listAction === "TAKIP_ET" && !await prepareFollowClear(authorNameList.length)) return;
     notificationHandler.notifyOngoing(0, 0, authorNameList.length, processQueue.currentItemMetadata);
     for (let i = 0; i < authorNameList.length; i++) {
       if(programController.earlyStop) break;
@@ -854,7 +868,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       return;
     }
     
-    if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN) {
+    if(runsRestrictionAnalysis && config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN) {
       notificationHandler.notifyScrapeFollowings();
       let mapFollowing = await scrapingHandler.scrapeFollowing(clientName);
       if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
@@ -865,7 +879,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       }
     }
     
-    if(config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
+    if(runsRestrictionAnalysis && config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
       notificationHandler.notifyScrapeBanned();
       let mapBlocked = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
       if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
@@ -912,7 +926,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     }
     
     // Apply date filtering if enabled
-    if (config.enableDateFilter && config.dateFilterRules && config.dateFilterRules.length > 0) {
+    if (runsRestrictionAnalysis && config.enableDateFilter && config.dateFilterRules && config.dateFilterRules.length > 0) {
       scrapedRelations = await fetchRegistrationDates(authorNameList, scrapedRelations);
       const filterResults = applyDateFiltersToRelations(scrapedRelations);
       logDateFilterResults(filterResults);
@@ -927,6 +941,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       }
     }
     
+    if (isFollowTarget && !await prepareFollowClear(scrapedRelations.size)) return;
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size, processQueue.currentItemMetadata);
     for (const [name, value] of scrapedRelations) {
       if(programController.earlyStop) break;
@@ -944,7 +959,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       return;
     }
     
-    if(config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN) {
+    if(runsRestrictionAnalysis && config.enableAnalysisBeforeOperation && config.enableProtectFollowedUsers && banMode == enums.BanMode.BAN) {
       notificationHandler.notifyScrapeFollowings();
       let mapFollowing = await scrapingHandler.scrapeFollowing(clientName);
       if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
@@ -955,7 +970,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       }
     }
     
-    if(config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
+    if(runsRestrictionAnalysis && config.enableAnalysisBeforeOperation && config.enableOnlyRequiredActions) {
       notificationHandler.notifyScrapeBanned();
       let mapBlocked = await scrapingHandler.scrapeAuthorNamesFromBannedAuthorPage();
       if(programController.earlyStop) { finishStoppedWhileCollecting(banSource, banMode); return; }
@@ -980,7 +995,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     authorIdList = Array.from(scrapedRelations, ([name, value]) => value.authorId);
     
     // Apply date filtering if enabled
-    if (config.enableDateFilter && config.dateFilterRules && config.dateFilterRules.length > 0) {
+    if (runsRestrictionAnalysis && config.enableDateFilter && config.dateFilterRules && config.dateFilterRules.length > 0) {
       scrapedRelations = await fetchRegistrationDates(authorNameList, scrapedRelations);
       const filterResults = applyDateFiltersToRelations(scrapedRelations);
       logDateFilterResults(filterResults);
@@ -997,6 +1012,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       }
     }
     
+    if (isFollowTarget && !await prepareFollowClear(scrapedRelations.size)) return;
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size, processQueue.currentItemMetadata);
     notificationHandler.notifyStatus(isFollowTarget ? "Takipçiler takip ediliyor..." : "Takipçiler engelleniyor...");
 
@@ -1040,6 +1056,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     authorNameList = Array.from(scrapedRelations, ([name, value]) => name);
     authorIdList = Array.from(scrapedRelations, ([name, value]) => value.authorId);
 
+    if (!await prepareFollowClear(scrapedRelations.size)) return;
     notificationHandler.notifyOngoing(0, 0, scrapedRelations.size, processQueue.currentItemMetadata);
     notificationHandler.notifyStatus("Takip edilenler takip ediliyor...");
 

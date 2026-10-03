@@ -55,6 +55,14 @@ class TargetRunner(
     private val scrape: ScrapeClient,
     private val retry: RetryPolicy = RetryPolicy(),
 ) {
+    companion object {
+        /**
+         * Relation-list pages a follow may read per pending target before
+         * lifting blind becomes the cheaper way to clear restrictions. See
+         * restrictionsToLift for the arithmetic.
+         */
+        const val LOOKUP_PAGES_PER_TARGET = 10
+    }
 
     suspend fun applyToAll(
         ctx: OperationContext,
@@ -70,6 +78,22 @@ class TargetRunner(
         // and it must not check in with the pacer or write a checkpoint on the
         // way past.
         if (targets.isEmpty()) return OperationOutcome.COMPLETED
+
+        /*
+         * The size, before the first action rather than after it.
+         *
+         * Progress was published only once a target had been dealt with, so a
+         * run waiting out its first cooldown read "0 / 0 · API limiti
+         * bekleniyor" -- indistinguishable from a run against nobody, and the
+         * reason a genuine 37-follower run looked like a minute wasted on an
+         * empty one.
+         *
+         * Also before the restriction lookup below, so the screen names the
+         * run's own size while that runs rather than still showing collection.
+         */
+        ctx.publishProgress(
+            OperationProgress(cursor.processed, targets.size, cursor.successful, cursor.failed),
+        )
 
         /*
          * What a follow has to undo first.
@@ -90,23 +114,10 @@ class TargetRunner(
          */
         val restricted =
             if (targetType == TargetType.FOLLOW && mode == org.duzgun.eksiengelplus.model.BanMode.BAN) {
-                restrictionsToLift(ctx)
+                restrictionsToLift(ctx, pending = targets.size - cursor.index)
             } else {
                 null
             }
-
-        /*
-         * The size, before the first action rather than after it.
-         *
-         * Progress was published only once a target had been dealt with, so a
-         * run waiting out its first cooldown read "0 / 0 · API limiti
-         * bekleniyor" -- indistinguishable from a run against nobody, and the
-         * reason a genuine 37-follower run looked like a minute wasted on an
-         * empty one.
-         */
-        ctx.publishProgress(
-            OperationProgress(cursor.processed, targets.size, cursor.successful, cursor.failed),
-        )
 
         var i = cursor.index
         /*
@@ -150,10 +161,10 @@ class TargetRunner(
              */
             if (restricted != null) {
                 val key = target.nick.toEksiSlug()
-                if (key in restricted.blocked) {
+                if (restricted.isBlocked(key)) {
                     performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.USER, id)
                 }
-                if (key in restricted.muted) {
+                if (restricted.isMuted(key)) {
                     performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.MUTE, id)
                 }
             }
@@ -310,16 +321,63 @@ class TargetRunner(
         data object SessionGone : Applied
     }
 
-    /** The blocked and muted nicks, slugged to match how targets are keyed. */
-    private data class Restrictions(val blocked: Set<String>, val muted: Set<String>)
+    /**
+     * The blocked and muted nicks, slugged to match how targets are keyed.
+     *
+     * A null list was not read, and answers yes for everyone: lifting a relation
+     * that is not there is a no-op the site accepts (`"result": true`, see
+     * RelationClient.classify), so not knowing costs actions, never correctness.
+     */
+    private class Restrictions(private val blocked: Set<String>?, private val muted: Set<String>?) {
+        fun isBlocked(key: String) = blocked?.contains(key) ?: true
+        fun isMuted(key: String) = muted?.contains(key) ?: true
+    }
 
-    private suspend fun restrictionsToLift(ctx: OperationContext): Restrictions {
-        // Reads, not mutations, so they take the read permit rather than the
-        // action one -- the same pacing every other list walk in the engine uses.
-        val blocked = scrape.allRelations(TargetType.USER) { _, found -> ctx.collectPage(found) }
-            .nicks.map { it.toEksiSlug() }.toSet()
-        val muted = scrape.allRelations(TargetType.MUTE) { _, found -> ctx.collectPage(found) }
-            .nicks.map { it.toEksiSlug() }.toSet()
+    /**
+     * Reads the blocked and muted lists, but only while that is the cheaper way
+     * to know.
+     *
+     * Both lists used to be read in full before every follow, whatever its
+     * size. Their length is the account's, not the run's: "yazarı takip et" on
+     * an account with 5,000 blocks walked 200 pages to follow one person, and
+     * the walk published its count as collection, so the screen read as if the
+     * run had found thousands of targets.
+     *
+     * Not reading them costs two uncounted actions per target -- about ten
+     * seconds of rate limit at 12 per 62s. A page costs one read, a quarter of
+     * a second of pacing plus the round trip. So the walk gets
+     * [LOOKUP_PAGES_PER_TARGET] pages per pending target, shared by both lists;
+     * a list that does not end within what is left is not read, and everyone
+     * is lifted blind on it instead. A small run on a large account lifts
+     * blind at once; a large run reads the lists, as before.
+     *
+     * Reads, not mutations, so they take the read permit rather than the action
+     * one. No publishCollecting: the targets are already collected, and this is
+     * not more of them.
+     */
+    private suspend fun restrictionsToLift(ctx: OperationContext, pending: Int): Restrictions {
+        var budget = pending.toLong() * LOOKUP_PAGES_PER_TARGET
+
+        suspend fun walk(type: TargetType): Set<String>? {
+            val nicks = HashSet<String>()
+            var page = ScrapeClient.FIRST_PAGE
+            while (true) {
+                if (budget <= 0) return null
+                budget--
+                ctx.ensureActive()
+                ctx.awaitReadPermit()
+                val p = scrape.relationPage(type, page)
+                p.nicks.mapTo(nicks) { it.toEksiSlug() }
+                if (p.isLast) return nicks
+                page++
+            }
+        }
+
+        val blocked = walk(TargetType.USER)
+        val muted = walk(TargetType.MUTE)
+        if (blocked == null || muted == null) {
+            ctx.log("restriction lookup over budget for $pending targets; lifting blind")
+        }
         return Restrictions(blocked, muted)
     }
 

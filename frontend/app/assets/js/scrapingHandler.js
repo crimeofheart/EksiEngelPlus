@@ -37,6 +37,40 @@ function parseHTML(htmlString) {
   }
 }
 
+/**
+ * Relation-list pages a follow may read per pending target before lifting
+ * blind becomes the cheaper way to clear restrictions. Mirrors
+ * TargetRunner.LOOKUP_PAGES_PER_TARGET in android/ops/engine/.../Tasks.kt;
+ * see [scrapeFollowRestrictions] for the arithmetic.
+ */
+export const FOLLOW_LOOKUP_PAGES_PER_TARGET = 10;
+
+/**
+ * The block and mute state a follow has to clear first, keyed by nick.
+ *
+ * A null list was not read, and answers yes for everyone: lifting a relation
+ * that is not there is a no-op the site accepts (`"result": true`), so not
+ * knowing costs actions, never correctness.
+ */
+export class FollowRestrictions {
+  constructor(blocked, muted) {
+    this.blocked = blocked;
+    this.muted = muted;
+  }
+
+  static key(name) {
+    return String(name || "").replace(/ /g, "-").toLowerCase();
+  }
+
+  isBlocked(name) {
+    return this.blocked ? this.blocked.has(FollowRestrictions.key(name)) : true;
+  }
+
+  isMuted(name) {
+    return this.muted ? this.muted.has(FollowRestrictions.key(name)) : true;
+  }
+}
+
 function Relation(authorName, authorId, isBannedUser, isBannedTitle, isBannedMute, doIFollow, doTheyFollowMe) {
   this.authorId = authorId;
   this.authorName = authorName;
@@ -438,6 +472,56 @@ class ScrapingHandler
       log.err("scraping", "scrapeAuthorNamesFromBannedAuthorPage: " + err);
       return scrapedRelations;
     }
+  }
+
+  /**
+   * Reads the blocked and muted lists for a follow, but only while that is the
+   * cheaper way to know.
+   *
+   * Follows used to read the blocked, title-blocked and muted lists in full
+   * before anything else, whatever the run's size. Their length is the
+   * account's, not the run's: "yazarı takip et" on an account with 5,000
+   * blocks walked 200 pages to follow one person.
+   *
+   * Not reading them costs two uncounted actions per target -- about ten
+   * seconds of rate limit at 12 a minute. A page costs one request. So the
+   * walk gets FOLLOW_LOOKUP_PAGES_PER_TARGET pages per pending target, shared
+   * by both lists; a list that does not end within what is left is not read,
+   * and everyone is lifted blind on it instead. The title-block list is never
+   * read: a title block does not hide anyone a follow means to see.
+   *
+   * A failed page leaves that list unread rather than half-read, so a network
+   * error can only cost extra lifts, never a block left in place.
+   *
+   * @param {number} pendingTargets - how many accounts the run will follow
+   * @returns {Promise<FollowRestrictions>}
+   */
+  async scrapeFollowRestrictions(pendingTargets) {
+    let budget = pendingTargets * FOLLOW_LOOKUP_PAGES_PER_TARGET;
+
+    const walk = async (targetType) => {
+      const nicks = new Set();
+      for (let index = 1; ; index++) {
+        if (budget <= 0 || programController.earlyStop) return null;
+        budget--;
+        let page;
+        try {
+          page = await this.#scrapeAuthorNamesFromBannedAuthorPagePartially(targetType, index);
+        } catch (err) {
+          log.warn("scraping", `scrapeFollowRestrictions: page ${index} failed, lifting blind: ${err}`);
+          return null;
+        }
+        for (const name of page.authorNameList) nicks.add(FollowRestrictions.key(name));
+        if (page.isLast) return nicks;
+      }
+    };
+
+    const blocked = await walk(enums.TargetType.USER);
+    const muted = await walk(enums.TargetType.MUTE);
+    if (!blocked || !muted) {
+      log.info("scraping", `scrapeFollowRestrictions: over budget for ${pendingTargets} targets, lifting blind`);
+    }
+    return new FollowRestrictions(blocked, muted);
   }
 
   /**

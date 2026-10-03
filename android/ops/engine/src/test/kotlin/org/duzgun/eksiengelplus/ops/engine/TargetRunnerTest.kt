@@ -10,6 +10,7 @@ import org.duzgun.eksiengelplus.eksi.client.RelationClient
 import org.duzgun.eksiengelplus.eksi.client.ScrapeClient
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
+import org.duzgun.eksiengelplus.model.TargetType
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -237,5 +238,95 @@ class TargetRunnerTest {
 
         assertThat(c.progress.first().total).isEqualTo(3)
         assertThat(c.progress.first().processed).isEqualTo(0)
+    }
+
+    // ------------------------------------------------ restrictions a follow lifts
+
+    private fun followCtx() = FakeContext(
+        OperationRequest(BanSource.SINGLE, BanMode.BAN, targetType = TargetType.FOLLOW),
+    )
+
+    private fun relationPage(isLast: Boolean, vararg ids: Long) = ok(
+        """{"Relations":{"IsLast":$isLast,"Items":[""" +
+            ids.joinToString(",") { """{"Id":$it,"Nick":{"Value":"u$it"}}""" } + "]}}",
+    )
+
+    private fun removed() = ok("""{"result":true}""")
+
+    /**
+     * The reported bug: "yazarı takip et" on an account with thousands of blocks.
+     *
+     * Both lists were read to the end before the one follow, and the walk
+     * published its count as collection -- the screen counted the account's
+     * blocks as if they were the run's targets. Past the budget the lists are
+     * left unread and the target is lifted blind instead, which a no-op
+     * removal makes safe.
+     */
+    @Test fun `a small follow on a long block list lifts blind instead of reading it`() = runTest {
+        val budget = TargetRunner.LOOKUP_PAGES_PER_TARGET
+        repeat(budget) { relationPage(isLast = false, it + 100L) }   // never ends
+        removed(); removed(); ok("0")
+        val c = followCtx()
+
+        assertThat(runner.applyToAll(c, targets(1))).isEqualTo(OperationOutcome.COMPLETED)
+
+        assertThat(c.readPermits).isEqualTo(budget)
+        assertThat(server.requestCount).isEqualTo(budget + 3)
+        repeat(budget) { server.takeRequest() }
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/1?r=m")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/1?r=u")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/1?r=b")
+        // The lookup is not collection: nothing claims to have found more targets.
+        assertThat(c.collected).isEmpty()
+        assertThat(c.progress.first().total).isEqualTo(1)
+        // Lifts are bookkeeping; the run is "follow 1 person".
+        assertThat(c.lastCheckpoint!!.processed).isEqualTo(1)
+        assertThat(c.lastCheckpoint!!.successful).isEqualTo(1)
+    }
+
+    @Test fun `lists that fit the budget are read and only what they hold is lifted`() = runTest {
+        relationPage(isLast = true, 1L)   // blocked: u1
+        relationPage(isLast = true)       // muted: nobody
+        removed(); ok("0")                // u1: unblock, follow
+        ok("0")                           // u2: follow only
+        val c = followCtx()
+
+        assertThat(runner.applyToAll(c, targets(2))).isEqualTo(OperationOutcome.COMPLETED)
+
+        assertThat(server.takeRequest().path).isEqualTo("/relation-list?relationType=m&pageIndex=1")
+        assertThat(server.takeRequest().path).isEqualTo("/relation-list?relationType=u&pageIndex=1")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/1?r=m")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/1?r=b")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/2?r=b")
+        assertThat(server.requestCount).isEqualTo(5)
+        assertThat(c.collected).isEmpty()
+    }
+
+    @Test fun `the muted list is read with what the blocked list left of the budget`() = runTest {
+        val budget = TargetRunner.LOOKUP_PAGES_PER_TARGET
+        repeat(budget - 1) { relationPage(isLast = false, it + 100L) }
+        relationPage(isLast = true, 1L)   // blocked ends on the last page it may read
+        removed()                         // u1 is blocked: lifted exactly
+        removed()                         // muted was not read: lifted blind
+        ok("0")
+        val c = followCtx()
+
+        runner.applyToAll(c, targets(1))
+
+        assertThat(c.readPermits).isEqualTo(budget)
+        repeat(budget) { server.takeRequest() }
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/1?r=m")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/1?r=u")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/1?r=b")
+    }
+
+    @Test fun `a block run reads no relation lists`() = runTest {
+        ok()
+        val c = ctx()
+
+        runner.applyToAll(c, targets(1))
+
+        assertThat(c.readPermits).isEqualTo(0)
+        assertThat(server.requestCount).isEqualTo(1)
     }
 }

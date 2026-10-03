@@ -200,6 +200,38 @@ Secrets for a signed build: `ANDROID_KEYSTORE_B64`, `ANDROID_KEY_ALIAS`,
 When `ANDROID_KEYSTORE_B64` is unset the Android job degrades to an unsigned debug build and
 the release still publishes — an unconfigured keystore must never block an extension release.
 
+### Ekşi Sözlük entries
+
+Every published version gets two entries in the `eksiengelplus` başlık on Ekşi Sözlük:
+
+| Entry | Source | Job |
+| --- | --- | --- |
+| first entry, edited | `docs/eksisozluk/first-entry.txt` | standing description; edit only what the new version made stale |
+| new entry | `docs/eksisozluk/announcements/<version>.txt` | what changed since the last announced version |
+
+**Ask before writing.** After a release, ask whether this version will be published. Write
+the two entries only once the user confirms, and hand them over in fenced blocks so the
+markup copies intact. Then update `first-entry.txt` and add the announcement file, so the
+next edit starts from what is actually posted.
+
+"Published" means live in the stores, not tagged: 0.5.2 was tagged but never shipped, so
+0.5.3's announcement covers everything since 0.5.1 and never names 0.5.2. The newest file in
+`announcements/` is the last announced version. Build the next announcement from every
+`changelog.js` entry after it. Merge `app` and `extension` into one text, and introduce
+anything specific to one platform with "eklentide ayrıca" or "android tarafında ayrıca".
+
+Ekşi markup, preserved exactly when editing:
+
+- `` `hede` `` is an inline başlık link, and `(bkz: hede)` is a see-also.
+- `[url metin]` is a hidden link that shows only `metin`.
+- `~~~başlık~~~` marks a section in the first entry.
+- No Markdown renders.
+- Ekşi lowercases everything with Turkish rules, so "API" posts as "apı".
+- Keep the user's own spelling in their lines (e.g. "ayrica artik" without diacritics).
+
+The store links appear in both entries, so post only after Chrome and AMO serve the new
+version. The first entry's "google play'de yok" line stays until the app is on Play.
+
 ## Android app
 
 A real client, not a stub: six Gradle modules (`app`, `webview`, `ops/engine`, `ops/runtime`,

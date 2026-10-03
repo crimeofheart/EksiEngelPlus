@@ -1,0 +1,18 @@
+0.5.3 çıktı. yeni özellik yok; takip etme ve işlem durdurma tarafındaki can sıkıcı hatalar düzeldi.
+
+eklenti:
+[https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh chrome]
+[https://addons.mozilla.org/firefox/addon/eksiengelplus firefox] (telefondaki firefox'a da bu linkten kuruluyor)
+android apk: [https://github.com/crimeofheart/EksiEngelPlus/releases releases sayfası]
+
+takip etme artık hızlı. "takip et" seçenekleri (yazarı, favlayanları, takipçilerini, takip ettiklerini takip et), takipten önce varsa engeli ya da sessize almayı kaldırmak için her seferinde bütün engellenenler ve sessize alınanlar listenizi baştan sona okuyordu, ekranda da bunları sayıyordu. birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor, dakikalarca sürebiliyordu. artık yalnızca takip edilecek hesaplar sayılıyor, listeler de işlemin büyüklüğüne göre gerektiği kadar okunuyor. uzun bir engel listesiyle birkaç kişiyi takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor.
+
+eklentide ayrıca tarih filtresi takibe de karışıyordu: filtre açıkken takip işlemi yalnızca kuralın kapsadığı hesapları takip ediyordu. filtre engellemeyi sınırlamak için var, takipte artık uygulanmıyor.
+
+yanlışlıkla başlatılan bir işlem artık durdurulabiliyor. işlem hedefleri toplarken (bir yazarın takipçileri, bir başlıktaki yazarlar gibi) uygulamadaki "durdur" ve eklentideki "erken durdur" düğmeleri yanıt vermiyordu; çok takipçisi olan bir hesapta bu dakikalarca sürebiliyordu. artık her sayfa arasında isteğiniz görülüyor ve işlem kimseye dokunmadan bitiyor. toplama sırasında kaç hesabın bulunduğu da yazıyor, ekranda "0 / 0" görüp işlemin takıldığını sanmıyorsunuz.
+
+işlem durumunda her işlemin ne yaptığı yazıyor: takip, takipten çıkarma, sessize alma, sessizden çıkarma, engelleme ya da engel kaldırma. eskiden takip ve sessize alma işlemleri de "engelleme" diye görünüyordu.
+
+android tarafında ayrıca: arka planı kapanmış ya da yanıt vermeyen bir işlem ekranda kalıyor ve ondan sonraki bütün işlemleri engelliyordu. yeni işlem başlamıyor, uygulamayı kapatıp açmak da düzeltmiyordu. artık "durdur" her durumda işlemi bitiriyor, sıradaki işlem de kendiliğinden başlıyor. büyük listelerde hedef toplama da yavaşlatılıyor, işlem daha en başında api sınırına takılmıyor.
+
+hata bildirimi: [https://github.com/crimeofheart/EksiEngelPlus/issues buradan] (bana mesajla da bildirebilirsiniz).

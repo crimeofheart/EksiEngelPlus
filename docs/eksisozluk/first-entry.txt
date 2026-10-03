@@ -1,0 +1,42 @@
+severek kullandığım, ancak uzun zamandır güncellenmeyen `ekşi engel` eklentisinin birçok yeni özellik içeren versiyonu. (bkz: fork). ayrica artik bir android uygulamasi ve telefondaki firefox'a da kurulabilen bir eklenti!
+açık kaynak kodlu olduğu için geliştirilmesine katkıda bulunabilir, en alttaki `github` linkinden hata bildirimi yapabilir, ya da yeni bir özellik için istekte bulunabilirsiniz. umarım işinize yarar.
+
+yüklemek için:
+google chrome: [https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh buraya tıklayın]
+mozilla firefox: [https://addons.mozilla.org/firefox/addon/eksiengelplus buraya tıklayın].
+android firefox: yukarıdaki firefox linkini telefonunuzdaki firefox'tan açın, yeter. ayrı bir sürüm değil, masaüstüyle aynı eklenti. (android'de yalnızca firefox eklenti kurulmasına izin veriyor.)
+android apk: [https://github.com/crimeofheart/EksiEngelPlus/releases releases sayfası].
+[https://github.com/crimeofheart/EksiEngelPlus/issues buradan] hata bildirebilirsiniz (bana mesajla da bildirebilirsiniz).
+
+uygulamanın eklentiden farkı, sözlüğü uygulamanın kendi içinde geziyor olmanız. entry'nin yanındaki menüden engelle deyip devam ediyorsunuz, ayrı bir ekrana geçmek gerekmiyor. başlıklar arası yatay kaydırma, aşağı çekip yenileme, bir listede aşağı inip geri döndüğünüzde kaldığınız yerden devam etme ve başlığa uzun basınca çıkan kopyala/paylaş menüsü de var.
+
+toplu işlemler arka planda çalışıyor: uygulamayı kapatsanız da devam ediyor, duraklatıp devam ettirebiliyor ya da istediğiniz an durdurabiliyorsunuz, sözlüğün dakikadaki istek sınırının altında kalacak şekilde kendini yavaşlatıyor. yarıda kalırsa kaldığı yerden sürüyor.
+
+önemli not: android uygulaması şimdilik yalnızca (bkz: apk) olarak dağıtılıyor, google play'de yok. kurmak için telefonunuzda bilinmeyen kaynaklardan yükleme iznini açmanız gerekiyor. telefonda uygulama istemiyorsanız firefox eklentisi aynı işi görüyor. ios sürümü de (henüz) yok.
+
+~~~ana özellikler~~~
+toplu işlemler:
+- bir entry'yi favorileyenleri engelleme/sessize alma/takip etme
+- bir yazarı takip edenleri ve takip ettiklerini engelleme/sessize alma/takip etme
+- bir başlıktaki tüm yazarları engelleme/sessize alma
+- liste halinde verilen kullanıcıları toplu engelleme/sessize alma/engeli kaldırma
+- tüm engelli kullanıcıların engelini ya da tüm sessizlerin sessizliğini toplu kaldırma, engellileri sessize taşıma
+- yazar listelerini csv olarak kaydetme, kaydedilen bir csv listesini yükleyerek işlem yapma.
+
+tarih bazlı filtreleme:
+hesap kayıt tarihine göre kural koyup belirli yaştaki hesapları işlemin dışında tutabilirsiniz. varsayılan kural "on beş yıldan eski hesaplara dokunma" şeklinde: köklü hesaplar toplu işlemlere girmiyor. kuralı değiştirebilir, silebilir ya da kendi kuralınızı ekleyebilirsiniz. takip işlemlerinde kural uygulanmıyor: takip etmek istediğiniz hesap kaç yaşında olursa olsun takip ediliyor.
+
+işlem türleri:
+- engelleme
+- başlık engelleme
+- sessize alma
+- takip etme (ortada engel ya da sessize alma varsa önce onu kaldırır)
+
+kullanım kolaylığı:
+- durdurma/devam ettirme özelliği ile uzun işlemleri kaldığınız yerden sürdürebilirsiniz. yanlışlıkla başlattığınız bir işlemi, daha hedefleri toplarken bile durdurabilirsiniz.
+- kuyruk sistemi ile birden fazla işlemi sırayla çalıştırabilirsiniz. sıradaki bir işlemi kuyruktan çıkarabilirsiniz.
+- işlem ilerlemesini gerçek zamanlı takip edebilir, biten ya da yarım kalan bir işlemi tek tuşla tekrarlayabilirsiniz. her işlemin ne yaptığı (takip, engelleme, sessize alma, engel kaldırma) ayrı ayrı yazıyor.
+- eklenti ekşi sözlük'ün apı işlem sınırlamasını otomatik olarak bekler ve sonra kaldığı yerden devam eder.
+
+github linki: https://github.com/crimeofheart/EksiEngelPlus
+web sitesi: https://eksiengelplus.duzgun.org

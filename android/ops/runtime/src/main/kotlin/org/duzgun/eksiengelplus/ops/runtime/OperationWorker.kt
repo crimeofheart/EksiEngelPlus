@@ -331,11 +331,7 @@ class OperationWorker @AssistedInject constructor(
          * described one run in two languages, and neither of the two queued
          * "FAV" notifications said which entry it was.
          */
-        val runLabel = OperationLabel.of(
-            applicationContext,
-            request.source,
-            OperationLabel.target(request),
-        )
+        val runLabel = OperationLabel.of(applicationContext, request)
 
         val existing = db.checkpoints().get(operationId)
         // Before any work, so a run that opens with a cooldown is not reported

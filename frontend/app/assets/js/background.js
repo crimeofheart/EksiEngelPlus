@@ -7,7 +7,7 @@ import {log} from './log.js';
 import {Action, createEksiSozlukEntry, createEksiSozlukTitle, createEksiSozlukUser, commHandler, ActionConfig} from './commHandler.js';
 import {relationHandler} from './relationHandler.js';
 import {scrapingHandler} from './scrapingHandler.js';
-import {processQueue, generateUnifiedDescription, isCancelledTask} from './queue.js';
+import {processQueue, generateUnifiedDescription, isCancelledTask, getTaskCategory} from './queue.js';
 import {programController} from './programController.js';
 import {handleEksiSozlukURL} from './urlHandler.js';
 import { notificationHandler } from './notificationHandler.js';
@@ -449,7 +449,7 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
   } else {
     // Legacy message handler for TITLE, SINGLE, FAV, FOLLOW, LIST actions
     // Must await notification tab BEFORE enqueue to prevent race condition
-    ensureNotificationTabExistsAndIsReady().then(notificationTabReady => {
+    ensureNotificationTabExistsAndIsReady().then(async notificationTabReady => {
       if (!notificationTabReady) {
         log.warn("bg", "Notification tab not ready for legacy action");
         sendResponse({ status: 'error', message: 'Could not open notification page.' });
@@ -492,7 +492,15 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
         clickSource: obj.clickSource || null,
         banSource: obj.banSource,
         banMode: obj.banMode,
-        listAction: obj.action || null
+        listAction: obj.action || null,
+        // Settled here because a run with no target type blocks or mutes by the
+        // enableMute setting, which the notification page does not have.
+        taskCategory: getTaskCategory(obj.banSource, {
+          banMode: obj.banMode,
+          targetType: obj.targetType || null,
+          listAction: obj.action || null,
+          enableMute: await storedEnableMute(),
+        })
       };
       
       watchQueuedTask(processQueue.enqueue(wrapperProcessHandler), wrapperProcessHandler.banSource);
@@ -505,6 +513,18 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
     return true;  // Keep message port open for async response
   }
 });
+
+/**
+ * The enableMute setting as saved, for labelling a task at enqueue.
+ *
+ * The stored copy rather than the module's: `config` is only refreshed when a
+ * run starts (handleConfig), so a setting changed since the last run would
+ * label the task by the old one.
+ */
+async function storedEnableMute() {
+  const stored = await getConfig();
+  return stored ? !!stored.enableMute : !!config.enableMute;
+}
 
 /**
  * Owns the promise enqueue hands back.

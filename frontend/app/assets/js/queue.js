@@ -10,30 +10,107 @@ class Queue {
   get size() { return this._items.length; }
 }
 
-export function getTaskCategory(banSource) {
-  switch (banSource) {
-    case enums.BanSource.SINGLE:
-    case enums.BanSource.FAV:
-    case enums.BanSource.FOLLOW:
-    case enums.BanSource.LIST:
-    case enums.BanSource.TITLE:
+/**
+ * What an author-list or date-based bulk action does, as a category, or null
+ * when the action name is absent and the run's mode and target type decide.
+ */
+function categoryOfNamedAction(action) {
+  switch (action) {
+    case enums.DateBulkAction.ENGELLE:
       return enums.TaskCategory.BLOCKING;
+    case enums.DateBulkAction.SESSIZE_AL:
+      return enums.TaskCategory.MUTING;
+    case enums.DateBulkAction.ENGEL_KALDIR:
+      return enums.TaskCategory.UNBLOCKING;
+    case enums.DateBulkAction.SESSIZDEN_CIKAR:
+      return enums.TaskCategory.UNMUTING;
+    // The unblock or unmute in these two is the way to the follow, not the point.
+    case enums.DateBulkAction.TAKIP_ET:
+    case enums.DateBulkAction.ENGEL_KALDIR_VE_TAKIP_ET:
+    case enums.DateBulkAction.SESSIZDEN_CIKAR_VE_TAKIP_ET:
+      return enums.TaskCategory.FOLLOWING;
+    case enums.DateBulkAction.TAKIPTEN_CIKAR:
+      return enums.TaskCategory.UNFOLLOWING;
+    default:
+      return null;
+  }
+}
+
+/**
+ * What a task does, for the category column.
+ *
+ * Read from the source alone this said "Engelleme" for every run that acts on
+ * an audience -- "yazarı takip et", "favlayanları sessize al" and "engellemeyi
+ * bırak" all queued as blocks -- because SINGLE, FAV, FOLLOW, LIST and TITLE
+ * each carry every relation. The source says whom; the mode, the target type
+ * and the author list's or date-based run's action name say what.
+ *
+ * A null target type is a restricting run whose block-or-mute choice is the
+ * user's enableMute setting, read when the run starts. Pass it in `enableMute`;
+ * the background stores the result on the task as metadata.taskCategory at
+ * enqueue, because the notification page has no copy of the setting.
+ *
+ * Mirrored by OperationLabel.kind in android/ops/runtime/.../OperationLabel.kt.
+ */
+export function getTaskCategory(banSource, details = {}) {
+  const { banMode, targetType, listAction, bulkAction, enableMute = false } = details;
+  switch (banSource) {
     case enums.BanSource.MIGRATE_BLOCKED_TO_MUTED:
     case enums.BanSource.BLOCK_MUTED_USERS:
-    case enums.BanSource.BLOCKED_MUTED_TITLES:
       return enums.TaskCategory.MIGRATION;
+    // Blocks the titles of accounts already blocked or muted: nothing moves
+    // from one list to another, so it is a block, not "Taşıma".
+    case enums.BanSource.BLOCKED_MUTED_TITLES:
+      return banMode === enums.BanMode.UNDOBAN
+        ? enums.TaskCategory.UNBLOCKING
+        : enums.TaskCategory.BLOCKING;
     case enums.BanSource.REFRESH_MUTED_LIST:
     case enums.BanSource.REFRESH_BLOCKED_LIST:
     case enums.BanSource.REFRESH_FOLLOWED_LIST:
       return enums.TaskCategory.REFRESH;
     case enums.BanSource.UNDOBANALL:
-    case enums.BanSource.UNMUTEALL:
       return enums.TaskCategory.UNBLOCKING;
+    case enums.BanSource.UNMUTEALL:
+      return enums.TaskCategory.UNMUTING;
     case enums.BanSource.DATE_BASED_BULK:
-      return enums.TaskCategory.BLOCKING;
-    default:
-      return enums.TaskCategory.BLOCKING;
+      return categoryOfNamedAction(bulkAction) || enums.TaskCategory.BLOCKING;
+    case enums.BanSource.LIST: {
+      const named = categoryOfNamedAction(listAction);
+      if (named) return named;
+      break;
+    }
+    // Offered only as a follow; an older task may not carry the target type.
+    case enums.BanSource.FOLLOWEES:
+      return banMode === enums.BanMode.UNDOBAN
+        ? enums.TaskCategory.UNFOLLOWING
+        : enums.TaskCategory.FOLLOWING;
   }
+
+  const undo = banMode === enums.BanMode.UNDOBAN;
+  const relation = targetType || (enableMute ? enums.TargetType.MUTE : enums.TargetType.USER);
+  if (relation === enums.TargetType.FOLLOW) {
+    return undo ? enums.TaskCategory.UNFOLLOWING : enums.TaskCategory.FOLLOWING;
+  }
+  if (relation === enums.TargetType.MUTE) {
+    return undo ? enums.TaskCategory.UNMUTING : enums.TaskCategory.MUTING;
+  }
+  return undo ? enums.TaskCategory.UNBLOCKING : enums.TaskCategory.BLOCKING;
+}
+
+/**
+ * The category of a queued or finished task, from what it carries.
+ *
+ * Prefers the category the background stored at enqueue, which saw the
+ * enableMute setting; recomputes for a task persisted before it was stored.
+ */
+export function taskCategoryOf(banSource, metadata = {}, banMode = metadata.banMode) {
+  if (metadata.taskCategory) return metadata.taskCategory;
+  return getTaskCategory(banSource, {
+    banMode,
+    targetType: (metadata.targetTypes || [])[0] || null,
+    listAction: metadata.listAction || null,
+    bulkAction: metadata.bulkAction || null,
+  });
 }
 
 function getTaskComplexity(banSource) {
@@ -119,19 +196,35 @@ export function buildRetryParams(action = {}, metadata = {}) {
   };
 }
 
+/** The verb a description uses for each category. */
+const CATEGORY_VERBS = {
+  [enums.TaskCategory.BLOCKING]: "Engelle",
+  [enums.TaskCategory.UNBLOCKING]: "Engel Kaldır",
+  [enums.TaskCategory.MUTING]: "Sessize Al",
+  [enums.TaskCategory.UNMUTING]: "Sessizden Çıkar",
+  [enums.TaskCategory.FOLLOWING]: "Takip Et",
+  [enums.TaskCategory.UNFOLLOWING]: "Takipten Çıkar",
+};
+
 export function generateUnifiedDescription(banSource, metadata = {}) {
-  const { targetTypes = [], sourceEntry, sourceAuthor, sourceTitle, sourceList, timeFilter, banMode, listAction } = metadata;
+  const { targetTypes = [], sourceEntry, sourceAuthor, sourceTitle, sourceList, timeFilter, listAction, bulkAction } = metadata;
   let baseDescription = "";
-  const operationType = banMode === enums.BanMode.UNDOBAN ? "Engel Kaldır" : "Engelle";
+  // From the same category the column shows, so the two cannot disagree: this
+  // used to be "Engelle" unless the mode was UNDOBAN, whatever the target type.
+  const operationType = CATEGORY_VERBS[taskCategoryOf(banSource, metadata)] || "Engelle";
   const listActionLabels = {
+    [enums.DateBulkAction.ENGELLE]: "Engelle",
+    [enums.DateBulkAction.SESSIZE_AL]: "Sessize Al",
+    [enums.DateBulkAction.ENGEL_KALDIR]: "Engel Kaldır",
+    [enums.DateBulkAction.SESSIZDEN_CIKAR]: "Sessizden Çıkar",
     [enums.DateBulkAction.TAKIP_ET]: "Takip Et",
     [enums.DateBulkAction.ENGEL_KALDIR_VE_TAKIP_ET]: "Engel Kaldır ve Takip Et",
     [enums.DateBulkAction.SESSIZDEN_CIKAR_VE_TAKIP_ET]: "Sessizden Çıkar ve Takip Et",
     [enums.DateBulkAction.TAKIPTEN_CIKAR]: "Takipten Çıkar"
   };
-  const targetTypeNames = targetTypes && targetTypes.length > 0
-    ? targetTypes.map(t => t === enums.TargetType.USER ? "Kullanıcı" : t === enums.TargetType.TITLE ? "Başlık" : "Sessiz").join(", ")
-    : null;
+  // Only what the verb does not already say. Every type used to be named, and
+  // anything not a user or a title was called "Sessiz" -- a follow included.
+  const targetTypeNames = targetTypes.includes(enums.TargetType.TITLE) ? "Başlık" : null;
 
   switch (banSource) {
     case enums.BanSource.SINGLE:
@@ -146,6 +239,10 @@ export function generateUnifiedDescription(banSource, metadata = {}) {
       break;
     case enums.BanSource.FOLLOW:
       baseDescription = `Takipçileri ${operationType}`;
+      baseDescription += describeTarget(sourceAuthor);
+      break;
+    case enums.BanSource.FOLLOWEES:
+      baseDescription = `Takip Ettiklerini ${operationType}`;
       baseDescription += describeTarget(sourceAuthor);
       break;
     case enums.BanSource.LIST:
@@ -187,7 +284,9 @@ export function generateUnifiedDescription(banSource, metadata = {}) {
       baseDescription = "Tüm Sessizleri Kaldır";
       break;
     case enums.BanSource.DATE_BASED_BULK:
-      baseDescription = "Tarih Bazlı Toplu İşlem";
+      baseDescription = listActionLabels[bulkAction]
+        ? `Tarih Bazlı Toplu İşlem: ${listActionLabels[bulkAction]}`
+        : "Tarih Bazlı Toplu İşlem";
       break;
     default:
       baseDescription = `${operationType} İşlemi`;
@@ -366,7 +465,7 @@ class AutoQueue extends Queue {
         banMode: action.banMode,
         creationDateInStr: action.creationDateInStr,
         actionDescription: action.actionDescription || generateUnifiedDescription(action.banSource, { ...metadata, banMode: action.banMode }),
-        taskCategory: getTaskCategory(action.banSource),
+        taskCategory: taskCategoryOf(action.banSource, metadata, action.banMode),
         taskComplexity: getTaskComplexity(action.banSource),
         taskPriority: getTaskPriority(action.banSource),
         sourceEntry: metadata.sourceEntry || null,
@@ -396,7 +495,7 @@ class AutoQueue extends Queue {
         banMode: action.banMode,
         creationDateInStr: action.creationDateInStr,
         actionDescription: action.actionDescription || generateUnifiedDescription(action.banSource, { ...action.metadata, banMode: action.banMode }),
-        taskCategory: getTaskCategory(action.banSource),
+        taskCategory: taskCategoryOf(action.banSource, metadata, action.banMode),
         taskComplexity: getTaskComplexity(action.banSource),
         taskPriority: getTaskPriority(action.banSource),
         sourceEntry: metadata.sourceEntry || null,

@@ -22,12 +22,14 @@ export const releaseNotes = {
   "0.5.3": {
     app: [
       "\"Takip et\" seçenekleri (yazarı, favlayanları, takipçilerini ve takip ettiklerini takip et) artık yalnızca takip edilecek hesapları sayıyor. Takipten önce varsa engel ya da sessize alma kaldırılsın diye her seferinde bütün engellenenler ve sessize alınanlar listeniz baştan sona okunuyor, ekranda da bu sayılıyordu: birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor ve dakikalarca sürebiliyordu.",
-      "Bu listeler artık yalnızca işlemin büyüklüğüne göre değdiği kadar okunuyor. Uzun bir engel listesiyle birkaç hesabı takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor."
+      "Bu listeler artık yalnızca işlemin büyüklüğüne göre değdiği kadar okunuyor. Uzun bir engel listesiyle birkaç hesabı takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor.",
+      "İşlem durumunda ve bildirimde her işlemin ne yaptığı yazıyor: \"takip: favlayanlar (coh)\" gibi. Eskiden aynı kişileri takip etmek ile engellemek aynı satır olarak görünüyordu; engelli ve sessizlerin başlıklarının engelini kaldırma işlemi de \"başlık engelleme\" diye görünüyordu."
     ],
     extension: [
       "\"Takip et\" seçenekleri (yazarı, favlayanları, takipçilerini ve takip ettiklerini takip et) artık yalnızca takip edilecek hesapları sayıyor. Takipten önce varsa engel ya da sessize alma kaldırılsın diye her seferinde bütün engellenenler ve sessize alınanlar listeniz baştan sona okunuyor, ekranda da bu sayılıyordu: birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor ve dakikalarca sürebiliyordu.",
       "Bu listeler artık yalnızca işlemin büyüklüğüne göre değdiği kadar okunuyor. Uzun bir engel listesiyle birkaç hesabı takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor.",
-      "Takip işlemleri artık engelleme için yapılan ön hazırlığı yapmıyor: takip ettiklerinizin listesini ve engel listesini ikinci kez okumuyor. Tarih filtresi de takipte uygulanmıyor; açıkken takip işlemi yalnızca kuralın kapsadığı hesapları takip ediyordu."
+      "Takip işlemleri artık engelleme için yapılan ön hazırlığı yapmıyor: takip ettiklerinizin listesini ve engel listesini ikinci kez okumuyor. Tarih filtresi de takipte uygulanmıyor; açıkken takip işlemi yalnızca kuralın kapsadığı hesapları takip ediyordu.",
+      "İşlem durumundaki \"Tür\" sütunu artık işlemin ne yaptığını gösteriyor: takip, takipten çıkarma, sessize alma, sessizden çıkarma, engelleme ya da engel kaldırma. Takip, sessize alma ve engel kaldırma işlemleri hem sıradakilerde hem tamamlananlarda \"Engelleme\" olarak görünüyordu; açıklamada da takip \"Engelle\" diye yazıyordu."
     ]
   },
   "0.5.2": {

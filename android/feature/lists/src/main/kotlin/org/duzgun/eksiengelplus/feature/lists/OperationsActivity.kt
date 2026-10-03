@@ -329,6 +329,7 @@ class OperationsActivity : AppCompatActivity() {
                         this,
                         BanSource.fromPk(task.banSourcePk),
                         OperationLabel.targetFromRequest(task.payloadJson),
+                        OperationLabel.kindFromRequest(task.payloadJson),
                     ),
                     whenText(task.enqueuedAt),
                     task.payloadJson,
@@ -351,6 +352,9 @@ class OperationsActivity : AppCompatActivity() {
                         // The request is gone by now; the summary is where the
                         // archiver put the nick.
                         OperationLabel.targetFromSummary(op.summaryJson),
+                        // Kept on the row for "tekrarla", and null on rows
+                        // archived before it was, which then go unlabelled.
+                        OperationLabel.kindFromRequest(op.requestJson),
                     ) + " · ${whenText(op.finishedAt)}",
                     bold = true,
                 ),
@@ -549,6 +553,7 @@ class OperationsActivity : AppCompatActivity() {
         this,
         cp.type,
         OperationLabel.targetFromRequest(cp.requestJson),
+        OperationLabel.kindFromRequest(cp.requestJson),
     )
 
     /** The run's state, likewise. */

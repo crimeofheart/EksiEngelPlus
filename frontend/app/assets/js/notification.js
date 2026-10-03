@@ -15,7 +15,7 @@ import * as utils from './utils.js';
 import { commHandler } from './commHandler.js';
 import { storageHandler } from './storageHandler.js';
 import { notificationHandler } from './notificationHandler.js';
-import { generateUnifiedDescription, processQueue, getTaskCategory, buildRetryParams } from './queue.js';
+import { generateUnifiedDescription, processQueue, taskCategoryOf, buildRetryParams } from './queue.js';
 import { config } from './config.js';
 import { buttonStateManager } from './buttonStateManager.js';
 
@@ -23,14 +23,46 @@ function getCategoryDisplayName(taskCategory) {
   switch (taskCategory) {
     case enums.TaskCategory.BLOCKING:
       return "Engelleme";
+    case enums.TaskCategory.UNBLOCKING:
+      return "Engel Kaldırma";
+    case enums.TaskCategory.MUTING:
+      return "Sessize Alma";
+    case enums.TaskCategory.UNMUTING:
+      return "Sessizden Çıkarma";
+    case enums.TaskCategory.FOLLOWING:
+      return "Takip";
+    case enums.TaskCategory.UNFOLLOWING:
+      return "Takipten Çıkarma";
     case enums.TaskCategory.MIGRATION:
       return "Taşıma";
     case enums.TaskCategory.REFRESH:
       return "Yenileme";
-    case enums.TaskCategory.UNBLOCKING:
-      return "Engel Kaldırma";
     default:
       return "Diğer";
+  }
+}
+
+/** The icon before a category name. One copy, for the queue and the finished table alike. */
+function getCategoryIndicator(taskCategory) {
+  switch (taskCategory) {
+    case enums.TaskCategory.BLOCKING:
+      return '🔒';
+    case enums.TaskCategory.UNBLOCKING:
+      return '🔓';
+    case enums.TaskCategory.MUTING:
+      return '🔇';
+    case enums.TaskCategory.UNMUTING:
+      return '🔈';
+    case enums.TaskCategory.FOLLOWING:
+      return '➕';
+    case enums.TaskCategory.UNFOLLOWING:
+      return '➖';
+    case enums.TaskCategory.MIGRATION:
+      return '🔄';
+    case enums.TaskCategory.REFRESH:
+      return '🔃';
+    default:
+      return '⚙️';
   }
 }
 
@@ -1440,25 +1472,11 @@ async function insertCompletedProcessesTable(banSource, successfulAction, perfor
   const d = timestamp ? new Date(timestamp) : new Date();
   cell1.innerHTML = String(d.getHours()).padStart(2, '0') + ":" + String(d.getMinutes()).padStart(2, '0');
   
-  const taskCategory = getTaskCategory(banSource);
+  // From the task's own metadata: the source alone called every finished
+  // follow, mute and unblock "Engelleme".
+  const taskCategory = taskCategoryOf(banSource, operationMetadata || {});
   const categoryDisplayName = getCategoryDisplayName(taskCategory);
-  let categoryIndicator = '';
-  switch (taskCategory) {
-    case enums.TaskCategory.BLOCKING:
-      categoryIndicator = '🔒';
-      break;
-    case enums.TaskCategory.MIGRATION:
-      categoryIndicator = '🔄';
-      break;
-    case enums.TaskCategory.REFRESH:
-      categoryIndicator = '🔃';
-      break;
-    case enums.TaskCategory.UNBLOCKING:
-      categoryIndicator = '🔓';
-      break;
-    default:
-      categoryIndicator = '⚙️';
-  }
+  const categoryIndicator = getCategoryIndicator(taskCategory);
   cell2.innerHTML = `${categoryIndicator} ${categoryDisplayName}`;
   cell2.title = `İşlem türü: ${categoryDisplayName}`;
   
@@ -1625,23 +1643,7 @@ function updatePlannedProcessesTable(plannedProcesses) {
     cell4.innerHTML = statusDisplay;
     cell4.title = `İşlem durumu: ${process.taskStatus}`;
     
-    let categoryIndicator = '';
-    switch (process.taskCategory) {
-      case enums.TaskCategory.BLOCKING:
-        categoryIndicator = '🔒';
-        break;
-      case enums.TaskCategory.MIGRATION:
-        categoryIndicator = '🔄';
-        break;
-      case enums.TaskCategory.REFRESH:
-        categoryIndicator = '🔃';
-        break;
-      case enums.TaskCategory.UNBLOCKING:
-        categoryIndicator = '🔓';
-        break;
-      default:
-        categoryIndicator = '⚙️';
-    }
+    const categoryIndicator = getCategoryIndicator(process.taskCategory);
     
     let priorityIndicator = '';
     switch (process.taskPriority) {

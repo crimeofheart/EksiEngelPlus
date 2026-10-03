@@ -4,6 +4,8 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
+import org.duzgun.eksiengelplus.model.TargetType
+import org.duzgun.eksiengelplus.ops.runtime.OperationLabel.Kind
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.junit.Test
 
@@ -87,5 +89,68 @@ class OperationLabelTest {
         assertThat(OperationLabel.targetFromSummary("{}")).isNull()
         assertThat(OperationLabel.targetFromSummary("not json")).isNull()
         assertThat(OperationLabel.targetFromSummary(null)).isNull()
+    }
+
+    // ------------------------------------------------------------ what it does
+
+    private fun op(
+        source: BanSource,
+        mode: BanMode = BanMode.BAN,
+        target: TargetType = TargetType.USER,
+        then: TargetType? = null,
+    ) = OperationRequest(source = source, mode = mode, targetType = target, thenApplyTo = then)
+
+    /**
+     * The reported bug, on the extension's İşlem durumu: every follow queued as
+     * "Engelleme". Here the label named only the audience, so a follow and a
+     * block of the same people were the same row.
+     */
+    @Test fun `every follow audience is a follow`() {
+        for (source in listOf(BanSource.SINGLE, BanSource.FAV, BanSource.FOLLOW, BanSource.FOLLOWEES)) {
+            assertThat(OperationLabel.kind(op(source, target = TargetType.FOLLOW)))
+                .isEqualTo(Kind.FOLLOW)
+        }
+    }
+
+    @Test fun `mode and target type decide the rest`() {
+        assertThat(OperationLabel.kind(op(BanSource.FAV))).isEqualTo(Kind.BLOCK)
+        assertThat(OperationLabel.kind(op(BanSource.FAV, target = TargetType.MUTE))).isEqualTo(Kind.MUTE)
+        assertThat(OperationLabel.kind(op(BanSource.SINGLE, BanMode.UNDOBAN))).isEqualTo(Kind.UNBLOCK)
+        assertThat(OperationLabel.kind(op(BanSource.SINGLE, BanMode.UNDOBAN, TargetType.MUTE)))
+            .isEqualTo(Kind.UNMUTE)
+        assertThat(OperationLabel.kind(op(BanSource.LIST, BanMode.UNDOBAN, TargetType.FOLLOW)))
+            .isEqualTo(Kind.UNFOLLOW)
+        assertThat(OperationLabel.kind(op(BanSource.SINGLE, target = TargetType.TITLE))).isEqualTo(Kind.BLOCK)
+    }
+
+    @Test fun `unblock-then-follow is a follow`() {
+        assertThat(
+            OperationLabel.kind(op(BanSource.DATE_BASED_BULK, BanMode.UNDOBAN, TargetType.USER, then = TargetType.FOLLOW)),
+        ).isEqualTo(Kind.FOLLOW)
+    }
+
+    @Test fun `title runs over the blocked and muted lists go both ways`() {
+        val titles = BanSource.BLOCKED_MUTED_TITLES
+        assertThat(OperationLabel.kind(op(titles, target = TargetType.TITLE))).isEqualTo(Kind.BLOCK)
+        assertThat(OperationLabel.kind(op(titles, BanMode.UNDOBAN, TargetType.TITLE))).isEqualTo(Kind.UNBLOCK)
+    }
+
+    @Test fun `sources whose name says what they do carry no kind`() {
+        val named = listOf(
+            BanSource.UNDOBANALL, BanSource.UNMUTEALL, BanSource.MIGRATE_BLOCKED_TO_MUTED,
+            BanSource.BLOCK_MUTED_USERS, BanSource.REFRESH_BLOCKED_LIST,
+            BanSource.REFRESH_MUTED_LIST, BanSource.REFRESH_FOLLOWED_LIST,
+        )
+        for (source in named) assertThat(OperationLabel.kind(op(source, BanMode.UNDOBAN))).isNull()
+    }
+
+    @Test fun `the kind comes back out of a stored request, and a bad one has none`() {
+        val json = Json.encodeToString(
+            OperationRequest.serializer(),
+            op(BanSource.FOLLOW, target = TargetType.FOLLOW),
+        )
+        assertThat(OperationLabel.kindFromRequest(json)).isEqualTo(Kind.FOLLOW)
+        assertThat(OperationLabel.kindFromRequest("{not json")).isNull()
+        assertThat(OperationLabel.kindFromRequest(null)).isNull()
     }
 }

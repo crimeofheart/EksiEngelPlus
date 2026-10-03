@@ -7,7 +7,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
+import org.duzgun.eksiengelplus.model.TargetType
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 
 /**
@@ -23,19 +25,82 @@ import org.duzgun.eksiengelplus.ops.engine.OperationRequest
  */
 object OperationLabel {
 
-    /** The run's name, with its target in brackets when there is one. */
-    fun of(context: Context, source: BanSource?, target: String?): String {
+    /**
+     * The run's name, with its target in brackets when there is one, after what
+     * it does when that is not already in the name: "takip: favlayanlar (coh)".
+     */
+    fun of(context: Context, source: BanSource?, target: String?, kind: Kind? = null): String {
         val name = context.getString(sourceRes(source))
-        return if (target.isNullOrBlank()) {
+        val named = if (target.isNullOrBlank()) {
             name
         } else {
             context.getString(R.string.src_with_target, name, target)
         }
+        return if (kind == null) named else context.getString(R.string.src_with_kind, context.getString(kind.res), named)
     }
 
     /** The same, from the BanSource constant a checkpoint stores. */
-    fun of(context: Context, sourceName: String, target: String?): String =
-        of(context, runCatching { BanSource.valueOf(sourceName) }.getOrNull(), target)
+    fun of(context: Context, sourceName: String, target: String?, kind: Kind? = null): String =
+        of(context, runCatching { BanSource.valueOf(sourceName) }.getOrNull(), target, kind)
+
+    /** The same, for a request in hand. */
+    fun of(context: Context, request: OperationRequest): String =
+        of(context, request.source, target(request), kind(request))
+
+    /**
+     * What a run does to its targets.
+     *
+     * The same six categories the extension's İşlem durumu shows
+     * (getTaskCategory in frontend/app/assets/js/queue.js). Without them a
+     * queued "favlayanlar (coh)" was the same row whether it would block,
+     * mute or follow those people -- SINGLE, FAV, FOLLOW, LIST, TITLE and
+     * DATE_BASED_BULK each carry every relation.
+     */
+    enum class Kind(val res: Int) {
+        BLOCK(R.string.kind_block),
+        UNBLOCK(R.string.kind_unblock),
+        MUTE(R.string.kind_mute),
+        UNMUTE(R.string.kind_unmute),
+        FOLLOW(R.string.kind_follow),
+        UNFOLLOW(R.string.kind_unfollow),
+    }
+
+    /**
+     * Which [Kind] a request is, or null where the source's name already says
+     * it ("tüm engelleri kaldırma", "liste yenileme").
+     *
+     * BLOCKED_MUTED_TITLES is not one of those: it runs in both directions, and
+     * its name, "başlık engelleme", called the unblock run a block too. It is
+     * now named for its audience and takes its kind like the others.
+     *
+     * Read off the request alone: Android resolves block-or-mute when the run
+     * is enqueued, so the target type is always explicit, unlike the
+     * extension's FAV and FOLLOW menu items.
+     */
+    fun kind(request: OperationRequest): Kind? {
+        when (request.source) {
+            BanSource.UNDOBANALL,
+            BanSource.UNMUTEALL,
+            BanSource.MIGRATE_BLOCKED_TO_MUTED,
+            BanSource.BLOCK_MUTED_USERS,
+            BanSource.REFRESH_BLOCKED_LIST,
+            BanSource.REFRESH_MUTED_LIST,
+            BanSource.REFRESH_FOLLOWED_LIST,
+            -> return null
+            else -> Unit
+        }
+        val undo = request.mode == BanMode.UNDOBAN
+        return when {
+            // "engeli kaldır ve takip et": the unblock is the way to the follow.
+            request.thenApplyTo == TargetType.FOLLOW -> Kind.FOLLOW
+            request.targetType == TargetType.FOLLOW -> if (undo) Kind.UNFOLLOW else Kind.FOLLOW
+            request.targetType == TargetType.MUTE -> if (undo) Kind.UNMUTE else Kind.MUTE
+            else -> if (undo) Kind.UNBLOCK else Kind.BLOCK
+        }
+    }
+
+    /** The kind of a stored request -- checkpoint requestJson or queue payloadJson. */
+    fun kindFromRequest(json: String?): Kind? = decode(json)?.let(::kind)
 
     /**
      * Which nick the run is about.
@@ -54,9 +119,10 @@ object OperationLabel {
     }?.takeIf { it.isNotBlank() }
 
     /** The target of a stored request -- checkpoint requestJson or queue payloadJson. */
-    fun targetFromRequest(json: String?): String? = json
+    fun targetFromRequest(json: String?): String? = decode(json)?.let(::target)
+
+    private fun decode(json: String?): OperationRequest? = json
         ?.let { runCatching { Json.decodeFromString(OperationRequest.serializer(), it) }.getOrNull() }
-        ?.let(::target)
 
     /**
      * The target, kept for history.

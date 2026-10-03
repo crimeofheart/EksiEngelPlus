@@ -15,7 +15,7 @@
     <string name="src_title">başlıktakiler</string>
     <string name="src_undobanall">tüm engelleri kaldırma</string>
     <string name="src_unmuteall">tüm sessizleri kaldırma</string>
-    <string name="src_blocked_muted_titles">başlık engelleme</string>
+    <string name="src_blocked_muted_titles">engelli ve sessizlerin başlıkları</string>
     <string name="src_migrate">engelliden sessize taşıma</string>
     <string name="src_block_muted">sessizleri engelleme</string>
     <string name="src_date_based">tarih filtresiyle işlem</string>
@@ -30,4 +30,20 @@
       blocked and which one is still waiting.
     -->
     <string name="src_with_target">%1$s (%2$s)</string>
+
+    <!--
+      What a run does, before its name: "takip: favlayanlar (coh)".
+
+      The same categories as the extension's İşlem durumu column
+      (getCategoryDisplayName in frontend/app/assets/js/notification.js).
+      Without them a queued follow and a queued block of the same audience
+      were the same row.
+    -->
+    <string name="src_with_kind">%1$s: %2$s</string>
+    <string name="kind_block">engelleme</string>
+    <string name="kind_unblock">engel kaldırma</string>
+    <string name="kind_mute">sessize alma</string>
+    <string name="kind_unmute">sessizden çıkarma</string>
+    <string name="kind_follow">takip</string>
+    <string name="kind_unfollow">takipten çıkarma</string>
 </resources>

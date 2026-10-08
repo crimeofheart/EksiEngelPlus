@@ -2,6 +2,22 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",
+      "[Eklenti] Engelleme, sessize alma ve takip işlemlerinde başarısız yanıtlar artık başarılı sayılmıyor. İşlem sınırına takılan istekler beklenerek yeniden deneniyor; diğer hatalar başarısız olarak kaydediliyor.",
+      "[Eklenti] Takipten önce engel ya da sessize alma kaldırılamazsa o hesapta takip adımına geçilmiyor.",
+      "[Eklenti] Dönüştürme işlemleri başlamadan önce listenin tamamı toplanıyor. İşlem sırasında liste küçüldüğü için sonraki sayfalardaki hesapların atlanması giderildi.",
+      "[Eklenti] Toplu sessizden çıkarma sırasında hata oluşursa işlem başarısız olarak bitiyor ve o ana kadar tamamlanan işlemler doğru sayılıyor. Başarısız olan ya da henüz işlenmeyen hesaplar önbellekten silinmiyor.",
+      "[Uygulama] Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",
+      "[Uygulama] Engelleme, sessize alma ve takip işlemlerinde başarısız yanıtlar artık başarılı sayılmıyor. İşlem sınırına takılan istekler beklenerek yeniden deneniyor; diğer hatalar başarısız olarak kaydediliyor.",
+      "[Uygulama] Takipten önce engel ya da sessize alma kaldırılamazsa o hesapta takip adımına geçilmiyor.",
+      "[Uygulama] Sessize alınanları engelleme işlemi artık başarılı engellemeden sonra sessize almayı da kaldırıyor; eskiden hesap hem engelli hem sessize alınmış kalıyordu."
+    ],
+    "pub_date": "2026-10-08",
+    "version": "0.5.4"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] \"Takip et\" seçenekleri (yazarı, favlayanları, takipçilerini ve takip ettiklerini takip et) artık yalnızca takip edilecek hesapları sayıyor. Takipten önce varsa engel ya da sessize alma kaldırılsın diye her seferinde bütün engellenenler ve sessize alınanlar listeniz baştan sona okunuyor, ekranda da bu sayılıyordu: birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor ve dakikalarca sürebiliyordu.",
       "[Eklenti] Bu listeler artık yalnızca işlemin büyüklüğüne göre değdiği kadar okunuyor. Uzun bir engel listesiyle birkaç hesabı takip ederken liste hiç okunmuyor; engel ve sessize alma doğrudan kaldırılıp hesap takip ediliyor.",
       "[Eklenti] Takip işlemleri artık engelleme için yapılan ön hazırlığı yapmıyor: takip ettiklerinizin listesini ve engel listesini ikinci kez okumuyor. Tarih filtresi de takipte uygulanmıyor; açıkken takip işlemi yalnızca kuralın kapsadığı hesapları takip ediyordu.",

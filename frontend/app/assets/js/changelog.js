@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.5.4": {
+    date: "2026-10-08",
     app: [
       "Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",
       "Engelleme, sessize alma ve takip işlemlerinde başarısız yanıtlar artık başarılı sayılmıyor. İşlem sınırına takılan istekler beklenerek yeniden deneniyor; diğer hatalar başarısız olarak kaydediliyor.",

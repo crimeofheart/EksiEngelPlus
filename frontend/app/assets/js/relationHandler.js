@@ -7,19 +7,18 @@ import {config} from './config.js';
 // a class to manage relations (ban/undoban users/users' titles)
 class RelationHandler
 {
-  successfulAction;
-  performedAction;
+  successfulAction = 0;
+  performedAction = 0;
   
   async performAction(banMode, id, isTargetUser, isTargetTitle, isTargetMute, isTargetFollow)
   {
     // Returns: { resultType: enums.ResultType, successfulAction: number, performedAction: number, retryAfter?: number }
-    if(id == 0 || id === "0" || !id) // Added more robust check for invalid ID
+    if(!Number.isSafeInteger(Number(id)) || Number(id) <= 0)
     {
       log.warn("relation", `performAction called with invalid id: ${id}`);
       // action failed, but count it as performed to avoid infinite loops if an ID is consistently invalid
       this.performedAction++;
-      // Return SUCCESS to prevent retry logic from triggering on invalid ID, but don't increment successfulAction
-      return {resultType: enums.ResultType.SUCCESS, successfulAction: this.successfulAction, performedAction: this.performedAction};
+      return {resultType: enums.ResultType.FAIL, successfulAction: this.successfulAction, performedAction: this.performedAction};
     }
 
     let resUser = { status: enums.ResultTypeHttpReq.SUCCESS },
@@ -93,7 +92,8 @@ class RelationHandler
          log.warn("relation", `One or more actions failed for id ${id} (not rate limit). User: ${resUser.status}, Title: ${resTitle.status}, Mute: ${resMute.status}, Follow: ${resFollow.status}`);
       }
 
-      return {resultType: enums.ResultType.SUCCESS, successfulAction: this.successfulAction, performedAction: this.performedAction};
+      // Mirrored by Android RelationClient: only confirmed outcomes are successes.
+      return {resultType: allSucceeded ? enums.ResultType.SUCCESS : enums.ResultType.FAIL, successfulAction: this.successfulAction, performedAction: this.performedAction};
     }
   }
   
@@ -173,7 +173,7 @@ class RelationHandler
           // dont re-try the operation, assume it was failed.
           const responseText = await response.text();
           log.err("relation", "url: " + url + " response: " + responseText);
-          return enums.ResultTypeHttpReq.FAIL; 
+          return { status: enums.ResultTypeHttpReq.FAIL };
         }
           
         
@@ -185,7 +185,7 @@ class RelationHandler
       if(banMode === enums.BanMode.BAN && typeof responseJson === "number" && (responseJson === 0 || responseJson === 2))
         result.status = enums.ResultTypeHttpReq.SUCCESS;
       // for enums.BanMode.UNDOBAN result is object and it has 'result' key.
-      else if(banMode === enums.BanMode.UNDOBAN && typeof responseJson === "object" && responseJson.result === true)
+      else if(banMode === enums.BanMode.UNDOBAN && responseJson !== null && typeof responseJson === "object" && responseJson.result === true)
         result.status = enums.ResultTypeHttpReq.SUCCESS;
       else {
         result.status = enums.ResultTypeHttpReq.FAIL;

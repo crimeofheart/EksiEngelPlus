@@ -22,6 +22,7 @@ import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.OperationTask
 import org.duzgun.eksiengelplus.ops.engine.PacerSnapshot
 import org.duzgun.eksiengelplus.ops.engine.SingleActionTask
+import org.duzgun.eksiengelplus.ops.engine.BlockMutedUsersTask
 import org.duzgun.eksiengelplus.ops.engine.TargetRunner
 import org.duzgun.eksiengelplus.ops.engine.TitleActionTask
 import org.duzgun.eksiengelplus.ops.engine.UndoBanAllTask
@@ -131,8 +132,8 @@ object OpsModule {
                     runner,
                     scrape,
                 )
-                BanSource.BLOCK_MUTED_USERS, BanSource.UNMUTEALL ->
-                    RelationListTask(request.source, TargetType.MUTE, runner, scrape)
+                BanSource.BLOCK_MUTED_USERS -> BlockMutedUsersTask(runner, scrape)
+                BanSource.UNMUTEALL -> RelationListTask(request.source, TargetType.MUTE, runner, scrape)
                 /*
                  * The list the chooser picked, not a fixed one.
                  *

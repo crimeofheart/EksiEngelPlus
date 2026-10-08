@@ -45,6 +45,21 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.5.4" to VersionNotes(
+            app = listOf(
+                "Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",
+                "Engelleme, sessize alma ve takip işlemlerinde başarısız yanıtlar artık başarılı sayılmıyor. İşlem sınırına takılan istekler beklenerek yeniden deneniyor; diğer hatalar başarısız olarak kaydediliyor.",
+                "Takipten önce engel ya da sessize alma kaldırılamazsa o hesapta takip adımına geçilmiyor.",
+                "Sessize alınanları engelleme işlemi artık başarılı engellemeden sonra sessize almayı da kaldırıyor; eskiden hesap hem engelli hem sessize alınmış kalıyordu.",
+            ),
+            extension = listOf(
+                "Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",
+                "Engelleme, sessize alma ve takip işlemlerinde başarısız yanıtlar artık başarılı sayılmıyor. İşlem sınırına takılan istekler beklenerek yeniden deneniyor; diğer hatalar başarısız olarak kaydediliyor.",
+                "Takipten önce engel ya da sessize alma kaldırılamazsa o hesapta takip adımına geçilmiyor.",
+                "Dönüştürme işlemleri başlamadan önce listenin tamamı toplanıyor. İşlem sırasında liste küçüldüğü için sonraki sayfalardaki hesapların atlanması giderildi.",
+                "Toplu sessizden çıkarma sırasında hata oluşursa işlem başarısız olarak bitiyor ve o ana kadar tamamlanan işlemler doğru sayılıyor. Başarısız olan ya da henüz işlenmeyen hesaplar önbellekten silinmiyor.",
+            ),
+        ),
         "0.5.3" to VersionNotes(
             app = listOf(
                 "\"Takip et\" seçenekleri (yazarı, favlayanları, takipçilerini ve takip ettiklerini takip et) artık yalnızca takip edilecek hesapları sayıyor. Takipten önce varsa engel ya da sessize alma kaldırılsın diye her seferinde bütün engellenenler ve sessize alınanlar listeniz baştan sona okunuyor, ekranda da bu sayılıyordu: birkaç takipçisi olan bir yazarda bile işlem binlerce hesap sayarak başlıyor ve dakikalarca sürebiliyordu.",

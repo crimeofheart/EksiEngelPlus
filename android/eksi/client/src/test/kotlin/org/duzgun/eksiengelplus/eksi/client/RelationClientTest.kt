@@ -127,4 +127,32 @@ class RelationClientTest {
         assertThat(r).isEqualTo(RelationResult.RateLimited(601))
         assertThat(System.currentTimeMillis() - start).isLessThan(5_000)
     }
+
+    @Test fun `removal rejects malformed JSON nested results and quoted booleans on every relation`() = runTest {
+        for (type in listOf(TargetType.USER, TargetType.TITLE, TargetType.MUTE, TargetType.FOLLOW)) {
+            for (body in listOf("null", "garbage", """{"result":true""",
+                """{"result":true} trailing""", """{"other":{"result":true}}""",
+                """{"result":"true"}""", """[{"result":true}]""")) {
+                enqueue(200, body)
+                assertThat(client.perform(BanMode.UNDOBAN, type, 1L)).isInstanceOf(RelationResult.Failed::class.java)
+            }
+            enqueue(200, """{"result": true,"count":0}""")
+            assertThat(client.perform(BanMode.UNDOBAN, type, 1L)).isEqualTo(RelationResult.Success)
+        }
+    }
+
+    @Test fun `addition rejects quoted success codes and malformed numbers`() = runTest {
+        for (body in listOf("\"0\"", "\"2\"", "0 trailing", "null", "{}")) {
+            enqueue(200, body)
+            assertThat(block()).isInstanceOf(RelationResult.Failed::class.java)
+        }
+    }
+
+    @Test fun `invalid IDs fail without reaching the server`() = runTest {
+        for (id in listOf(0L, -1L)) {
+            assertThat(client.perform(BanMode.BAN, TargetType.USER, id)).isInstanceOf(RelationResult.Failed::class.java)
+        }
+        assertThat(server.requestCount).isEqualTo(0)
+    }
+
 }

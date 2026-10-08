@@ -54,6 +54,8 @@ class NotificationHandler {
   finishErrorLogin = (banSource, banMode, operationMetadata = null) => this.#finish(banSource, banMode, "Ekşi Sözlük hesabınıza giriş yapmanız gerekiyor.", "Giriş yapılmadı", 0, 0, 0, operationMetadata);
   finishErrorNoAccount = (banSource, banMode, operationMetadata = null) => this.#finish(banSource, banMode, "Engellenecek yazar listesi boş.", "Yazar listesi boş", 0, 0, 0, operationMetadata);
   finishErrorEarlyStop = (banSource, banMode, operationMetadata = null) => this.#finish(banSource, banMode, "", "İptal edildi", 0, 0, 0, operationMetadata);
+  finishError = (banSource, banMode, message, successfulAction = 0, performedAction = 0, plannedAction = 0, operationMetadata = null) =>
+    this.#finish(banSource, banMode, message, message, successfulAction, performedAction, plannedAction, operationMetadata);
   finishSuccess = (banSource, banMode, successfulAction, performedAction, plannedAction, operationMetadata = null) => this.#finish(banSource, banMode, "İşlem tamamlandı.", "Tamamlandı", successfulAction, performedAction, plannedAction, operationMetadata);
 
   updatePlannedProcessesList = (plannedProcessesList) => this.#sendMessage(enums.NotificationType.UPDATE_PLANNED_PROCESSES, "", "", plannedProcessesList, null, 0, 0, 0, 0);

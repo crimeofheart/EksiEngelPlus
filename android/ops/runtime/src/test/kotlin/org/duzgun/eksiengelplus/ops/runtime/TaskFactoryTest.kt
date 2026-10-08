@@ -7,6 +7,7 @@ import org.duzgun.eksiengelplus.eksi.client.ScrapeClient
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.model.TargetType
+import org.duzgun.eksiengelplus.ops.engine.BlockMutedUsersTask
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.engine.RelationListTask
 import org.duzgun.eksiengelplus.ops.engine.TargetRunner
@@ -70,4 +71,12 @@ class TaskFactoryTest {
         )
         assertThat(task).isNotInstanceOf(RelationListTask::class.java)
     }
+
+    @Test fun `muted conversion uses the pair task while unmute all stays a single action`() {
+        assertThat(factory.create(OperationRequest(BanSource.BLOCK_MUTED_USERS, BanMode.BAN)))
+            .isInstanceOf(BlockMutedUsersTask::class.java)
+        assertThat(factory.create(OperationRequest(BanSource.UNMUTEALL, BanMode.UNDOBAN)))
+            .isInstanceOf(RelationListTask::class.java)
+    }
+
 }

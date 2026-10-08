@@ -642,17 +642,12 @@ class ProgramController {
    * cannot be true while a restriction says otherwise.
    */
   async _followAfterClearing(authorId, username, source, blockedState) {
-    if (source === 'BLOCKED_USERS') {
-      await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
-    } else if (source === 'MUTED_USERS') {
-      await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
-    } else {
-      if (blockedState && blockedState.isBlocked(username)) {
-        await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
-      }
-      if (blockedState && blockedState.isMuted(username)) {
-        await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
-      }
+    const unblock = source === 'BLOCKED_USERS' || blockedState?.isBlocked(username);
+    const unmute = source === 'MUTED_USERS' || blockedState?.isMuted(username);
+    for (const [needed, user, mute] of [[unblock, true, false], [unmute, false, true]]) {
+      if (!needed) continue;
+      const res = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, user, false, mute);
+      if (res.resultType !== enums.ResultType.SUCCESS || res.earlyStop) return res;
     }
     return await this._performActionWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
   }
@@ -711,424 +706,124 @@ class ProgramController {
   }
 
   async migrateBlockedToMuted() {
-    log.info("progctrl", "migrateBlockedToMuted function started.");
+    return this._convertRestrictions(false);
+  }
 
-    if (this._migrationInProgress) {
-       log.warn("progctrl", "Migration from Blocked to Muted is already in progress.");
-       try {
-         chrome.tabs.sendMessage(this.tabId, {
-           action: "updateMigrationStatus",
-           statusText: "Taşıma işlemi zaten devam ediyor."
-         });
-       } catch (e) {
-         log.warn("progctrl", `Error sending status update: ${e}`);
-       }
-       return;
-    }
+  async blockMutedUsers() {
+    return this._convertRestrictions(true);
+  }
 
-    this._migrationInProgress = true;
-    await storageHandler.saveLastOperationResult('RUNNING');
+  /**
+   * Snapshot first, then add the replacement before removing the source.
+   * Mirrored by Android TargetRunner.applyPairToAll / MigrateBlockedToMutedTask.
+   * Removing users while paging would shift later pages and skip targets.
+   */
+  async _convertRestrictions(fromMuted) {
+    const flag = fromMuted ? '_blockMutedUsersInProgress' : '_migrationInProgress';
+    if (this[flag]) return;
+    this[flag] = true;
     this.earlyStop = false;
+    const source = fromMuted ? enums.BanSource.BLOCK_MUTED_USERS : enums.BanSource.MIGRATE_BLOCKED_TO_MUTED;
+    const operationType = fromMuted ? 'BLOCK_MUTED_USERS' : 'MIGRATE_BLOCKED_TO_MUTED';
+    const metadata = processQueue.currentItemMetadata;
+    let processed = 0, successful = 0, total = 0;
+    let finalState = 'COMPLETED';
+    const removedNames = [];
 
-    // Register with resumable operation registry for pause/resume support
-    const operationId = 'migrate-' + Date.now();
-    resumableOperationRegistry.registerOperation(
-      operationId,
-      'MIGRATE_BLOCKED_TO_MUTED',
-      {},
-      ['FETCH_USERS', 'PROCESS_USERS']
-    );
-
+    const checkpoint = () => resumableOperationRegistry.checkpointReached({
+      stage: 'PROCESS_USERS', processedCount: processed, totalCount: total,
+      migratedCount: successful, failedCount: processed - successful,
+    });
     try {
-      log.info("progctrl", "Fetching all blocked users...");
-      notificationHandler.notify("Engellenen kullanıcılar getiriliyor...");
-
-      const pauseCheckCallback = async () => {
+      await storageHandler.saveLastOperationResult('RUNNING');
+      resumableOperationRegistry.registerOperation(
+        'convert-' + Date.now(), operationType, {}, ['FETCH_USERS', 'PROCESS_USERS']);
+      notificationHandler.notify(fromMuted ? 'Sessize alınan kullanıcılar getiriliyor...' : 'Engellenen kullanıcılar getiriliyor...');
+      const shouldStop = async () => {
         const status = await checkPauseOrStop();
         return status.paused || status.stopped;
       };
-
-      const scrapeResult = await scrapingHandler.scrapeAllBlockedUsers(null, null, pauseCheckCallback);
-
-      if (scrapeResult.paused) {
-        log.info("progctrl", "Migration paused during blocked users fetch.");
+      const collected = fromMuted
+        ? await scrapingHandler.scrapeAllMutedUsers(null, null, shouldStop)
+        : await scrapingHandler.scrapeAllBlockedUsers(null, null, shouldStop);
+      if (collected.paused) return;
+      if (collected.stoppedEarly || this.earlyStop) {
+        finalState = 'STOPPED';
+        notificationHandler.finishErrorEarlyStop(source, enums.BanMode.BAN, metadata);
         return;
       }
-
-      if (!scrapeResult.success) {
-        log.err("progctrl", `Failed to fetch blocked users: ${scrapeResult.error}`);
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: chrome.runtime.getURL('assets/img/eksiengel48.png'),
-          title: 'EksiEngel - Error',
-          message: `Failed to fetch blocked users: ${scrapeResult.error}`
-        });
-        this._migrationInProgress = false;
-        resumableOperationRegistry.completeOperation();
-        notificationHandler.notify(`Engellenen kullanıcılar getirilemedi: ${scrapeResult.error}`);
-        return;
-      }
-
-      const blockedUsers = scrapeResult.usernames.map(username => ({ authorName: username, authorId: null }));
-      const totalBlockedUsers = scrapeResult.count;
-
-      if (blockedUsers.length === 0) {
-        log.info("progctrl", "No blocked users found - completing with 0 results");
-        notificationHandler.finishSuccess(enums.BanSource.MIGRATE_BLOCKED_TO_MUTED, enums.BanMode.BAN, 0, 0, 0, processQueue.currentItemMetadata);
-        this._migrationInProgress = false;
-        resumableOperationRegistry.completeOperation();
-        return;
-      }
-
-      log.info("progctrl", `Found ${blockedUsers.length} blocked users.`);
-      notificationHandler.notify(`Engellenen ${blockedUsers.length} kullanıcı sessize alınıyor...`);
-
-      // Save checkpoint after fetching users
-      await resumableOperationRegistry.checkpointReached({
-        stage: 'FETCH_USERS',
-        blockedUsers: blockedUsers,
-        totalCount: blockedUsers.length,
-        processedCount: 0
-      });
-
-      let migratedCount = 0;
-      let failedCount = 0;
-      let skippedCount = 0;
-
-      for (let i = 0; i < blockedUsers.length; i++) {
-        const user = blockedUsers[i];
-
+      if (!collected.success) throw new Error(collected.error || 'Kullanıcı listesi alınamadı.');
+      total = collected.usernames.length;
+      notificationHandler.notifyOngoing(0, 0, total, metadata);
+      for (let i = 0; i < total; i++) {
         const status = await checkPauseOrStop();
-        if (status.paused) {
-          await resumableOperationRegistry.checkpointReached({
-            stage: 'PROCESS_USERS',
-            blockedUsers: blockedUsers,
-            processedCount: i,
-            migratedCount: migratedCount,
-            failedCount: failedCount
-          });
-          return;
+        if (status.paused) { await checkpoint(); return; }
+        if (status.stopped || this.earlyStop) { finalState = 'STOPPED'; break; }
+        const username = collected.usernames[i];
+        let converted = false;
+        try {
+          // The relation list can identify authors whose profile is inaccessible.
+          let id = collected.ids?.[i];
+          if (!(Number(id) > 0)) id = await scrapingHandler.scrapeAuthorIdFromAuthorProfilePage(username);
+          if (!(Number(id) > 0)) throw new Error('Yazar ID alınamadı.');
+          const replacement = await this._performActionWithRetry(enums.BanMode.BAN, id, fromMuted, false, !fromMuted);
+          if (replacement.earlyStop) { finalState = 'STOPPED'; break; }
+          if (replacement.resultType === enums.ResultType.SUCCESS) {
+            const removal = await this._performActionWithRetry(enums.BanMode.UNDOBAN, id, !fromMuted, false, fromMuted);
+            if (removal.earlyStop) { finalState = 'STOPPED'; break; }
+            converted = removal.resultType === enums.ResultType.SUCCESS;
+          }
+          if (!converted) log.warn('progctrl', `Conversion failed for ${username} (id ${id}); source restriction retained.`);
+        } catch (error) {
+          log.warn('progctrl', `Conversion failed for ${username}: ${error.message || error}`);
         }
-        if (status.stopped || this.earlyStop) {
-          log.info("progctrl", "Migration stopped early by user.");
-          notificationHandler.notify(`Taşıma işlemi kullanıcı tarafından durduruldu. İşlenen: ${i}/${blockedUsers.length}`);
-          break;
+        processed++;
+        if (converted) {
+          successful++;
+          removedNames.push(username);
         }
-
-        const currentProgress = i + 1;
-        const totalUsers = blockedUsers.length;
-
-        notificationHandler.notifyOngoing(migratedCount, currentProgress, totalUsers, processQueue.currentItemMetadata);
-
-        log.info("progctrl", `Scraping user ID for: ${user.authorName}...`);
-        const authorId = await scrapingHandler.scrapeAuthorIdFromAuthorProfilePage(user.authorName);
-
-        if (!authorId || authorId === "0") {
-          log.err("progctrl", `Could not scrape user ID for ${user.authorName}. Skipping.`);
-          failedCount++;
-          continue;
-        }
-
-        log.info("progctrl", `Successfully scraped user ID for ${user.authorName}: ${authorId}`);
-
-        log.info("progctrl", `Unblocking user: ${user.authorName} (ID: ${authorId})...`);
-        const unblockResult = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false);
-
-        if (unblockResult.earlyStop) {
-          log.info("progctrl", "Migration stopped early by user during unblock operation.");
-          break;
-        }
-
-        if (unblockResult.resultType !== enums.ResultType.SUCCESS) {
-          log.err("progctrl", `Failed to unblock user: ${user.authorName} (ID: ${authorId})`);
-          failedCount++;
-          continue;
-        }
-
-        log.debug("progctrl", `Proceeding with muting regardless of config.enableMute setting`);
-
-        log.info("progctrl", `Muting user: ${user.authorName} (ID: ${authorId})...`);
-        const muteResult = await this._performActionWithRetry(enums.BanMode.BAN, authorId, false, false, true);
-
-        if (muteResult.earlyStop) {
-          log.info("progctrl", "Migration stopped early by user during mute operation.");
-          break;
-        }
-
-        if (muteResult.resultType !== enums.ResultType.SUCCESS) {
-          log.err("progctrl", `Failed to mute user: ${user.authorName} (ID: ${authorId})`);
-          failedCount++;
-        } else {
-          log.info("progctrl", `Successfully migrated user: ${user.authorName} (ID: ${authorId})`);
-          migratedCount++;
-        }
-
+        notificationHandler.notifyOngoing(successful, processed, total, metadata);
+        const saved = await checkpoint();
+        if (saved.paused) return;
+        if (saved.stopped) { finalState = 'STOPPED'; break; }
         await utils.sleep(500);
       }
-
-      const totalProcessed = migratedCount + failedCount + skippedCount;
-      if (this.earlyStop) {
-          log.info("progctrl", `Migration stopped early. Migrated: ${migratedCount}, Failed: ${failedCount}, Skipped: ${skippedCount}, Total Processed: ${totalProcessed}`);
-          notificationHandler.finishErrorEarlyStop(enums.BanSource.MIGRATE_BLOCKED_TO_MUTED, enums.BanMode.BAN, processQueue.currentItemMetadata);
-      } else {
-          const finalMessage = `Taşıma tamamlandı. Başarıyla taşınan: ${migratedCount}, Başarısız: ${failedCount}, Atlanan: ${skippedCount}, Toplam işlenen: ${totalProcessed}`;
-          log.info("progctrl", finalMessage);
-          notificationHandler.finishSuccess(enums.BanSource.MIGRATE_BLOCKED_TO_MUTED, enums.BanMode.BAN, migratedCount, totalProcessed, blockedUsers.length, processQueue.currentItemMetadata);
-      }
-
+      if (finalState === 'STOPPED') notificationHandler.finishErrorEarlyStop(source, enums.BanMode.BAN, metadata);
+      else notificationHandler.finishSuccess(source, enums.BanMode.BAN, successful, processed, total, metadata);
     } catch (error) {
-      log.err("progctrl", `An error occurred during migration: ${error}`, error);
-      notificationHandler.finishSuccess(enums.BanSource.MIGRATE_BLOCKED_TO_MUTED, enums.BanMode.BAN, 0, 0, 0, processQueue.currentItemMetadata);
+      finalState = 'FAILED';
+      log.err('progctrl', `Conversion failed: ${error.message || error}`);
+      notificationHandler.finishError(source, enums.BanMode.BAN, error.message || 'İşlem tamamlanamadı.', successful, processed, total, metadata);
     } finally {
-      log.info("progctrl", "migrateBlockedToMuted function completed.");
       this.earlyStop = false;
-      this._migrationInProgress = false;
-      
-      // Only call completeOperation if not paused
-      const currentOp = resumableOperationRegistry.getCurrentOperation();
-      if (!currentOp || currentOp.state !== OperationState.PAUSED) {
-        resumableOperationRegistry.completeOperation();
-        await storageHandler.saveLastOperationResult('COMPLETED');
-      } else {
-        await storageHandler.saveLastOperationResult('PAUSED');
+      this[flag] = false;
+      // Update only confirmed removals, including progress before a pause/stop.
+      try {
+        if (removedNames.length > 0) {
+          if (fromMuted) await storageHandler.removeMutedUsers(removedNames);
+          else {
+            const removed = new Set(removedNames);
+            const cached = await storageHandler.getBlockedUserList();
+            const remaining = cached.filter(name => !removed.has(name));
+            await storageHandler.saveBlockedUserList(remaining);
+            await storageHandler.saveBlockedUserCount(remaining.length);
+          }
+        }
+      } catch (error) {
+        // A stale local cache must not leave the operation registered as running.
+        log.warn('progctrl', `Could not update converted users cache: ${error.message || error}`);
       }
-      
+      const currentOp = resumableOperationRegistry.getCurrentOperation();
+      if (currentOp?.state === OperationState.PAUSED) {
+        await storageHandler.saveLastOperationResult('PAUSED');
+      } else {
+        await resumableOperationRegistry.completeOperation();
+        await storageHandler.saveLastOperationResult(finalState);
+      }
       notificationHandler.notifyUpdateCounts();
     }
   }
-  async blockMutedUsers() {
-    log.info("progctrl", "blockMutedUsers function started.");
 
-    if (this._blockMutedUsersInProgress) {
-      log.warn("progctrl", "Blocking muted users is already in progress.");
-      notificationHandler.notify("Sessize alınmış kullanıcıları engelleme zaten devam ediyor.");
-      return;
-    }
-
-    this._blockMutedUsersInProgress = true;
-    await storageHandler.saveLastOperationResult('RUNNING');
-    this.earlyStop = false;
-
-    // Register with resumable operation registry for pause/resume support
-    const operationId = 'block-muted-' + Date.now();
-    resumableOperationRegistry.registerOperation(
-      operationId,
-      'BLOCK_MUTED_USERS',
-      {},
-      ['FETCH_PAGES', 'PROCESS_USERS']
-    );
-
-    let blockedCount = 0;
-    let unmutedCount = 0;
-    let failedCount = 0;
-    let processedCount = 0;
-    const successfullyProcessedUsernames = [];
-    let totalUsersFound = 0;
-
-    try {
-      notificationHandler.notify("Sessize alınan kullanıcılar sayfa sayfa getiriliyor ve işleniyor...");
-
-      let isLastPage = false;
-      let pageIndex = 0;
-      const politeDelayMs = 500;
-
-      while (!isLastPage && !this.earlyStop) {
-        pageIndex++;
-        log.info("progctrl", `Fetching muted users page ${pageIndex}...`);
-        notificationHandler.notify(`Sessize alınan kullanıcılar getiriliyor: Sayfa ${pageIndex}...`);
-
-        // Check for pause before fetching each page
-        const prePageStatus = await checkPauseOrStop();
-        if (prePageStatus.paused) {
-          await resumableOperationRegistry.checkpointReached({
-            stage: 'FETCH_PAGES',
-            pageIndex: pageIndex,
-            processedCount: processedCount,
-            totalUsersFound: totalUsersFound,
-            blockedCount: blockedCount,
-            unmutedCount: unmutedCount,
-            failedCount: failedCount
-          });
-          return;
-        }
-        if (prePageStatus.stopped || this.earlyStop) {
-          log.info("progctrl", "Blocking muted users stopped early by user during page fetch.");
-          notificationHandler.notify(`Sessize alınan kullanıcıları engelleme işlemi kullanıcı tarafından durduruldu. İşlenen: ${processedCount} kullanıcı.`);
-          break;
-        }
-
-        let partialListObj;
-        try {
-          partialListObj = await scrapingHandler.scrapeMutedUsersPage(pageIndex);
-
-          if (this.earlyStop) {
-            log.info("progctrl", "Blocking muted users stopped early by user during page fetch.");
-            notificationHandler.notify(`Sessize alınan kullanıcıları engelleme işlemi kullanıcı tarafından durduruldu. İşlenen: ${processedCount} kullanıcı.`);
-            break;
-          }
-
-          if (!partialListObj || typeof partialListObj.isLast !== 'boolean' || !Array.isArray(partialListObj.authorNameList)) {
-             throw new Error(`Unexpected result fetching page ${pageIndex}.`);
-          }
-
-          isLastPage = partialListObj.isLast;
-          const pageUsernames = partialListObj.authorNameList;
-          const pageUserIds = partialListObj.authorIdList;
-
-          if (pageUsernames.length > 0) {
-            totalUsersFound += pageUsernames.length;
-            log.info("progctrl", `Found ${pageUsernames.length} users on page ${pageIndex}. Total found so far: ${totalUsersFound}`);
-            notificationHandler.notify(`Sayfa ${pageIndex}'de ${pageUsernames.length} kullanıcı bulundu. Şu ana kadar toplam: ${totalUsersFound}. İşleniyor...`);
-
-            // Save checkpoint before processing page
-            await resumableOperationRegistry.checkpointReached({
-              stage: 'FETCH_PAGES',
-              pageIndex: pageIndex,
-              totalUsersFound: totalUsersFound,
-              processedCount: processedCount
-            });
-
-            for (let i = 0; i < pageUsernames.length; i++) {
-              if (this.earlyStop) {
-                log.info("progctrl", "Blocking muted users stopped early by user during page processing.");
-                notificationHandler.notify(`Sessize alınan kullanıcıları engelleme işlemi kullanıcı tarafından durduruldu. İşlenen: ${processedCount} kullanıcı.`);
-                break;
-              }
-
-              const username = pageUsernames[i];
-              const authorIdFromPage = pageUserIds[i];
-              processedCount++;
-
-              const status = await checkPauseOrStop();
-              if (status.paused) {
-                await resumableOperationRegistry.checkpointReached({
-                  stage: 'PROCESS_USERS',
-                  pageIndex: pageIndex,
-                  processedCount: processedCount,
-                  totalUsersFound: totalUsersFound,
-                  blockedCount: blockedCount,
-                  unmutedCount: unmutedCount,
-                  failedCount: failedCount
-                });
-                return;
-              }
-              if (status.stopped || this.earlyStop) {
-                log.info("progctrl", "Blocking muted users stopped early by user.");
-                notificationHandler.notify(`Sessize alınan kullanıcıları engelleme işlemi kullanıcı tarafından durduruldu. İşlenen: ${processedCount} kullanıcı.`);
-                break;
-              }
-
-              notificationHandler.notifyOngoing(unmutedCount, processedCount, totalUsersFound, processQueue.currentItemMetadata);
-
-              log.info("progctrl", `Processing user: ${username}...`);
-
-              let authorId = authorIdFromPage;
-              if (!authorId || authorId === "0") {
-                 log.info("progctrl", `Scraping user ID for: ${username}...`);
-                 authorId = await scrapingHandler.scrapeAuthorIdFromAuthorProfilePage(username);
-              }
-
-              if (!authorId || authorId === "0") {
-                log.err("progctrl", `Could not get user ID for ${username}. Skipping.`);
-                failedCount++;
-                continue;
-              }
-
-              log.info("progctrl", `Using user ID for ${username}: ${authorId}`);
-
-              log.info("progctrl", `Blocking user: ${username} (ID: ${authorId})...`);
-              const blockResult = await this._performActionWithRetry(enums.BanMode.BAN, authorId, true, false, false);
-
-              if (blockResult.earlyStop) {
-                log.info("progctrl", "Blocking muted users stopped early by user during block operation.");
-                break;
-              }
-
-              if (blockResult.resultType !== enums.ResultType.SUCCESS) {
-                log.err("progctrl", `Failed to block user: ${username} (ID: ${authorId})`);
-                failedCount++;
-                continue;
-              }
-
-              log.info("progctrl", `Successfully blocked user: ${username} (ID: ${authorId})`);
-              blockedCount++;
-
-              log.info("progctrl", `Unmuting user: ${username} (ID: ${authorId})...`);
-              const unmuteResult = await this._performActionWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true);
-
-              if (unmuteResult.earlyStop) {
-                log.info("progctrl", "Blocking muted users stopped early by user during unmute operation.");
-                break;
-              }
-
-              if (unmuteResult.resultType !== enums.ResultType.SUCCESS) {
-                log.err("progctrl", `Failed to unmute user: ${username} (ID: ${authorId})`);
-                failedCount++;
-              } else {
-                log.info("progctrl", `Successfully unmuted user: ${username} (ID: ${authorId})`);
-                unmutedCount++;
-                successfullyProcessedUsernames.push(username);
-              }
-
-              await utils.sleep(500);
-            }
-
-            if (this.earlyStop) {
-                break;
-            }
-
-          } else {
-            log.info("progctrl", `No users found on page ${pageIndex}. Assuming this is the last page.`);
-            isLastPage = true;
-          }
-
-        } catch (pageError) {
-          log.err("progctrl", `Error fetching or processing page ${pageIndex}: ${pageError.message || pageError}`);
-          failedCount++;
-          notificationHandler.notify(`Sayfa ${pageIndex} işlenirken hata: ${pageError.message || "Bilinmeyen hata"}. Durduruluyor.`);
-          break;
-        }
-
-        if (!isLastPage && !this.earlyStop) {
-           await utils.sleep(politeDelayMs);
-        }
-      }
-
-      if (successfullyProcessedUsernames.length > 0) {
-          log.info("progctrl", `Removing ${successfullyProcessedUsernames.length} users from muted list storage.`);
-          await storageHandler.removeMutedUsers(successfullyProcessedUsernames);
-      }
-
-      const totalProcessed = processedCount;
-      if (this.earlyStop) {
-          log.info("progctrl", `Blocking muted users stopped early. Successfully processed: ${unmutedCount}, Failed: ${failedCount}, Total Processed: ${totalProcessed}`);
-          notificationHandler.finishErrorEarlyStop(enums.BanSource.BLOCK_MUTED_USERS, enums.BanMode.BAN, processQueue.currentItemMetadata);
-      } else {
-          const finalMessage = `Sessize alınan kullanıcıları engelleme tamamlandı. Başarıyla engellenip sessizden çıkarılan: ${unmutedCount}, Başarısız: ${failedCount}, Toplam işlenen: ${totalProcessed}`;
-          log.info("progctrl", finalMessage);
-          notificationHandler.finishSuccess(enums.BanSource.BLOCK_MUTED_USERS, enums.BanMode.BAN, unmutedCount, totalProcessed, totalUsersFound, processQueue.currentItemMetadata);
-      }
-
-    } catch (error) {
-      log.err("progctrl", `An unexpected error occurred during blocking muted users: ${error}`, error);
-      notificationHandler.finishSuccess(enums.BanSource.BLOCK_MUTED_USERS, enums.BanMode.BAN, 0, 0, 0, processQueue.currentItemMetadata);
-    } finally {
-      log.info("progctrl", "blockMutedUsers function completed.");
-      this.earlyStop = false;
-      this._blockMutedUsersInProgress = false;
-      
-      // Only call completeOperation if not paused
-      const currentOp = resumableOperationRegistry.getCurrentOperation();
-      if (!currentOp || currentOp.state !== OperationState.PAUSED) {
-        resumableOperationRegistry.completeOperation();
-        await storageHandler.saveLastOperationResult('COMPLETED');
-      } else {
-        await storageHandler.saveLastOperationResult('PAUSED');
-      }
-      
-      notificationHandler.notifyUpdateCounts();
-    }
-  }
   async blockTitlesOfBlockedMuted() {
     log.info("progctrl", "blockTitlesOfBlockedMuted function started.");
 
@@ -1352,10 +1047,14 @@ class ProgramController {
     }
 
     this._unmuteAllInProgress = true;
-    await storageHandler.saveLastOperationResult('RUNNING');
     this.earlyStop = false;
+    let plannedAction = 0;
+    let performedAction = 0;
+    let successfulAction = 0;
+    let finalState = 'COMPLETED';
 
     try {
+      await storageHandler.saveLastOperationResult('RUNNING');
       const mutedUsers = await storageHandler.getMutedUserList();
 
       if (!mutedUsers || mutedUsers.length === 0) {
@@ -1366,13 +1065,12 @@ class ProgramController {
         return;
       }
 
-      const plannedAction = mutedUsers.length;
+      plannedAction = mutedUsers.length;
       log.info("progctrl", `Found ${plannedAction} muted users to unmute.`);
       notificationHandler.notify(`Sessiz listede ${plannedAction} kullanıcı bulundu. Sessizleri kaldırma başlatılıyor...`);
 
-      let performedAction = 0;
-      let successfulAction = 0;
       let failedCount = 0;
+      const unmutedNames = [];
 
       for (let i = 0; i < mutedUsers.length; i++) {
         if (this.earlyStop) {
@@ -1408,12 +1106,15 @@ class ProgramController {
         } else {
           log.info("progctrl", `Successfully unmuted user: ${username} (ID: ${authorId})`);
           successfulAction++;
+          unmutedNames.push(username);
         }
 
         await utils.sleep(500);
       }
 
       const totalProcessed = successfulAction + failedCount;
+      await storageHandler.removeMutedUsers(unmutedNames);
+      notificationHandler.notifyUpdateCounts();
       
       if (this.earlyStop) {
         log.info("progctrl", `Unmute all stopped early. Unmuted: ${successfulAction}, Failed: ${failedCount}, Total Processed: ${totalProcessed}`);
@@ -1423,19 +1124,17 @@ class ProgramController {
         notificationHandler.finishSuccess(enums.BanSource.UNMUTEALL, enums.BanMode.UNDOBAN, successfulAction, totalProcessed, plannedAction, processQueue.currentItemMetadata);
       }
 
-      // Clear the muted list storage
-      await storageHandler.saveMutedUserList([]);
-      await storageHandler.saveMutedUserCount(0);
-      notificationHandler.notifyUpdateCounts();
-
     } catch (error) {
+      finalState = 'FAILED';
       log.err("progctrl", `An error occurred during unmute all: ${error}`, error);
-      notificationHandler.finishSuccess(enums.BanSource.UNMUTEALL, enums.BanMode.UNDOBAN, 0, 0, 0, processQueue.currentItemMetadata);
+      notificationHandler.finishError(enums.BanSource.UNMUTEALL, enums.BanMode.UNDOBAN,
+        error?.message || 'Sessizleri kaldırma işlemi tamamlanamadı.',
+        successfulAction, performedAction, plannedAction, processQueue.currentItemMetadata);
     } finally {
       log.info("progctrl", "startUnmuteAll function completed.");
       this.earlyStop = false;
       this._unmuteAllInProgress = false;
-      await storageHandler.saveLastOperationResult('COMPLETED');
+      await storageHandler.saveLastOperationResult(finalState);
     }
   }
 

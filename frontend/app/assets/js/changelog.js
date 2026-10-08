@@ -19,6 +19,21 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.5.4": {
+    app: [
+      "Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",
+      "Engelleme, sessize alma ve takip işlemlerinde başarısız yanıtlar artık başarılı sayılmıyor. İşlem sınırına takılan istekler beklenerek yeniden deneniyor; diğer hatalar başarısız olarak kaydediliyor.",
+      "Takipten önce engel ya da sessize alma kaldırılamazsa o hesapta takip adımına geçilmiyor.",
+      "Sessize alınanları engelleme işlemi artık başarılı engellemeden sonra sessize almayı da kaldırıyor; eskiden hesap hem engelli hem sessize alınmış kalıyordu."
+    ],
+    extension: [
+      "Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",
+      "Engelleme, sessize alma ve takip işlemlerinde başarısız yanıtlar artık başarılı sayılmıyor. İşlem sınırına takılan istekler beklenerek yeniden deneniyor; diğer hatalar başarısız olarak kaydediliyor.",
+      "Takipten önce engel ya da sessize alma kaldırılamazsa o hesapta takip adımına geçilmiyor.",
+      "Dönüştürme işlemleri başlamadan önce listenin tamamı toplanıyor. İşlem sırasında liste küçüldüğü için sonraki sayfalardaki hesapların atlanması giderildi.",
+      "Toplu sessizden çıkarma sırasında hata oluşursa işlem başarısız olarak bitiyor ve o ana kadar tamamlanan işlemler doğru sayılıyor. Başarısız olan ya da henüz işlenmeyen hesaplar önbellekten silinmiyor."
+    ]
+  },
   "0.5.3": {
     date: "2026-10-03",
     app: [

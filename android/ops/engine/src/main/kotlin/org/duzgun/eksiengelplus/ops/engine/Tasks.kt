@@ -142,7 +142,7 @@ class TargetRunner(
                 i++
                 continue
             }
-            val id = target.id ?: resolveId(ctx, target.nick)
+            val id = target.id?.takeIf { it > 0 } ?: resolveId(ctx, target.nick)?.takeIf { it > 0 }
             if (id == null) {
                 cursor = cursor.copy(processed = cursor.processed + 1, failed = cursor.failed + 1)
                 i++
@@ -153,23 +153,20 @@ class TargetRunner(
             // 0 -- the same set that reaches here.
             ctx.recordTarget(target.nick, id)
 
-            /*
-             * Lifted before the follow and deliberately uncounted: the run is
-             * "follow N people", so N stays the denominator and only the follow
-             * itself moves the cursor. A failure to lift is left to the follow
-             * that follows it to report.
-             */
+            // Mirrored by background.js followAfterClearing: an unsuccessful
+            // lift cannot be hidden by a successful follow of a still-hidden user.
+            var preparation: Applied = Applied.Ok
             if (restricted != null) {
                 val key = target.nick.toEksiSlug()
                 if (restricted.isBlocked(key)) {
-                    performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.USER, id)
+                    preparation = performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.USER, id)
                 }
-                if (restricted.isMuted(key)) {
-                    performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.MUTE, id)
+                if (preparation == Applied.Ok && restricted.isMuted(key)) {
+                    preparation = performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.MUTE, id)
                 }
             }
 
-            when (val outcome = performWithRetry(ctx, mode, targetType, id)) {
+            when (if (preparation == Applied.Ok) performWithRetry(ctx, mode, targetType, id) else preparation) {
                 is Applied.Ok ->
                     cursor = cursor.copy(
                         processed = cursor.processed + 1,
@@ -233,9 +230,9 @@ class TargetRunner(
     /**
      * Two relations per target, in order, second only if the first landed.
      *
-     * Migrating a blocked user to muted is not one action with a different
-     * argument: it is an unblock and then a mute, and doing the second to
-     * someone still blocked would leave them in both states.
+     * Conversion adds the replacement restriction before removing the source,
+     * mirrored by programController.js. A failed removal can leave both
+     * restrictions; a failed addition must never remove existing protection.
      */
     suspend fun applyPairToAll(
         ctx: OperationContext,
@@ -266,7 +263,7 @@ class TargetRunner(
                 continue
             }
 
-            val id = target.id ?: resolveId(ctx, target.nick)
+            val id = target.id?.takeIf { it > 0 } ?: resolveId(ctx, target.nick)?.takeIf { it > 0 }
             if (id == null) {
                 cursor = cursor.copy(processed = cursor.processed + 1, failed = cursor.failed + 1)
                 i++
@@ -401,9 +398,13 @@ class TargetRunner(
                     ctx.penalizeRateLimit(decision.seconds)
                     attempt++
                 }
-                is RetryPolicy.Decision.GiveUp ->
+                is RetryPolicy.Decision.GiveUp -> {
+                    // Keep the actual status/code; unknown codes are not evidence
+                    // that this target has blocked the authenticated user.
+                    ctx.log("relation failed: id=$id mode=$mode type=$targetType result=$result")
                     return if (result is RelationResult.SessionExpired) Applied.SessionGone
                     else Applied.Failed
+                }
             }
         }
     }
@@ -640,8 +641,26 @@ class MigrateBlockedToMutedTask(
         return runner.applyPairToAll(
             ctx,
             page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) },
-            first = org.duzgun.eksiengelplus.model.BanMode.UNDOBAN to TargetType.USER,
-            second = org.duzgun.eksiengelplus.model.BanMode.BAN to TargetType.MUTE,
+            first = org.duzgun.eksiengelplus.model.BanMode.BAN to TargetType.MUTE,
+            second = org.duzgun.eksiengelplus.model.BanMode.UNDOBAN to TargetType.USER,
+        )
+    }
+}
+
+
+/** Mirrored by programController.js: block first; unmute only on confirmed success. */
+class BlockMutedUsersTask(
+    private val runner: TargetRunner,
+    private val scrape: ScrapeClient,
+) : OperationTask {
+    override val source = BanSource.BLOCK_MUTED_USERS
+    override suspend fun run(ctx: OperationContext): OperationOutcome {
+        val page = scrape.allRelations(TargetType.MUTE) { _, found -> ctx.collectPage(found) }
+        return runner.applyPairToAll(
+            ctx,
+            page.nicks.zip(page.ids) { nick, id -> Target(nick.toEksiSlug(), id) },
+            first = org.duzgun.eksiengelplus.model.BanMode.BAN to TargetType.USER,
+            second = org.duzgun.eksiengelplus.model.BanMode.UNDOBAN to TargetType.MUTE,
         )
     }
 }

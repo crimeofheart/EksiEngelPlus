@@ -537,6 +537,7 @@ class ScrapingHandler
     log.info("scraping", "Starting to scrape all muted users...");
     // Support both legacy resumeFromIndex and new initialState
     let allMutedUsernames = initialState?.scrapedUsers || [];
+    const allMutedIds = allMutedUsernames.map(() => null);
     let totalCount = initialState?.totalCount || 0;
     let index = initialState?.currentPage || (resumeFromIndex || 0);
     let isLast = false;
@@ -603,6 +604,7 @@ class ScrapingHandler
             if (partialListObj && typeof partialListObj.isLast === 'boolean' && Array.isArray(partialListObj.authorNameList)) {
               if (partialListObj.authorNameList.length > 0) {
                 allMutedUsernames.push(...partialListObj.authorNameList);
+                allMutedIds.push(...partialListObj.authorNameList.map((_, i) => partialListObj.authorIdList?.[i] ?? null));
                 totalCount += partialListObj.authorNameList.length;
                 log.info("scraping", `Found ${partialListObj.authorNameList.length} users on page ${index}. Total: ${totalCount}`);
               } else {
@@ -672,7 +674,7 @@ class ScrapingHandler
       }
 
       log.info("scraping", `Successfully scraped all muted users. Total count: ${totalCount}`);
-      return { success: true, count: totalCount, usernames: allMutedUsernames };
+      return { success: true, count: totalCount, usernames: allMutedUsernames, ids: allMutedIds };
 
     } catch (err) {
       log.err("scraping", `Error scraping all muted users: ${err.message || err}`);
@@ -693,7 +695,7 @@ class ScrapingHandler
     log.info("scraping", "Starting to scrape all blocked users...");
     // Support both legacy resumeFromIndex and new initialState
     let scrapedUsernames = initialState?.scrapedUsers || [];
-    let scrapedUserIds = [];
+    let scrapedUserIds = scrapedUsernames.map(() => null);
     let isLast = false;
     let index = initialState?.currentPage || (resumeFromIndex || 0);
     let totalCount = initialState?.totalCount || 0;
@@ -757,7 +759,7 @@ class ScrapingHandler
         isLast = partialListObj.isLast;
 
         scrapedUsernames.push(...partialNameList);
-        scrapedUserIds.push(...partialIdList);
+        scrapedUserIds.push(...partialNameList.map((_, i) => partialIdList?.[i] ?? null));
         totalCount += partialNameList.length;
 
         log.info("scraping", `Found ${partialNameList.length} blocked users on page ${index}. Total found: ${totalCount}`);
@@ -804,7 +806,7 @@ class ScrapingHandler
       }
 
       log.info("scraping", `Successfully scraped all ${totalCount} blocked users.`);
-      return { success: true, usernames: scrapedUsernames, count: totalCount };
+      return { success: true, usernames: scrapedUsernames, ids: scrapedUserIds, count: totalCount };
 
     } catch (err) {
       log.err("scraping", `Error during scrapeAllBlockedUsers: ${err}`);

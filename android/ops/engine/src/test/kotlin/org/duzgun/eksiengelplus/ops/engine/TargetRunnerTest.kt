@@ -329,4 +329,88 @@ class TargetRunnerTest {
         assertThat(c.readPermits).isEqualTo(0)
         assertThat(server.requestCount).isEqualTo(1)
     }
+
+    @Test fun `failed follow preparation skips follow and continues to the next target`() = runTest {
+        relationPage(isLast = true, 1L)
+        relationPage(isLast = true)
+        ok("""{"result":false}""")
+        ok("0")
+        val c = followCtx()
+        assertThat(runner.applyToAll(c, targets(2))).isEqualTo(OperationOutcome.COMPLETED)
+        repeat(2) { server.takeRequest() }
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/1?r=m")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/2?r=b")
+        assertThat(server.requestCount).isEqualTo(4)
+        assertThat(c.lastCheckpoint!!.successful).isEqualTo(1)
+        assertThat(c.lastCheckpoint!!.failed).isEqualTo(1)
+        assertThat(c.logs.joinToString()).contains("id=1")
+    }
+
+    @Test fun `session loss during follow preparation parks before following`() = runTest {
+        relationPage(isLast = true, 1L)
+        relationPage(isLast = true)
+        server.enqueue(MockResponse().setResponseCode(403))
+        val c = followCtx()
+        assertThat(runner.applyToAll(c, targets(2))).isEqualTo(OperationOutcome.PAUSED_AUTH)
+        assertThat(c.lastCheckpoint!!.index).isEqualTo(0)
+        assertThat(server.requestCount).isEqualTo(3)
+    }
+
+    @Test fun `both conversion directions keep original protection when addition is rejected`() = runTest {
+        for ((replacement, original) in listOf(
+            TargetType.USER to TargetType.MUTE, TargetType.MUTE to TargetType.USER,
+        )) {
+            ok("99")             // first target rejected, no removal
+            ok("2"); removed()   // second already protected, safe to remove original
+            val c = ctx()
+            assertThat(runner.applyPairToAll(c, targets(2), BanMode.BAN to replacement,
+                BanMode.UNDOBAN to original)).isEqualTo(OperationOutcome.COMPLETED)
+            assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/1?r=${replacement.relationCode}")
+            assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/2?r=${replacement.relationCode}")
+            assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/2?r=${original.relationCode}")
+            assertThat(c.lastCheckpoint!!.successful).isEqualTo(1)
+            assertThat(c.lastCheckpoint!!.failed).isEqualTo(1)
+            assertThat(c.logs.joinToString()).contains("code=99")
+        }
+    }
+
+    @Test fun `blocked to muted task adds mute before removing block using list id`() = runTest {
+        relationPage(isLast = true, 1L)
+        ok(); removed()
+        val http = OkHttpClient.Builder().addInterceptor(EksiHeadersInterceptor("test-ua")).build()
+        val scrape = ScrapeClient(http, baseUrlProvider = { server.url("/").toString().trimEnd('/') })
+        val c = ctx()
+        assertThat(MigrateBlockedToMutedTask(runner, scrape).run(c)).isEqualTo(OperationOutcome.COMPLETED)
+        assertThat(server.takeRequest().path).isEqualTo("/relation-list?relationType=m&pageIndex=1")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/1?r=u")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/1?r=m")
+        assertThat(server.requestCount).isEqualTo(3)
+    }
+
+    @Test fun `failed removal after successful replacement is not a successful conversion`() = runTest {
+        ok(); ok("null"); ok(); removed()
+        val c = ctx()
+        runner.applyPairToAll(c, targets(2), BanMode.BAN to TargetType.USER, BanMode.UNDOBAN to TargetType.MUTE)
+        assertThat(c.lastCheckpoint!!.successful).isEqualTo(1)
+        assertThat(c.lastCheckpoint!!.failed).isEqualTo(1)
+    }
+
+
+    @Test fun `muted to blocked task snapshots all pages before removing any mute`() = runTest {
+        relationPage(isLast = false, 1L)
+        relationPage(isLast = true, 2L)
+        ok("99"); ok(); removed()
+        val http = OkHttpClient.Builder().addInterceptor(EksiHeadersInterceptor("test-ua")).build()
+        val scrape = ScrapeClient(http, baseUrlProvider = { server.url("/").toString().trimEnd('/') })
+        val c = ctx()
+        assertThat(BlockMutedUsersTask(runner, scrape).run(c)).isEqualTo(OperationOutcome.COMPLETED)
+        assertThat(server.takeRequest().path).isEqualTo("/relation-list?relationType=u&pageIndex=1")
+        assertThat(server.takeRequest().path).isEqualTo("/relation-list?relationType=u&pageIndex=2")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/1?r=m")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/addrelation/2?r=m")
+        assertThat(server.takeRequest().path).isEqualTo("/userrelation/removerelation/2?r=u")
+        assertThat(c.lastCheckpoint!!.successful).isEqualTo(1)
+        assertThat(c.lastCheckpoint!!.failed).isEqualTo(1)
+    }
+
 }

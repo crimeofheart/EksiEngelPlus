@@ -727,10 +727,9 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
     return;
   }
   
-  const handleCooldown = async () => {
+  const handleCooldown = async (waitTimeInSec) => {
     if(programController.earlyStop) return;
     await new Promise(async resolve => {
-      let waitTimeInSec = 62;
       for(let i = 1; i <= waitTimeInSec; i++) {
         if(programController.earlyStop) break;
         notificationHandler.notifyCooldown(waitTimeInSec-i);
@@ -742,10 +741,15 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
 
   const performWithRetry = async (banMode, id, isTargetUser, isTargetTitle, isTargetMute, isTargetFollow = false) => {
     let res = await relationHandler.performAction(banMode, id, isTargetUser, isTargetTitle, isTargetMute, isTargetFollow);
-    if(res.resultType == enums.ResultType.FAIL) {
-      await handleCooldown();
+    if(res.resultType == enums.ResultType.FAIL && res.retryAfter > 0) {
+      await handleCooldown(res.retryAfter);
       if(!programController.earlyStop) {
         res = await relationHandler.performAction(banMode, id, isTargetUser, isTargetTitle, isTargetMute, isTargetFollow);
+        if (res.resultType === enums.ResultType.FAIL && res.retryAfter > 0) {
+          // The bounded retry is exhausted: count this failed target once.
+          relationHandler.performedAction++;
+          res = { ...res, performedAction: relationHandler.performedAction };
+        }
       }
     }
     return res;
@@ -806,18 +810,29 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   const withoutCounting = async (fn) => {
     const successful = relationHandler.successfulAction;
     const performed = relationHandler.performedAction;
-    const res = await fn();
-    relationHandler.successfulAction = successful;
-    relationHandler.performedAction = performed;
-    return res;
+    try {
+      return await fn();
+    } finally {
+      relationHandler.successfulAction = successful;
+      relationHandler.performedAction = performed;
+    }
   };
 
-  const followAfterClearing = async (id, name) => {
-    if (followClearState && followClearState.isBlocked(name)) {
-      await withoutCounting(() => performWithRetry(enums.BanMode.UNDOBAN, id, true, false, false));
-    }
-    if (followClearState && followClearState.isMuted(name)) {
-      await withoutCounting(() => performWithRetry(enums.BanMode.UNDOBAN, id, false, false, true));
+  const followAfterClearing = async (id, name, explicitLift = null) => {
+    // Mirrored by TargetRunner in Android Tasks.kt: failed preparation fails
+    // this target, even if an earlier target succeeded or the follow would work.
+    const lifts = explicitLift ? [explicitLift] : [
+      ...(followClearState?.isBlocked(name) ? [enums.TargetType.USER] : []),
+      ...(followClearState?.isMuted(name) ? [enums.TargetType.MUTE] : []),
+    ];
+    for (const type of lifts) {
+      const res = await withoutCounting(() => performWithRetry(
+        enums.BanMode.UNDOBAN, id, type === enums.TargetType.USER, false, type === enums.TargetType.MUTE));
+      if (res.resultType !== enums.ResultType.SUCCESS || programController.earlyStop) {
+        relationHandler.performedAction++;
+        return { resultType: enums.ResultType.FAIL,
+          successfulAction: relationHandler.successfulAction, performedAction: relationHandler.performedAction };
+      }
     }
     return await performWithRetry(enums.BanMode.BAN, id, false, false, false, true);
   };
@@ -863,15 +878,9 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       } else if (action === "TAKIPTEN_CIKAR") {
         res = await performWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, false, true);
       } else if (action === "ENGEL_KALDIR_VE_TAKIP_ET") {
-        res = await performWithRetry(enums.BanMode.UNDOBAN, authorId, true, false, false, false);
-        if (res.successfulAction > 0) {
-          res = await performWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
-        }
+        res = await followAfterClearing(authorId, authorNameList[i], enums.TargetType.USER);
       } else if (action === "SESSIZDEN_CIKAR_VE_TAKIP_ET") {
-        res = await performWithRetry(enums.BanMode.UNDOBAN, authorId, false, false, true, false);
-        if (res.successfulAction > 0) {
-          res = await performWithRetry(enums.BanMode.BAN, authorId, false, false, false, true);
-        }
+        res = await followAfterClearing(authorId, authorNameList[i], enums.TargetType.MUTE);
       } else {
         res = await performWithRetry(banMode, authorId, banMode == enums.BanMode.BAN ? !config.enableMute : true, config.enableTitleBan, config.enableMute);
       }
@@ -1169,6 +1178,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       log.info("bg", "Handling UNDOBANALL request.");
       notificationHandler.notify("Tüm engeller ve sessize almalar kaldırılıyor...");
       let totalProcessed = 0, totalSuccessful = 0, totalFailed = 0, totalPlanned = 0;
+      const unblockedNames = [], unmutedNames = [];
 
       notificationHandler.notify("Engellenen kullanıcılar alınıyor...");
       const blockedUsersResult = await scrapingHandler.scrapeAllBlockedUsers();
@@ -1192,6 +1202,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
               if (unblockUserResult.earlyStop) break;
               if (unblockUserResult.resultType === enums.ResultType.SUCCESS) {
                   totalSuccessful++;
+                  unblockedNames.push(user.authorName);
               } else {
                   totalFailed++;
               }
@@ -1232,6 +1243,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
                   if (unmuteResult.earlyStop) break;
                   if (unmuteResult.resultType === enums.ResultType.SUCCESS) {
                       totalSuccessful++;
+                      unmutedNames.push(user.authorName);
                   } else {
                       totalFailed++;
                   }
@@ -1239,8 +1251,7 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
                   notificationHandler.notifyOngoing(totalSuccessful, totalProcessed, totalPlanned, processQueue.currentItemMetadata);
                   await utils.sleep(500);
               }
-              await storageHandler.saveMutedUserList([]);
-              await storageHandler.saveMutedUserCount(0);
+              await storageHandler.removeMutedUsers(unmutedNames);
           } else if (!mutedUsersResult.success) {
               log.err("bg", `Failed to fetch muted users: ${mutedUsersResult.error}`);
               notificationHandler.notify(`Sessize alınan kullanıcılar alınamadı: ${mutedUsersResult.error}`);
@@ -1255,8 +1266,10 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       } else {
           notificationHandler.finishSuccess(banSource, banMode, totalSuccessful, totalProcessed, totalPlanned, processQueue.currentItemMetadata);
       }
-      await storageHandler.saveBlockedUserList([]);
-      await storageHandler.saveBlockedUserCount(0);
+      const removed = new Set(unblockedNames);
+      const remainingBlocked = (await storageHandler.getBlockedUserList()).filter(name => !removed.has(name));
+      await storageHandler.saveBlockedUserList(remainingBlocked);
+      await storageHandler.saveBlockedUserCount(remainingBlocked.length);
   } else if (banSource === enums.BanSource.UNMUTEALL && banMode === enums.BanMode.UNDOBAN) {
       log.info("bg", "Handling UNMUTEALL request.");
       console.log("background.js: Starting unMuteAll operation");

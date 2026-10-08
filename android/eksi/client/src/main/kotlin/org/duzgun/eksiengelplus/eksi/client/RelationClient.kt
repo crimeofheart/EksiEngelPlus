@@ -1,6 +1,11 @@
 package org.duzgun.eksiengelplus.eksi.client
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -38,6 +43,7 @@ class RelationClient(
 
     suspend fun perform(mode: BanMode, targetType: TargetType, id: Long): RelationResult =
         withContext(Dispatchers.IO) {
+            if (id <= 0) return@withContext RelationResult.Failed(null, null, "Invalid target ID: $id")
             val url = "${baseUrlProvider()}/userrelation/${mode.urlSegment}/$id?r=${targetType.relationCode}"
             val req = Request.Builder().url(url).post("id=$id".toRequestBody()).build()
             try {
@@ -66,19 +72,20 @@ class RelationClient(
      */
     private fun classify(mode: BanMode, body: String?): RelationResult {
         val t = body?.trim().orEmpty()
+        // Mirrored by relationHandler.js: parse the whole payload, never accept
+        // a matching fragment inside malformed JSON or a quoted boolean.
+        val json = runCatching { Json.parseToJsonElement(t) }.getOrNull()
         return if (mode == BanMode.BAN) {
-            when (val n = t.toIntOrNull()) {
+            val n = (json as? JsonPrimitive)?.takeUnless { it.isString }?.intOrNull
+            when (n) {
                 0 -> RelationResult.Success
                 2 -> RelationResult.AlreadyInState
                 4 -> RelationResult.SelfTarget
-                // Deliberately not a guess. An unknown code is a failure that
-                // records itself, which is how 4 was found in the first place.
                 else -> RelationResult.Failed(200, n, t.take(200))
             }
         } else {
-            // result:true came back on a no-op removal during the spike, so it
-            // proves the call was accepted -- not that a relation existed.
-            val ok = Regex("\"result\"\\s*:\\s*true").containsMatchIn(t)
+            val result = (json as? JsonObject)?.get("result") as? JsonPrimitive
+            val ok = result != null && !result.isString && result.booleanOrNull == true
             if (ok) RelationResult.Success else RelationResult.Failed(200, null, t.take(200))
         }
     }

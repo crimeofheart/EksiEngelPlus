@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.5.5": {
+    date: "2026-10-15",
     app: [
       "Sırada bekleyen işlemler artık bir işlem bittiğinde, uygulama arka planda ya da ekran kapalıyken de kendiliğinden başlıyor. Eskiden sıra bazen İşlem durumu sayfası yenilenene kadar bekliyordu.",
       "Günlük arka plan süresi dolduğu için ertesi güne kalan işlemler artık kaldıkları yerden devam ediyor. Eskiden süre sıfırlanmadığından her gün hiçbir işlem yapmadan yeniden duraklıyor, arkasındaki sıra da hiç başlamıyordu.",

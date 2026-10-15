@@ -1343,19 +1343,53 @@
   }
 
   /**
-   * The address of the title, not of the list it was reached from.
+   * The address of the title at today's entries, not of the list it was reached
+   * from.
    *
    * Ekşi links a gündem row as "/baslik--123?a=popular"; that parameter says how
-   * this list is sorted, which is nothing to the person receiving the link. Every
-   * other parameter stays -- `?day=` and friends select what is being shared.
+   * this list is sorted, which is nothing to the person receiving the link.
+   *
+   * A bare title opens at its first page, which on a long-running title is years
+   * old -- and the link is opened to read what is being written now, usually
+   * somewhere nothing is hidden. So it carries `?day=` for today, the filter
+   * Ekşi's own "bugün" list uses. A link that already names a day keeps it; `p`
+   * and `focusto` go, since both point into the unfiltered list.
    */
   function titleHoldUrl(a) {
     try {
       var u = new URL(a.href, location.href);
       u.searchParams.delete("a");
+      if (!u.searchParams.has("day")) {
+        u.searchParams.delete("p");
+        u.searchParams.delete("focusto");
+        u.searchParams.set("day", eksiToday());
+      }
       return u.toString();
     } catch (e) {
       return a.href;
+    }
+  }
+
+  /**
+   * Today as Ekşi dates it, YYYY-MM-DD.
+   *
+   * The site's day turns over in Istanbul, not wherever the phone is: a reader
+   * abroad after midnight would otherwise share tomorrow, which has no entries.
+   * Turkey has kept UTC+3 all year since 2016, which is the fallback for a
+   * WebView without time-zone data.
+   */
+  function eksiToday() {
+    try {
+      var parts = {};
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Europe/Istanbul",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
+      return parts.year + "-" + parts.month + "-" + parts.day;
+    } catch (e) {
+      return new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
     }
   }
 

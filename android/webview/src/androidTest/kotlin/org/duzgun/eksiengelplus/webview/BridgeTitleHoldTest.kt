@@ -24,6 +24,10 @@ class BridgeTitleHoldTest {
     private val origin = "https://eksisozluk.com"
     private val titleUrl = "$origin/mohamed-salah-ghaly--3459509"
 
+    /** What the menu hands out: the title at today's entries, dated in Istanbul. */
+    private val todayLink =
+        "$titleUrl?day=${java.time.LocalDate.now(java.time.ZoneId.of("Europe/Istanbul"))}"
+
     @Before
     fun requireFeatures() {
         assumeTrue(WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER))
@@ -90,7 +94,7 @@ class BridgeTitleHoldTest {
     }
 
     @Test
-    fun sharingSendsTheTitleAddressWithoutTheListSort() {
+    fun sharingSendsTheTitleAtTodayWithoutTheListSort() {
         withBridge { scenario, _ ->
             scenario.loadHtml(origin, TOPIC_LIST_FIXTURE)
             settle()
@@ -100,9 +104,39 @@ class BridgeTitleHoldTest {
 
             assertThat(shared.await(5, TimeUnit.SECONDS)).isTrue()
             // "?a=popular" says how the list was sorted, which is nothing to the
-            // person receiving the link.
-            assertThat(sharedUrl).isEqualTo(titleUrl)
+            // person receiving the link; "?day=" is what they open it to read.
+            assertThat(sharedUrl).isEqualTo(todayLink)
             assertThat(sharedTitle).isEqualTo("mohamed salah ghaly")
+        }
+    }
+
+    /** The header carries no query at all, and still shares today. */
+    @Test
+    fun sharingTheHeaderSendsTheTitleAtToday() {
+        withBridge { scenario, _ ->
+            scenario.loadHtml(origin, TITLE_PAGE_FIXTURE)
+            settle()
+            scenario.hold("h1#title a")
+
+            scenario.press(SHARE)
+
+            assertThat(shared.await(5, TimeUnit.SECONDS)).isTrue()
+            assertThat(sharedUrl).isEqualTo(todayLink)
+        }
+    }
+
+    /** A row from a dated list already names its day, and that day is the one shared. */
+    @Test
+    fun aLinkThatNamesADayKeepsIt() {
+        withBridge { scenario, _ ->
+            scenario.loadHtml(origin, DATED_LIST_FIXTURE)
+            settle()
+            scenario.hold(".topic-list a")
+
+            scenario.press(SHARE)
+
+            assertThat(shared.await(5, TimeUnit.SECONDS)).isTrue()
+            assertThat(sharedUrl).isEqualTo("$titleUrl?day=2026-10-01")
         }
     }
 
@@ -131,7 +165,7 @@ class BridgeTitleHoldTest {
             scenario.press(COPY_LINK)
 
             assertThat(copied.await(5, TimeUnit.SECONDS)).isTrue()
-            assertThat(copiedText).isEqualTo(titleUrl)
+            assertThat(copiedText).isEqualTo(todayLink)
         }
     }
 
@@ -231,7 +265,7 @@ class BridgeTitleHoldTest {
             scenario.press(COPY_LINK)          // no delay at all
 
             assertThat(copied.await(5, TimeUnit.SECONDS)).isTrue()
-            assertThat(copiedText).isEqualTo(titleUrl)
+            assertThat(copiedText).isEqualTo(todayLink)
         }
     }
 
@@ -257,7 +291,7 @@ class BridgeTitleHoldTest {
             scenario.press(COPY_LINK)
 
             assertThat(secondCopy.await(5, TimeUnit.SECONDS)).isTrue()
-            assertThat(copiedText).isEqualTo(titleUrl)
+            assertThat(copiedText).isEqualTo(todayLink)
             assertThat(scenario.menus()).isEqualTo(0)
         }
     }
@@ -435,6 +469,15 @@ class BridgeTitleHoldTest {
         const val COPY_TITLE = 0
         const val COPY_LINK = 1
         const val SHARE = 2
+
+        /** A list row that already selects a day, the way Ekşi's "bugün" list links one. */
+        const val DATED_LIST_FIXTURE = """
+<html><body>
+  <ul class="topic-list partial">
+    <li><a href="/mohamed-salah-ghaly--3459509?day=2026-10-01">mohamed salah ghaly <small>12</small></a></li>
+  </ul>
+</body></html>
+"""
     }
 
     /** A whole gesture: down, held past the threshold, and lifted. */

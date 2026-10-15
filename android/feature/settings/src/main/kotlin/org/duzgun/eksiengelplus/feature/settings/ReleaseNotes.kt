@@ -45,6 +45,12 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.5.6" to VersionNotes(
+            app = listOf(
+                "Bir başlığa uzun basınca açılan menüde paylaşılan ya da kopyalanan bağlantı artık başlığı bugünün entry'leriyle açıyor. Eskiden bağlantı başlığın ilk sayfasını, yani en eski entry'leri açıyordu.",
+            ),
+            extension = emptyList(),
+        ),
         "0.5.5" to VersionNotes(
             app = listOf(
                 "Sırada bekleyen işlemler artık bir işlem bittiğinde, uygulama arka planda ya da ekran kapalıyken de kendiliğinden başlıyor. Eskiden sıra bazen İşlem durumu sayfası yenilenene kadar bekliyordu.",

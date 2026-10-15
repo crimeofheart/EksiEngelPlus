@@ -3,6 +3,15 @@
     "name": "",
     "notes": [
       "[Eklenti] Bu sürümde değişiklik yok.",
+      "[Uygulama] Bir başlığa uzun basınca açılan menüde paylaşılan ya da kopyalanan bağlantı artık başlığı bugünün entry'leriyle açıyor. Eskiden bağlantı başlığın ilk sayfasını, yani en eski entry'leri açıyordu."
+    ],
+    "pub_date": "2026-10-15",
+    "version": "0.5.6"
+  },
+  {
+    "name": "",
+    "notes": [
+      "[Eklenti] Bu sürümde değişiklik yok.",
       "[Uygulama] Sırada bekleyen işlemler artık bir işlem bittiğinde, uygulama arka planda ya da ekran kapalıyken de kendiliğinden başlıyor. Eskiden sıra bazen İşlem durumu sayfası yenilenene kadar bekliyordu.",
       "[Uygulama] Günlük arka plan süresi dolduğu için ertesi güne kalan işlemler artık kaldıkları yerden devam ediyor. Eskiden süre sıfırlanmadığından her gün hiçbir işlem yapmadan yeniden duraklıyor, arkasındaki sıra da hiç başlamıyordu.",
       "[Uygulama] Uygulama açıkken geçen süre artık günlük arka plan süresinden düşülmüyor; uygulamayı açmak bu süreyi baştan başlatıyor. Eskiden uygulama açıkken izlenen uzun işlemler, gerekenden saatler önce ertesi güne bırakılıyordu."

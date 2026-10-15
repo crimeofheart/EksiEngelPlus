@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.5.6": {
+    date: "2026-10-15",
     app: [
       "Bir başlığa uzun basınca açılan menüde paylaşılan ya da kopyalanan bağlantı artık başlığı bugünün entry'leriyle açıyor. Eskiden bağlantı başlığın ilk sayfasını, yani en eski entry'leri açıyordu."
     ],

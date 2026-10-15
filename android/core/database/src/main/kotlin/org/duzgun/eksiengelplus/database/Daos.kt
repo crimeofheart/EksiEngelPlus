@@ -186,6 +186,34 @@ interface OperationCheckpointDao {
     )
     suspend fun liveCount(): Int
 
+    /**
+     * Marks a run as started by one particular worker.
+     *
+     * The worker's own WorkManager id, because one worker now carries every run
+     * it takes off the queue, and only the first of those has a tag naming it.
+     * Without this the reconciler found the rest RUNNING with no work of their
+     * own and marked them INTERRUPTED while they were executing.
+     */
+    @Query(
+        "UPDATE operation_checkpoint SET state = 'RUNNING', workRequestId = :workRequestId, " +
+            "updatedAt = :at WHERE operationId = :id",
+    )
+    suspend fun claim(id: String, workRequestId: String, at: Long)
+
+    /**
+     * The run a worker was carrying, for when that worker is re-run.
+     *
+     * WorkManager re-runs work after process death with the input it was first
+     * given, which names the run the worker started with -- not the queued one
+     * it had moved on to. The newest, because a worker leaves a run behind only
+     * by finishing it.
+     */
+    @Query(
+        "SELECT * FROM operation_checkpoint WHERE workRequestId = :workRequestId " +
+            "AND state = 'RUNNING' ORDER BY startedAt DESC LIMIT 1",
+    )
+    suspend fun claimedBy(workRequestId: String): OperationCheckpointEntity?
+
     /** Every checkpoint, for the screen that shows what is running. */
     @Query("SELECT * FROM operation_checkpoint ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<OperationCheckpointEntity>>

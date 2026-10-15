@@ -176,7 +176,8 @@ class RuntimeTest {
         now += 3_000
         budget.releaseForeground()      // a visible activity took over
         now += 60_000                   // an hour of foreground use
-        assertThat(budget.consumedMs()).isEqualTo(3_000)
+        // Nothing, not the 3s before it either: the platform resets its timer.
+        assertThat(budget.consumedMs()).isEqualTo(0)
         assertThat(budget.isExhausted()).isFalse()
     }
 
@@ -212,6 +213,22 @@ class RuntimeTest {
         assertThat(db.checkpoints().get("op1")!!.state).isEqualTo("INTERRUPTED")
         // Surfaced for the user to choose, never silently restarted.
         assertThat(reconciler.resumable()).contains("op1")
+    }
+
+    /**
+     * A checkpoint keeps the claim the worker wrote.
+     *
+     * It is the only thing tying a run taken off the queue to the worker
+     * carrying it, so a pass that blanked it handed the run to the reconciler as
+     * dead at the next pull to refresh.
+     */
+    @Test fun aCheckpointKeepsTheWorkerThatClaimedTheRun() = runTest {
+        seedCheckpoint()
+        db.checkpoints().claim("op1", "worker", now)
+
+        context().checkpoint(OperationCursor(index = 1))
+
+        assertThat(db.checkpoints().get("op1")!!.workRequestId).isEqualTo("worker")
     }
 
     private fun reconciler() = OperationReconciler(
@@ -294,7 +311,7 @@ class RuntimeTest {
         now += 8_000
         budget.releaseForeground()
         now += 10 * 60 * 1000               // ten minutes of visible use
-        assertThat(budget.consumedMs()).isEqualTo(8_000)
+        assertThat(budget.consumedMs()).isEqualTo(0)
         assertThat(budget.isExhausted()).isFalse()
     }
 }

@@ -8,6 +8,7 @@ import androidx.work.WorkManager
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
@@ -174,11 +175,7 @@ class WorkSchedulingTest {
         assertThat(db.checkpoints().liveCount()).isEqualTo(0)   // scheduled only
 
         // What the worker does before touching the network.
-        db.checkpoints().setState(
-            "op1",
-            org.duzgun.eksiengelplus.ops.engine.OperationState.RUNNING.name,
-            1L,
-        )
+        db.checkpoints().claim("op1", "worker", 1L)
 
         assertThat(db.checkpoints().liveCount()).isEqualTo(1)
         // The cursor is untouched, so a resume still knows where it was.
@@ -186,5 +183,112 @@ class WorkSchedulingTest {
 
         OperationWorker.enqueue(wm, db, "op2", request)
         assertThat(db.queuedTasks().next()).isNotNull()
+    }
+
+    private fun reconciler() = OperationReconciler(db, wm, InMemoryCommandBus())
+
+    /** The worker's id for a run enqueued under [operationId]. */
+    private fun workFor(operationId: String) =
+        wm.getWorkInfosByTag(OperationWorker.tagFor(operationId)).get().single().id
+
+    /** What the worker writes when it takes the next run off the queue. */
+    private suspend fun adopt(operationId: String, by: java.util.UUID) =
+        db.checkpoints().upsert(
+            OperationWorker.freshCheckpoint(operationId, request).copy(
+                state = org.duzgun.eksiengelplus.ops.engine.OperationState.RUNNING.name,
+                workRequestId = by.toString(),
+            ),
+        )
+
+    /**
+     * A run the worker took off the queue is alive while that worker is.
+     *
+     * It has no tag of its own -- the worker was enqueued for the run before
+     * it -- so asking by tag alone found it RUNNING with nothing behind it, and
+     * a pull to refresh marked a run INTERRUPTED in the middle of executing it.
+     */
+    @Test fun anAdoptedRunIsNotMistakenForADeadOne() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "first", request)
+        adopt("adopted", by = workFor("first"))
+
+        val stale = reconciler().reconcile()
+
+        assertThat(stale).doesNotContain("adopted")
+        assertThat(db.checkpoints().get("adopted")!!.state).isEqualTo("RUNNING")
+    }
+
+    /** And dead once that worker is, like any other orphaned run. */
+    @Test fun anAdoptedRunOutlivingItsWorkerIsInterrupted() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "first", request)
+        val work = workFor("first")
+        adopt("adopted", by = work)
+        wm.cancelWorkById(work).result.get()
+
+        assertThat(reconciler().reconcile()).contains("adopted")
+        assertThat(db.checkpoints().get("adopted")!!.state).isEqualTo("INTERRUPTED")
+    }
+
+    /**
+     * WorkManager re-runs a worker with the input it started with. One that had
+     * moved on to a queued run has to find that run again, not the first.
+     */
+    @Test fun aReRunWorkerFindsTheRunItWasCarrying() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "first", request)
+        val work = workFor("first")
+        db.checkpoints().claim("first", work.toString(), 1L)
+        // The first finished and was archived; the worker moved on.
+        db.checkpoints().remove("first")
+        adopt("adopted", by = work)
+
+        assertThat(db.checkpoints().claimedBy(work.toString())?.operationId).isEqualTo("adopted")
+        // Nobody else's claim answers for it.
+        assertThat(db.checkpoints().claimedBy(java.util.UUID.randomUUID().toString())).isNull()
+    }
+
+    /**
+     * An entry that no longer decodes must not hold up the ones behind it.
+     *
+     * The drain stopped at it without removing it, so every later drain read
+     * the same row and gave up the same way: the queue never moved again.
+     */
+    @Test fun anUnreadableQueueEntryDoesNotStrandTheRest() = kotlinx.coroutines.runBlocking {
+        fun queued(seq: Long, payload: String) =
+            org.duzgun.eksiengelplus.database.QueuedTaskEntity(
+                seq = seq,
+                banSourcePk = request.source.pk,
+                banModePk = request.mode.pk,
+                targetTypePk = null,
+                clickSourcePk = null,
+                payloadJson = payload,
+                status = "QUEUED",
+                enqueuedAt = seq,
+            )
+        db.queuedTasks().enqueue(queued(1, "{not a request"))
+        db.queuedTasks().enqueue(
+            queued(2, kotlinx.serialization.json.Json.encodeToString(OperationRequest.serializer(), request)),
+        )
+
+        reconciler().reconcile()
+
+        assertThat(db.queuedTasks().next()).isNull()
+        assertThat(db.checkpoints().observeAll().first()).hasSize(1)
+    }
+
+    /**
+     * Force-stopping a run the worker adopted cancels that worker.
+     *
+     * Cancelling by tag alone missed it -- the tag names the run the worker
+     * started with -- so Durdur removed the row and left the worker going.
+     */
+    @Test fun forceStoppingAnAdoptedRunCancelsItsWorker() = kotlinx.coroutines.runBlocking {
+        OperationWorker.enqueue(wm, db, "first", request)
+        val work = workFor("first")
+        db.checkpoints().remove("first")
+        adopt("adopted", by = work)
+
+        assertThat(reconciler().stop("adopted", graceMs = 0)).isTrue()
+
+        assertThat(wm.getWorkInfoById(work).get()!!.state).isEqualTo(WorkInfo.State.CANCELLED)
+        assertThat(db.checkpoints().get("adopted")).isNull()
     }
 }

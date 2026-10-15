@@ -89,11 +89,7 @@ class OperationReconciler @Inject constructor(
      */
     private suspend fun drainQueue() {
         if (db.checkpoints().liveCount() != 0) return
-        val next = db.queuedTasks().next() ?: return
-        val request = runCatching {
-            Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
-        }.getOrNull() ?: return
-        db.queuedTasks().remove(next.id)
+        val request = OperationWorker.takeNextQueued(db) ?: return
         OperationWorker.startNow(
             workManager,
             db,
@@ -114,17 +110,28 @@ class OperationReconciler @Inject constructor(
      * refresh looked broken because it was: the loop it drives skipped the very
      * row it was there to fix.
      *
-     * A tag rather than the stored work id, which is written at enqueue time and
-     * so is null exactly when a crash makes the check matter.
+     * A tag first, because the stored work id is written only once the worker
+     * starts and so is null exactly when a crash before then makes the check
+     * matter. The id second, because a run the worker took off the queue was
+     * never enqueued under a tag of its own -- the worker that carries it is
+     * the one that recorded it.
      */
     private suspend fun isWorkLive(operationId: String): Boolean =
         // get() blocks on WorkManager's own database, and Durdur now asks this
         // from a tap: off the main thread, where reconcile() should also have
         // been asking it.
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val live = setOf(WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED)
             workManager.getWorkInfosByTag(OperationWorker.tagFor(operationId)).get()
-                .any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+                .any { it.state in live } ||
+                claimingWork(operationId)
+                    ?.let { workManager.getWorkInfoById(it).get()?.state in live } == true
         }
+
+    /** The worker that last claimed this run, if any. */
+    private suspend fun claimingWork(operationId: String): java.util.UUID? =
+        db.checkpoints().get(operationId)?.workRequestId
+            ?.let { runCatching { java.util.UUID.fromString(it) }.getOrNull() }
 
     /** Operations the user could pick up again. */
     suspend fun resumable(): List<String> =
@@ -222,7 +229,23 @@ class OperationReconciler @Inject constructor(
      * healthy one that had since taken its place.
      */
     private suspend fun forceEnd(operationId: String) {
-        workManager.cancelAllWorkByTag(OperationWorker.tagFor(operationId))
+        val cancels = listOfNotNull(
+            workManager.cancelAllWorkByTag(OperationWorker.tagFor(operationId)),
+            /*
+             * And the worker carrying it, if it came off the queue and so has no
+             * tag. Only while it is RUNNING: a parked run's claim names a worker
+             * that has finished, or in the worst case moved on to another run.
+             */
+            db.checkpoints().get(operationId)
+                ?.takeIf { it.state == OperationState.RUNNING.name }
+                ?.let { claimingWork(operationId) }
+                ?.let { workManager.cancelWorkById(it) },
+        )
+        // Cancelled before the drain below, so that the worker cannot adopt the
+        // next run in the moment between this and the drain starting it too.
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            cancels.forEach { it.result.get() }
+        }
         db.checkpoints().remove(operationId)
         // The reason the stuck row mattered: with it gone, whatever queued behind
         // it can finally start, and nothing else is going to notice that it can.

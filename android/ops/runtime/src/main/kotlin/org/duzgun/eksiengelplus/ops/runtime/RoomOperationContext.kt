@@ -29,7 +29,8 @@ private val Json = Json { ignoreUnknownKeys = true }
  *
  * Time counts only while the foreground service holds the process. With a
  * visible activity the operation runs unconstrained, so leaving the app open
- * genuinely finishes sooner -- which is worth telling the user.
+ * genuinely finishes sooner -- which is worth telling the user. The worker
+ * drives that from [AppVisibility], on a thread of its own, hence the locking.
  */
 class ForegroundBudget(
     private val softBudgetMs: Long = DEFAULT_SOFT_BUDGET_MS,
@@ -51,17 +52,35 @@ class ForegroundBudget(
     private var consumedMs: Long = 0
     private var warned = false
 
+    @Synchronized
     fun resume(alreadyConsumedMs: Long) {
         consumedMs = alreadyConsumedMs
         startedAt = clock()
     }
 
-    /** Called when a visible activity takes over; stops billing. */
+    /**
+     * Called when a visible activity takes over: stops billing, and starts over.
+     *
+     * Starting over, not just pausing, because that is what the platform does:
+     * bringing the app to the foreground resets its timer, and the service has
+     * the full six hours again once the app goes back to the background. Keeping
+     * the count would park a run hours before anything required it. The warning
+     * is re-armed with it, since the next one would be about a new allowance.
+     */
+    @Synchronized
     fun releaseForeground() {
-        startedAt?.let { consumedMs += clock() - it }
         startedAt = null
+        consumedMs = 0
+        warned = false
     }
 
+    /** Called when the app leaves the screen; billing starts again from here. */
+    @Synchronized
+    fun holdForeground() {
+        if (startedAt == null) startedAt = clock()
+    }
+
+    @Synchronized
     fun consumedMs(): Long = consumedMs + (startedAt?.let { clock() - it } ?: 0)
 
     fun isExhausted(): Boolean = consumedMs() >= softBudgetMs
@@ -79,6 +98,7 @@ class ForegroundBudget(
      * Once, not repeatedly. A notification that fires every few minutes trains
      * the user to dismiss it, including the time it mattered.
      */
+    @Synchronized
     fun shouldWarn(): Boolean {
         if (warned) return false
         if (consumedMs() < (softBudgetMs * warnFraction).toLong()) return false
@@ -180,7 +200,9 @@ class RoomOperationContext(
                     // what dated every run to the epoch.
                     startedAt = existing.startedAt,
                     updatedAt = clock(),
-                    workRequestId = null,
+                    // Preserved too: it is how the reconciler knows a run taken
+                    // off the queue is still being carried by a live worker.
+                    workRequestId = existing.workRequestId,
                     fgsMillisUsed = budget.consumedMs(),
                     // Carried on the row so resumption does not depend on the
                     // caller still holding the request.

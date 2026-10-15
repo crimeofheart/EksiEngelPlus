@@ -80,6 +80,7 @@ dependencies {
     ksp(libs.hilt.compiler)
     ksp(libs.hilt.work.compiler)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.process)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

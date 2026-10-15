@@ -45,6 +45,14 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.5.5" to VersionNotes(
+            app = listOf(
+                "Sırada bekleyen işlemler artık bir işlem bittiğinde, uygulama arka planda ya da ekran kapalıyken de kendiliğinden başlıyor. Eskiden sıra bazen İşlem durumu sayfası yenilenene kadar bekliyordu.",
+                "Günlük arka plan süresi dolduğu için ertesi güne kalan işlemler artık kaldıkları yerden devam ediyor. Eskiden süre sıfırlanmadığından her gün hiçbir işlem yapmadan yeniden duraklıyor, arkasındaki sıra da hiç başlamıyordu.",
+                "Uygulama açıkken geçen süre artık günlük arka plan süresinden düşülmüyor; uygulamayı açmak bu süreyi baştan başlatıyor. Eskiden uygulama açıkken izlenen uzun işlemler, gerekenden saatler önce ertesi güne bırakılıyordu.",
+            ),
+            extension = emptyList(),
+        ),
         "0.5.4" to VersionNotes(
             app = listOf(
                 "Sessize alınanları engelleme ve engellenenleri sessize alma işlemleri artık önce yeni kısıtlamayı uyguluyor, başarılı olursa eskisini kaldırıyor. Yeni işlem başarısız olduğunda hesabın mevcut engeli ya da sessize alınması korunuyor.",

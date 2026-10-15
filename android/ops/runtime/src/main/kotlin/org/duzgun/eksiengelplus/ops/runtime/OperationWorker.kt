@@ -3,6 +3,7 @@ package org.duzgun.eksiengelplus.ops.runtime
 import android.content.Context
 import android.content.pm.ServiceInfo
 import androidx.hilt.work.HiltWorker
+import androidx.room.withTransaction
 import androidx.work.CoroutineWorker
 import androidx.work.Constraints
 import androidx.work.Data
@@ -15,7 +16,9 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
@@ -54,6 +57,7 @@ class OperationWorker @AssistedInject constructor(
     private val configRepository: org.duzgun.eksiengelplus.datastore.ConfigRepository,
     private val identityRepository: org.duzgun.eksiengelplus.datastore.IdentityRepository,
     private val scrape: org.duzgun.eksiengelplus.eksi.client.ScrapeClient,
+    private val visibility: AppVisibility,
 ) : CoroutineWorker(appContext, params) {
 
     /*
@@ -131,9 +135,17 @@ class OperationWorker @AssistedInject constructor(
              * tapping çalıştır during a run reported "sıraya alındı" and then
              * did nothing at all. The queue is what makes that message true.
              */
-            if (db.checkpoints().liveCount() > 0) {
-                // Queued, not lost. Drained when the live run reaches a terminal
-                // state; see startNextQueued.
+            /*
+             * The check and the insert are one transaction, and so is the
+             * worker's look at the queue as it lets go of a run (archive). Done
+             * separately, a request could see the run still live, and land on
+             * the queue just after the worker found it empty and left -- queued
+             * behind nothing, until a pull to refresh happened to drain it.
+             */
+            val queued = db.withTransaction {
+                if (db.checkpoints().liveCount() == 0) return@withTransaction false
+                // Queued, not lost. The worker carrying the live run takes it
+                // next; see adoptNextQueued.
                 db.queuedTasks().enqueue(
                     org.duzgun.eksiengelplus.database.QueuedTaskEntity(
                         seq = db.queuedTasks().maxSeq() + 1,
@@ -146,10 +158,49 @@ class OperationWorker @AssistedInject constructor(
                         enqueuedAt = System.currentTimeMillis(),
                     ),
                 )
-                return
+                true
             }
+            if (queued) return
 
             startNow(wm, db, operationId, request)
+        }
+
+        /** A run's row before it has done anything. */
+        internal fun freshCheckpoint(
+            operationId: String,
+            request: OperationRequest,
+        ) = OperationCheckpointEntity(
+            operationId = operationId,
+            type = request.source.name,
+            state = OperationState.IDLE.name,
+            cursorJson = Json.encodeToString(OperationCursor.serializer(), OperationCursor()),
+            processed = 0,
+            total = 0,
+            successful = 0,
+            failed = 0,
+            startedAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+            workRequestId = null,
+            requestJson = Json.encodeToString(OperationRequest.serializer(), request),
+        )
+
+        /**
+         * Takes the next request off the queue.
+         *
+         * An entry that no longer decodes is dropped and the one behind it
+         * taken instead. Both drains used to give up on it: the worker removed
+         * it and stopped there, and the reconciler stopped without removing it,
+         * so every later drain read the same row and the queue never moved
+         * again.
+         */
+        internal suspend fun takeNextQueued(db: EksiDatabase): OperationRequest? {
+            while (true) {
+                val next = db.queuedTasks().next() ?: return null
+                db.queuedTasks().remove(next.id)
+                runCatching {
+                    Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
+                }.getOrNull()?.let { return it }
+            }
         }
 
         /** Writes the run's row and schedules it, with no queue check. */
@@ -159,22 +210,7 @@ class OperationWorker @AssistedInject constructor(
             operationId: String,
             request: OperationRequest,
         ) {
-            db.checkpoints().upsert(
-                OperationCheckpointEntity(
-                    operationId = operationId,
-                    type = request.source.name,
-                    state = OperationState.IDLE.name,
-                    cursorJson = Json.encodeToString(OperationCursor.serializer(), OperationCursor()),
-                    processed = 0,
-                    total = 0,
-                    successful = 0,
-                    failed = 0,
-                    startedAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis(),
-                    workRequestId = null,
-                    requestJson = Json.encodeToString(OperationRequest.serializer(), request),
-                ),
-            )
+            db.checkpoints().upsert(freshCheckpoint(operationId, request))
 
             val data = Data.Builder()
                 .putString(KEY_OPERATION_ID, operationId)
@@ -270,8 +306,14 @@ class OperationWorker @AssistedInject constructor(
     private var lastProcessed: Int = 0
     private var lastTotal: Int = 0
 
-    private val operationId: String
-        get() = inputData.getString(KEY_OPERATION_ID) ?: "unknown"
+    /** The run being executed: the one this work was started for, then each it adopts. */
+    private var operationId: String = inputData.getString(KEY_OPERATION_ID) ?: "unknown"
+
+    /** Set by a run that finished and took the next one off the queue. */
+    private var handedOffTo: String? = null
+
+    /** Foreground time this worker has held, across every run it carried. */
+    private lateinit var sessionBudget: ForegroundBudget
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
         notifier.ensureChannels()
@@ -282,7 +324,75 @@ class OperationWorker @AssistedInject constructor(
         )
     }
 
+    /**
+     * Runs this operation, then everything queued behind it.
+     *
+     * Each queued run used to be handed to WorkManager as new work, enqueued
+     * from inside the finishing worker with REPLACE -- which cancelled that
+     * worker and took its foreground service down at the moment the next one
+     * had to start its own. From the background, Android 12+ refuses that
+     * start, so the next run failed before it began, and with the screen off
+     * the job could also simply be deferred. Either way the queue sat still
+     * until a pull to refresh in İşlem durumu ran the reconciler's drain.
+     *
+     * So the queue is drained here, in the foreground service already held,
+     * and the work only ends when there is nothing left to run -- or when a run
+     * stops in a way that holds the queue on purpose: a pause, a lost session,
+     * the day's budget, a crash the user should see.
+     */
     override suspend fun doWork(): Result {
+        // Re-run after process death: carry on with the run this worker had
+        // adopted, not the one its input names, which it already finished.
+        db.checkpoints().claimedBy(id.toString())?.let { operationId = it.operationId }
+
+        /*
+         * One budget for the whole foreground session, not one per run.
+         *
+         * The platform's cap is on the app's foreground service, and the runs
+         * this worker takes off the queue all share it. A fresh budget per run
+         * let a long queue sail past the cap -- the system then ends the service
+         * itself, mid-run -- and repeated the "open the app" warning per run.
+         */
+        val budget = ForegroundBudget().apply {
+            resume(budgetCarriedInto(db.checkpoints().get(operationId)))
+        }
+        sessionBudget = budget
+
+        return coroutineScope {
+            /*
+             * Billed only while the app is off screen.
+             *
+             * The budget could always stop billing, and nothing ever told it
+             * to: a run watched from İşlem durumu spent its allowance all the
+             * same, and parked for the day hours early. The first value is the
+             * current one, so a run started from a tap begins unbilled.
+             */
+            val watcher = launch {
+                visibility.visible.collect { onScreen ->
+                    if (onScreen) budget.releaseForeground() else budget.holdForeground()
+                }
+            }
+            try {
+                drain()
+            } finally {
+                watcher.cancel()
+            }
+        }
+    }
+
+    private suspend fun drain(): Result {
+        while (true) {
+            handedOffTo = null
+            val result = runOperation()
+            operationId = handedOffTo ?: return result
+        }
+    }
+
+    private suspend fun runOperation(): Result {
+        lastRemaining = 0
+        lastProcessed = 0
+        lastTotal = 0
+
         /*
          * The request comes from the checkpoint, not from input data.
          *
@@ -336,11 +446,12 @@ class OperationWorker @AssistedInject constructor(
         val existing = db.checkpoints().get(operationId)
         // Before any work, so a run that opens with a cooldown is not reported
         // as başlamadı for the length of it -- and so liveCount() sees it and
-        // queues the next request behind it rather than beside it.
+        // queues the next request behind it rather than beside it. Claimed, so
+        // the reconciler can tell it is this worker's even without a tag.
         if (existing != null) {
-            db.checkpoints().setState(
+            db.checkpoints().claim(
                 operationId,
-                OperationState.RUNNING.name,
+                id.toString(),
                 System.currentTimeMillis(),
             )
         }
@@ -348,7 +459,7 @@ class OperationWorker @AssistedInject constructor(
             ?.let { runCatching { Json.decodeFromString(OperationCursor.serializer(), it) }.getOrNull() }
             ?: OperationCursor()
 
-        val budget = ForegroundBudget().apply { resume(existing?.fgsMillisUsed ?: 0) }
+        val budget = sessionBudget
         /*
          * Pacing waits sleep in slices, watching for Durdur and Duraklat.
          *
@@ -523,28 +634,27 @@ class OperationWorker @AssistedInject constructor(
 
         return when (outcome) {
             OperationOutcome.COMPLETED -> {
-                recordState(OperationState.COMPLETED)
-                val done = db.checkpoints().get(operationId)
-                archive(request, ctx.logs(), ctx.targets())
+                val archived = archive(request, ctx.logs(), ctx.targets())
+                handedOffTo = archived.next
 
                 /*
                  * One run finishing is not everything finishing.
                  *
                  * The old wording announced completion outright while a queue was
                  * still waiting, so the app declared itself done and then carried
-                 * on working. What is left is counted before the queue is drained,
-                 * so it reflects what has not started rather than what just did.
+                 * on working. The run just adopted counts as waiting: it reflects
+                 * what has not started rather than what just did.
                  */
-                val waiting = db.queuedTasks().count().first()
+                val waiting = db.queuedTasks().count().first() + if (archived.next != null) 1 else 0
                 // Named, because the notification arrives long after the tap and
                 // may be the second of three identical-looking runs.
                 val summary = listOfNotNull(
                     runLabel,
-                    done?.let { "${it.successful}/${it.processed} işlendi" },
+                    archived.last?.let { "${it.successful}/${it.processed} işlendi" },
                 ).joinToString(" · ")
 
                 notifier.clearProgress()
-                if (waiting > 0) {
+                if (archived.next != null) {
                     notifier.alert(
                         "İşlem tamamlandı",
                         listOf(summary, "sırada $waiting işlem var, bir sonrakine geçiliyor.")
@@ -558,7 +668,6 @@ class OperationWorker @AssistedInject constructor(
                     )
                 }
 
-                startNextQueued()
                 Result.success()
             }
             OperationOutcome.PAUSED -> {
@@ -575,8 +684,7 @@ class OperationWorker @AssistedInject constructor(
                 Result.success()
             }
             OperationOutcome.STOPPED -> {
-                archive(request, ctx.logs(), ctx.targets())
-                startNextQueued()
+                handedOffTo = archive(request, ctx.logs(), ctx.targets()).next
                 // recordState only writes if the row is still there, so a run
                 // stopped by cancellation stays deleted rather than coming back
                 // as a stopped one.
@@ -630,36 +738,59 @@ class OperationWorker @AssistedInject constructor(
      * The checkpoint is removed in the same step: keeping a terminal row would
      * leave the run in two places, and the live count that gates refresh and
      * queueing reads that table.
+     *
+     * And the next queued run is adopted in that same transaction, which is
+     * what keeps a request from being stranded: enqueue() decides between
+     * queueing and starting in a transaction too, so a request either lands on
+     * the queue before this looks at it, or finds this run gone and starts on
+     * its own.
      */
     private suspend fun archive(
         request: OperationRequest,
         logLines: List<String>,
         targets: List<Pair<String, Long>>,
-    ) {
-        val cp = db.checkpoints().get(operationId) ?: return
-        db.completedOperations().insert(
-            org.duzgun.eksiengelplus.database.CompletedOperationEntity(
-                banSourcePk = request.source.pk,
-                banModePk = request.mode.pk,
-                processed = cp.processed,
-                successful = cp.successful,
-                failed = cp.failed,
-                startedAt = cp.startedAt,
-                finishedAt = System.currentTimeMillis(),
-                // The nick the run was about. The checkpoint holding the request
-                // is removed two lines down, so this is the last chance to keep
-                // it -- without it the history row falls back to "favlayanlar"
-                // with no way to tell three of them apart.
-                summaryJson = OperationLabel.summaryJson(OperationLabel.target(request)),
-                // Same reasoning as summaryJson, for the whole request: the
-                // history screen replays the run from this, and the checkpoint
-                // that held it does not survive the next two lines.
-                requestJson = Json.encodeToString(OperationRequest.serializer(), request),
-            ),
-        )
-        db.checkpoints().remove(operationId)
-        db.completedOperations().trim()
+    ): Archived {
+        val archived = db.withTransaction {
+            val next = adoptNextQueued()
+            val cp = db.checkpoints().get(operationId)
+                ?: return@withTransaction Archived(last = null, next = next)
+            db.completedOperations().insert(
+                org.duzgun.eksiengelplus.database.CompletedOperationEntity(
+                    banSourcePk = request.source.pk,
+                    banModePk = request.mode.pk,
+                    processed = cp.processed,
+                    successful = cp.successful,
+                    failed = cp.failed,
+                    startedAt = cp.startedAt,
+                    finishedAt = System.currentTimeMillis(),
+                    // The nick the run was about. The checkpoint holding the request
+                    // is removed two lines down, so this is the last chance to keep
+                    // it -- without it the history row falls back to "favlayanlar"
+                    // with no way to tell three of them apart.
+                    summaryJson = OperationLabel.summaryJson(OperationLabel.target(request)),
+                    // Same reasoning as summaryJson, for the whole request: the
+                    // history screen replays the run from this, and the checkpoint
+                    // that held it does not survive the next two lines.
+                    requestJson = Json.encodeToString(OperationRequest.serializer(), request),
+                ),
+            )
+            db.checkpoints().remove(operationId)
+            db.completedOperations().trim()
+            Archived(last = cp, next = next)
+        }
+        archived.last?.let { report(request, it, logLines, targets) }
+        return archived
+    }
 
+    /** What [archive] leaves: the run's final row, and the queued run adopted in its place. */
+    private class Archived(val last: OperationCheckpointEntity?, val next: String?)
+
+    private suspend fun report(
+        request: OperationRequest,
+        cp: OperationCheckpointEntity,
+        logLines: List<String>,
+        targets: List<Pair<String, Long>>,
+    ) {
         /*
          * Reported in the extension's own shape (commHandler.js:47-113), so the
          * backend needs no Android branch, and only with consent.
@@ -793,28 +924,27 @@ class OperationWorker @AssistedInject constructor(
         System.getProperty("http.agent").orEmpty().ifBlank { "Android" }
 
     /**
-     * Starts whatever was waiting behind this run.
+     * Takes whatever was waiting behind this run, for this worker to run next.
      *
      * Called on the terminal outcomes only. A pause is not the end of a run, so
      * jumping the queue there would leave two operations sharing a pacer budget
      * sized for one.
+     *
+     * Written RUNNING and claimed straight away rather than IDLE: liveCount()
+     * has to see it from this moment, or a request arriving before the run
+     * begins would start beside it -- and cancel this worker doing so, since
+     * starting new work replaces whatever holds the unique name.
      */
-    private suspend fun startNextQueued() {
-        val next = db.queuedTasks().next() ?: return
-        db.queuedTasks().remove(next.id)
-        val request = runCatching {
-            Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
-        }.getOrNull() ?: return
-
-        // Started directly rather than through enqueue(), which would consult the
-        // live check and could put this straight back on the queue it just came
-        // from. Nothing is running at this point: this is the run that finished.
-        startNow(
-            WorkManager.getInstance(applicationContext),
-            db,
-            java.util.UUID.randomUUID().toString(),
-            request,
+    private suspend fun adoptNextQueued(): String? {
+        val request = takeNextQueued(db) ?: return null
+        val next = java.util.UUID.randomUUID().toString()
+        db.checkpoints().upsert(
+            freshCheckpoint(next, request).copy(
+                state = OperationState.RUNNING.name,
+                workRequestId = id.toString(),
+            ),
         )
+        return next
     }
 
     private suspend fun recordState(state: OperationState) {
@@ -860,6 +990,25 @@ internal fun activeDateRules(
     if (!config.enableDateFilter || !request.addsRestriction) return emptyList()
     return config.dateFilterRules
 }
+
+/**
+ * Foreground time a run starts with already spent.
+ *
+ * Carried over from its row, except when the run parked because the budget ran
+ * out: nothing ever set that count back, so the continuation booked for the day
+ * after resumed at five hours, was exhausted before its first action, parked
+ * again and booked another. The run never finished, and PAUSED_BUDGET counts as
+ * live, so everything queued behind it waited for good too.
+ *
+ * Starting over is what the platform does. Both ways back to such a run reset
+ * its cap: the continuation waits out the rolling window, and a resume is a tap
+ * in the app, which brings it to the foreground.
+ *
+ * A function, like [activeDateRules], so the rule is testable without
+ * WorkManager.
+ */
+internal fun budgetCarriedInto(checkpoint: OperationCheckpointEntity?): Long =
+    if (checkpoint?.state == OperationState.PAUSED_BUDGET.name) 0 else checkpoint?.fgsMillisUsed ?: 0
 
 /** Maps a request to the task that serves it. */
 interface OperationTaskFactory {

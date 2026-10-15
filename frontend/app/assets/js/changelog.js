@@ -19,6 +19,14 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.5.5": {
+    app: [
+      "Sırada bekleyen işlemler artık bir işlem bittiğinde, uygulama arka planda ya da ekran kapalıyken de kendiliğinden başlıyor. Eskiden sıra bazen İşlem durumu sayfası yenilenene kadar bekliyordu.",
+      "Günlük arka plan süresi dolduğu için ertesi güne kalan işlemler artık kaldıkları yerden devam ediyor. Eskiden süre sıfırlanmadığından her gün hiçbir işlem yapmadan yeniden duraklıyor, arkasındaki sıra da hiç başlamıyordu.",
+      "Uygulama açıkken geçen süre artık günlük arka plan süresinden düşülmüyor; uygulamayı açmak bu süreyi baştan başlatıyor. Eskiden uygulama açıkken izlenen uzun işlemler, gerekenden saatler önce ertesi güne bırakılıyordu."
+    ],
+    extension: []
+  },
   "0.5.4": {
     date: "2026-10-08",
     app: [

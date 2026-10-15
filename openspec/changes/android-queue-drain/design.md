@@ -1,0 +1,18 @@
+## Context
+
+`OperationWorker.startNextQueued()` called `startNow()`, which enqueues unique work `eksiengel-operation` with `REPLACE`. Called from inside the running worker, that cancelled the worker. WorkManager then stopped its foreground service, and the new work had to call `setForeground()` again. With the app in the background on targetSdk 36 that call can be refused, so the run failed before `setState(RUNNING)`. Its row stayed IDLE, which `liveCount()` ignores, and nothing drained the queue again until `OperationReconciler.reconcile()` ran from a pull to refresh. That drain also skipped the failed run for good, because the IDLE sweep deletes it.
+
+## Decisions
+
+- **Drain in-process.** `doWork()` loops over `runOperation()`. A COMPLETED or STOPPED run adopts the next queued request and the loop continues. All other outcomes end the work, as before. This keeps the foreground service alive across runs and removes the self-`REPLACE`.
+- **Claim, not tag.** WorkManager tags are fixed at enqueue, so an adopted run cannot carry `operation:<id>`. The worker writes its own id with `claim()` when it starts each run and when it adopts one. `isWorkLive()` checks the tag first, then the claim. `forceEnd()` also cancels the claiming work while the run is RUNNING. `RoomOperationContext.checkpoint()` now preserves the claim instead of blanking it.
+- **Re-run resumes the adopted run.** WorkManager re-runs work with its original input, which names the first run. `claimedBy(id)` finds the RUNNING run this work was carrying.
+- **Atomic hand-off.** `archive()` adopts the next run, writes history and removes the row in one transaction. `enqueue()` checks `liveCount()` and inserts into the queue in another. Each request either lands before the worker looks or finds nothing live and starts on its own.
+- **Adopted rows are written RUNNING.** `liveCount()` sees them immediately, so a request cannot start beside them and `REPLACE` the worker.
+
+## Risks / Trade-offs
+
+- **Budget.** `budgetCarriedInto()` starts a `PAUSED_BUDGET` run at zero, because both the 20h continuation and a manual resume from the app reset the platform cap. One `ForegroundBudget` covers the worker's session, so a queue parks at the soft cap instead of hitting the platform's `onTimeout`. The cost is that a later run in the session saves the session's time as its own `fgsMillisUsed`. That over-counts if the run is paused and resumed, which only means it parks earlier.
+- **Visible time.** Android resets the dataSync timer when the user brings the app to the foreground, and the service gets the full six hours again once the app goes to the background. So `releaseForeground()` resets the count to zero and re-arms the warning, rather than only pausing billing, and the new `holdForeground()` starts billing again. The worker collects `AppVisibility.visible` for the length of `doWork()`. Its first value is the current one, so a run started from a tap begins unbilled. Visibility is the process lifecycle at STARTED or above, so moving between the app's own screens does not count as leaving. `ProcessLifecycleOwner` reports a stop about 700 ms late, which under-bills by that much per exit, well inside the hour between the soft budget and the platform cap. The budget's methods are synchronized because the collector and the run call them from different threads.
+- A force-stop that loses a race with the worker's hand-off can still orphan the adopted run. The reconciler then surfaces that run as INTERRUPTED and resumable. It does not disappear.
+- Instrumented tests cover scheduling, liveness and the drain. The worker loop needs a live session and network, so it is verified on a device.

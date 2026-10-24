@@ -9,6 +9,8 @@ from django.utils import timezone
 from api.eksisozluk import user_url
 from api.models import FAILED_ACTION, Action, EksiSozlukUser
 from client_data_collector.models import ClientAnalytic
+from history import constants as history_constants
+from history import stats as history_stats
 
 # Reference tables seeded by migrations and effectively never edited. Both api and
 # client_data_collector define their own copy of most of them, so leaving them on the
@@ -40,6 +42,7 @@ MODEL_ORDER = {
 
 ACTIVE_WINDOW_DAYS = 30
 TIMESERIES_DAYS = 90
+LEDGER_TOP = 20
 
 
 def _pct(part, whole):
@@ -220,10 +223,26 @@ def build_dashboard_context():
         href=lambda r: user_url(r["eksi_engel_user__eksisozluk_name"]),
     )
 
+    # From history.stats, the module the /api/stats/ JSON reads, so the two agree.
+    ranking_rows = lambda kind: [  # noqa: E731
+        {"label": r["nick"] or str(r["target_eksi_id"]), "n": r["actors"], "nick": r["nick"]}
+        for r in history_stats.top(kind, "current", limit=LEDGER_TOP)
+    ]
+    ranking_href = lambda r: user_url(r["nick"]) if r["nick"] else None  # noqa: E731
+    most_blocked = _bars(ranking_rows(history_constants.BLOCK), "label", href=ranking_href)
+    most_muted = _bars(ranking_rows(history_constants.MUTE), "label", href=ranking_href)
+    ledger_chart = [
+        {"day": r["day"], "total": r["total"], "actors": r["actors"]}
+        for r in history_stats.timeseries(None, TIMESERIES_DAYS)
+    ]
+
     return {
         "tiles": tiles,
         "chart_data": chart,
+        "ledger_chart_data": ledger_chart,
         "breakdowns": [
+            {"title": "Most blocked now (distinct users)", "rows": most_blocked},
+            {"title": "Most muted now (distinct users)", "rows": most_muted},
             {"title": "Action source", "rows": ban_source},
             {"title": "Extension version", "rows": versions},
             {"title": "UI events by type", "rows": clicks},

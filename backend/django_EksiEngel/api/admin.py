@@ -6,6 +6,8 @@ from django.db.models.constants import LOOKUP_SEP
 from django.urls import reverse
 from django.utils.html import format_html
 
+from history.admin import history_links
+
 from .eksisozluk import eksi_link
 from .models import BanSource, BanMode, TargetType, ClickSource, LogLevel, TimeSpecifier
 from .models import FAILED_ACTION, EksiSozlukUser, Action, ActionConfig, EksiSozlukTitle, EksiSozlukEntry
@@ -193,10 +195,15 @@ class EksiSozlukUserAdmin(SafeSearchMixin, admin.ModelAdmin):
         "last_activity_version",
     )
     list_filter = ("is_eksiengel_user", "last_activity_client", "last_activity_version")
-    readonly_fields = ("profile_on_eksi",)
+    readonly_fields = ("profile_on_eksi", "history")
 
     profile_on_eksi = eksi_link(
         "user", name="eksisozluk_name", description="on ekşi", label="ekşi ↗")
+
+    @admin.display(description="history")
+    def history(self, obj):
+        # Admin-only JSON views; each open is written to the admin access log.
+        return history_links(obj.eksisozluk_id)
 
     search_fields = ("eksisozluk_name", "=eksisozluk_id")
     date_hierarchy = "last_activity_date"

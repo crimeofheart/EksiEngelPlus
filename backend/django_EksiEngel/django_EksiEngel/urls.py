@@ -25,6 +25,9 @@ urlpatterns = [
     path('privacy/', privacy_page, name='privacy'),
     # Landing page at root
     path('', landing_page, name='landing'),
+    # History sync (device token) and admin-only stats over the history ledger.
+    path("api/sync/", include("history.urls_sync")),
+    path("api/stats/", include("history.urls_stats")),
     path("api/", include("api.urls")),
     path("where_is_eksisozluk/", include("where_is_eksisozluk.urls")),
 

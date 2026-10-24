@@ -4,23 +4,11 @@ from django.utils import timezone
 from django.db.models import Count, Q
 from django.contrib.auth.models import User
 
-class MostBannedUsersUniqueSerializer(serializers.ModelSerializer):
-    banned_by_unique_count = serializers.IntegerField()
-    class Meta:
-        model = EksiSozlukUser
-        fields = ('eksisozluk_name', 
-                  'eksisozluk_id', 
-                  'banned_by_unique_count',)
-
-class MostBannedUsersSerializer(serializers.ModelSerializer):
-    banned_by_count = serializers.IntegerField()
-    class Meta:
-        model = EksiSozlukUser
-        fields = ('eksisozluk_name', 
-                  'eksisozluk_id', 
-                  'banned_by_count',)
+from history import legacy
 
 class EksiSozlukUserStatViewSerializer(serializers.ModelSerializer):
+    """user_stat/ rows. The counts come precomputed for the page in context["fields"]
+    (history.stats.user_stat_fields), keyed by Ekşi id."""
     action_for_ban_count = serializers.SerializerMethodField()
     ban_count = serializers.SerializerMethodField()
     ban_unique_count = serializers.SerializerMethodField()
@@ -35,36 +23,29 @@ class EksiSozlukUserStatViewSerializer(serializers.ModelSerializer):
                   'ban_unique_count', 
                   'banned_by_count', 
                   'banned_by_unique_count')
-             
+
+    def _field(self, name, obj):
+        return self.context["fields"][name].get(obj.eksisozluk_id, 0)
+
     def get_action_for_ban_count(self, obj):
         # number of times the user has used the eksi engel
-        filtered_obj = EksiSozlukUser.objects.filter(eksisozluk_id=obj.eksisozluk_id) 
-        calculated_val = filtered_obj.aggregate(action_for_ban_count=Count('eksi_engel_user_in_action', distinct=False, filter=Q(eksi_engel_user_in_action__ban_mode__ban_mode="BAN")))
-        return calculated_val["action_for_ban_count"]    
-        
+        return self._field("action_for_ban_count", obj)
+
     def get_ban_count(self, obj):
-        # total number of authors targeted by the user (authors not unique)
-        filtered_obj = EksiSozlukUser.objects.all()    
-        calculated_val = filtered_obj.aggregate(ban_count=Count('author_list_in_action__eksi_engel_user', distinct=False, filter=Q(author_list_in_action__ban_mode__ban_mode="BAN") & Q(author_list_in_action__eksi_engel_user__eksisozluk_id=obj.eksisozluk_id)))    
-        return calculated_val["ban_count"]    
-        
+        # blocks the user added, all time (repeats counted)
+        return self._field("ban_count", obj)
+
     def get_ban_unique_count(self, obj):
-        # total number of authors targeted by the user (authors are unique)
-        filtered_obj = EksiSozlukUser.objects.all()
-        calculated_val = filtered_obj.aggregate(ban_unique_count=Count('author_list_in_action__author_list', distinct=True, filter=Q(author_list_in_action__ban_mode__ban_mode="BAN") & Q(author_list_in_action__eksi_engel_user__eksisozluk_id=obj.eksisozluk_id)))    
-        return calculated_val["ban_unique_count"] 
-        
+        # distinct authors the user has blocked
+        return self._field("ban_unique_count", obj)
+
     def get_banned_by_count(self, obj):
-        # total number of ban on the user performed by other authors (authors not unique)
-        filtered_obj = EksiSozlukUser.objects.filter(eksisozluk_id=obj.eksisozluk_id) 
-        calculated_val = filtered_obj.aggregate(banned_by_count=Count('author_list_in_action__eksi_engel_user', distinct=False, filter=Q(author_list_in_action__ban_mode__ban_mode="BAN"))) 
-        return calculated_val["banned_by_count"]     
-        
+        # blocks other users added against this user, all time (repeats counted)
+        return self._field("banned_by_count", obj)
+
     def get_banned_by_unique_count(self, obj):
-        # total number of ban on the user performed by other authors (authors are unique)
-        filtered_obj = EksiSozlukUser.objects.filter(eksisozluk_id=obj.eksisozluk_id) 
-        calculated_val = filtered_obj.aggregate(banned_by_unique_count=Count('author_list_in_action__eksi_engel_user', distinct=True, filter=Q(author_list_in_action__ban_mode__ban_mode="BAN")))
-        return calculated_val["banned_by_unique_count"] 
+        # distinct users who have blocked this user
+        return self._field("banned_by_unique_count", obj)
 
 class WriteActionConfigSerializer(serializers.ModelSerializer):
     # ActionConfig has a foreign key to Action, but this key is not exist while collecting data from user
@@ -268,6 +249,11 @@ class CollectActionDataSerializer(serializers.Serializer):
         if action_config_dict:
             action_config = ActionConfig.objects.create(action=action, **action_config_dict)
             action_config.save()
+
+        # The report's targets feed the history ledger, so shipped clients and anyone
+        # running with history sync off keep counting in the rankings. Clients with
+        # sync on send an empty author_list, and this writes nothing for them.
+        legacy.ingest_action(action)
         
         return {
             "action": action,

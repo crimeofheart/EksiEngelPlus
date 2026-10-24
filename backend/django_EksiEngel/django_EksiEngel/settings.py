@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'client_data_collector.apps.ClientDataCollectorConfig',
     'where_is_eksisozluk.apps.WhereIsEksisozlukConfig',
     'api.apps.ApiConfig',
+    'history.apps.HistoryConfig',
     'django_EksiEngel.apps.EksiEngelAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -180,6 +181,14 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '200/hour',
         'user': '1000/hour',
+        # History sync (history/throttling.py). Enrolment and pairing-code claims
+        # key on IP whoever is asking: a pairing code is 40 bits, and 10 guesses an
+        # hour per address puts searching the space out of reach. Push and reads
+        # key on the device, which flushes about once a minute while it works.
+        'sync_enroll': '20/hour',
+        'sync_pair': '10/hour',
+        'sync_push': '120/minute',
+        'sync_read': '120/minute',
     },
 }
 

@@ -24,6 +24,17 @@
   </div>
 </div>
 
+<div class="ee-panel">
+  <h2>History ledger &mdash; per-target outcomes per day, last {{ timeseries_days }} days</h2>
+  <div class="ee-panel-body">
+    {% if ledger_chart_data %}
+      <div class="ee-chart-scroll"><canvas id="ee-ledger-chart" class="ee-chart"></canvas></div>
+    {% else %}
+      <p class="ee-empty">No history recorded yet.</p>
+    {% endif %}
+  </div>
+</div>
+
 <div class="ee-cols">
   {% for panel in breakdowns %}
     <div class="ee-panel">
@@ -81,24 +92,33 @@
 
 {% block footer %}
 {{ block.super }}
-{% if has_actions %}
+{% if has_actions or ledger_chart_data %}
   {{ chart_data|json_script:"ee-chart-data" }}
+  {{ ledger_chart_data|json_script:"ee-ledger-chart-data" }}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     (function () {
-      var el = document.getElementById('ee-chart');
-      var raw = document.getElementById('ee-chart-data');
-      if (!el || !raw || typeof Chart === 'undefined') return;
-      var data = JSON.parse(raw.textContent);
+      if (typeof Chart === 'undefined') return;
       var css = getComputedStyle(document.body);
       var ink = css.getPropertyValue('--body-quiet-color').trim() || '#666';
+      function bars(canvasId, dataId, label, value) {
+        var el = document.getElementById(canvasId);
+        var raw = document.getElementById(dataId);
+        if (!el || !raw) return;
+        var data = JSON.parse(raw.textContent);
+        if (!data.length) return;
+        draw(el, data, label, value);
+      }
+      bars('ee-chart', 'ee-chart-data', 'Actions', function (d) { return d.total; });
+      bars('ee-ledger-chart', 'ee-ledger-chart-data', 'Outcomes', function (d) { return d.total; });
+      function draw(el, data, label, value) {
       new Chart(el.getContext('2d'), {
         type: 'bar',
         data: {
           labels: data.map(function (d) { return d.day; }),
           datasets: [{
-            label: 'Actions',
-            data: data.map(function (d) { return d.total; }),
+            label: label,
+            data: data.map(value),
             backgroundColor: 'rgba(65, 118, 144, 0.55)',
             borderColor: 'rgba(65, 118, 144, 1)',
             borderWidth: 1
@@ -114,6 +134,7 @@
           }
         }
       });
+      }
     })();
   </script>
 {% endif %}

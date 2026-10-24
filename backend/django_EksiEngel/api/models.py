@@ -135,6 +135,10 @@ class Action(models.Model):
     bulk_action = models.CharField(max_length=30, blank=True, null=True)
     source_list = models.CharField(max_length=20, blank=True, null=True)
 
+    # The history ledger's task id for this run, so its log and settings join to its
+    # per-target events. Absent from every report a client sent before the ledger.
+    task_id = models.UUIDField(blank=True, null=True, db_index=True)
+
     #title = models.ForeignKey(EksiSozlukTitle, on_delete=models.PROTECT, blank=True, null=True)
 
     def __str__(self):

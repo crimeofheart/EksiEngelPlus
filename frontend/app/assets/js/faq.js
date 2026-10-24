@@ -12,6 +12,7 @@ import * as enums from './enums.js';
 import {commHandler} from './commHandler.js';
 import {config, handleConfig, saveConfig} from './config.js';
 import { storageHandler } from './storageHandler.js';
+import { h } from './dom.js';
 
 let currentRules = [];
 let editingRuleId = null;
@@ -453,18 +454,20 @@ function createRuleElement(rule, index) {
   
   let criteriaText = formatCriteriaText(rule);
   
-  div.innerHTML = `
-    <div class="rule-icon">${icon}</div>
-    <div class="rule-content">
-      <div class="rule-title">${getActionText(action)} - ${criteriaText}</div>
-      <div class="rule-description">${rule.description || criteriaText}</div>
-    </div>
-    ${rule.isDefault ? '<span class="rule-badge">Varsayılan</span>' : ''}
-    <div class="rule-actions">
-      <button class="rule-btn rule-btn-edit" title="Düzenle">✏️</button>
-      <button class="rule-btn rule-btn-delete" title="Sil">🗑️</button>
-    </div>
-  `;
+  // Built as nodes: the description is the user's own text, and the "Kayıt
+  // tarihi <" criteria label was being parsed as the start of a tag.
+  div.append(
+    h("div", { className: "rule-icon" }, icon),
+    h("div", { className: "rule-content" },
+      h("div", { className: "rule-title" }, `${getActionText(action)} - ${criteriaText}`),
+      h("div", { className: "rule-description" }, rule.description || criteriaText),
+    ),
+    rule.isDefault ? h("span", { className: "rule-badge" }, "Varsayılan") : "",
+    h("div", { className: "rule-actions" },
+      h("button", { className: "rule-btn rule-btn-edit", title: "Düzenle" }, "✏️"),
+      h("button", { className: "rule-btn rule-btn-delete", title: "Sil" }, "🗑️"),
+    ),
+  );
   
   const editBtn = div.querySelector('.rule-btn-edit');
   const deleteBtn = div.querySelector('.rule-btn-delete');

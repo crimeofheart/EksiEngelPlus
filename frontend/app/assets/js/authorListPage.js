@@ -38,7 +38,8 @@ const showSavedMsg = () => {
 
 const showStatus = (message, isError = false) => {
   const elem = document.getElementById('status');
-  elem.innerHTML = message;
+  // Text, not markup: the message can carry a CSV file's own error text.
+  elem.textContent = message;
   elem.style.color = isError ? 'var(--danger-color, #dc3545)' : 'var(--text-muted)';
 };
 

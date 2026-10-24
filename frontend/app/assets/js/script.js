@@ -1,8 +1,36 @@
 (async () => {
   let eksiEngelIconURL = chrome.runtime.getURL('assets/img/eksiengel16.png');
-  const src = chrome.runtime.getURL("assets/js/enums.js");
-  const enums = await import(src);
-  console.log("Eksi Engel: Enums loaded", enums);
+  // Loaded by contentEnums.js, listed before this file in the manifest.
+  const enums = self.EksiEngelEnums;
+
+  /*
+   * Markup is built as nodes, never parsed from strings. addons.mozilla.org
+   * flags innerHTML with a dynamic value, and the notice text in particular can
+   * carry a nick from the page.
+   */
+  const node = (tag, props = {}, ...children) => {
+    const element = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (value === null || value === undefined) continue;
+      if (key === "className") element.className = value;
+      else element.setAttribute(key, value);
+    }
+    for (const child of children.flat()) {
+      if (child === null || child === undefined || child === false) continue;
+      element.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+    }
+    return element;
+  };
+  const extensionIcon = (style = null) => node("img", { src: eksiEngelIconURL, style });
+
+  /** The <a><img> label</a> every injected menu entry is, its label set as text. */
+  const menuLink = (label, { wrapInSpan = false, href = null, iconStyle = null } = {}) => {
+    const content = [extensionIcon(iconStyle), ` ${label}`];
+    return node("a", { href }, wrapInSpan ? node("span", {}, content) : content);
+  };
+
+  /** Replaces an injected entry's content, keeping the element and its listeners. */
+  const relabel = (element, link) => element.replaceChildren(link);
 
   /*
    * A content script outlives the extension that injected it. Reloading or
@@ -93,8 +121,11 @@
       return;
     }
 
-    const notice = document.createElement("ul");
-    notice.innerHTML = `<ul><li class="${kind}" style=""><img src=${eksiEngelIconURL}> ${message}<a class="close">×</a></li></ul>`;
+    const notice = node("ul", {},
+      node("ul", {},
+        node("li", { className: kind }, extensionIcon(), ` ${message}`, node("a", { className: "close" }, "×")),
+      ),
+    );
     container.appendChild(notice);
     setTimeout(() => notice.remove(), kind === "error" ? 6000 : 3000);
   }
@@ -298,16 +329,16 @@
       // create new buttons
       let li1 = document.createElement("li");
       let li2 = document.createElement("li");
-      li1.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri engelle (son 24 saatte)</a>`;
-      li2.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri engelle (tümü)</a>`;
+      relabel(li1, menuLink("başlıktakileri engelle (son 24 saatte)"));
+      relabel(li2, menuLink("başlıktakileri engelle (tümü)"));
 
       // Labels only. The dispatched message carries no targetType for TITLE
       // (background.js reads config.enableMute itself at execution time), so
       // this fixes only what the button claims -- not what it does.
       getConfig().then(config => {
         if (config?.enableMute) {
-          li1.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri sessize al (son 24 saatte)</a>`;
-          li2.innerHTML = `<a><img src=${eksiEngelIconURL}> başlıktakileri sessize al (tümü)</a>`;
+          relabel(li1, menuLink("başlıktakileri sessize al (son 24 saatte)"));
+          relabel(li2, menuLink("başlıktakileri sessize al (tümü)"));
         }
       });
 
@@ -447,12 +478,14 @@
       }
 
       // Create new buttons as list items
-      const menuItemMarkup = (label) =>
-        `<a href="javascript:void(0);"><img src=${eksiEngelIconURL} style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"> ${label}</a>`;
+      const menuItemLink = (label) => menuLink(label, {
+        href: "javascript:void(0);",
+        iconStyle: "width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;",
+      });
 
       const makeMenuItem = (label) => {
         const item = document.createElement("li");
-        item.innerHTML = menuItemMarkup(label);
+        relabel(item, menuItemLink(label));
         return markSignedOutState(item);
       };
 
@@ -472,9 +505,9 @@
       // what the button claims -- not what it does.
       getConfig().then(config => {
         if (config?.enableMute) {
-          newButtonBanUser.innerHTML = menuItemMarkup("yazarı sessize al");
-          newButtonBanFav.innerHTML = menuItemMarkup("favlayanları sessize al");
-          newButtonBanFollow.innerHTML = menuItemMarkup("takipçilerini sessize al");
+          relabel(newButtonBanUser, menuItemLink("yazarı sessize al"));
+          relabel(newButtonBanFav, menuItemLink("favlayanları sessize al"));
+          relabel(newButtonBanFollow, menuItemLink("takipçilerini sessize al"));
         }
       });
 
@@ -632,11 +665,11 @@
                   } else {
                       if (isBanned == "true") { // Handle UNDOBAN case (always TargetType.USER for unblocking)
                            const undoLabel = config?.enableMute ? "sessizden çıkar" : "engellemeyi bırak";
-                           newButton.innerHTML = `<a><span><img src=${eksiEngelIconURL}> ${undoLabel}</span></a>`;
+                           relabel(newButton, menuLink(undoLabel, { wrapInSpan: true }));
                            newButton.addEventListener("click", function(){ EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.UNDOBAN, null, authorName, authorId, enums.TargetType.USER, enums.ClickSource.PROFILE) });
                        } else { // Handle BAN case (check config for MUTE vs USER)
                            const banLabel = config?.enableMute ? "sessize al" : "engelle";
-                           newButton.innerHTML = `<a><span><img src=${eksiEngelIconURL}> ${banLabel}</span></a>`;
+                           relabel(newButton, menuLink(banLabel, { wrapInSpan: true }));
                            newButton.addEventListener("click", function(){
                                const targetType = config?.enableMute ? enums.TargetType.MUTE : enums.TargetType.USER;
                                EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.BAN, null, authorName, authorId, targetType, enums.ClickSource.PROFILE);
@@ -647,10 +680,10 @@
                   }
               } else if (nameOfTheButton == "başlıklarını engelle") {
                   if (isBanned == "true") {
-                      newButton.innerHTML = `<a><span><img src=${eksiEngelIconURL}> başlıkları engellemeyi kaldır</span></a>`;
+                      relabel(newButton, menuLink("başlıkları engellemeyi kaldır", { wrapInSpan: true }));
                       newButton.addEventListener("click", function(){ EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.UNDOBAN, null, authorName, authorId, enums.TargetType.TITLE, enums.ClickSource.PROFILE) });
                   } else {
-                      newButton.innerHTML = `<a><span><img src=${eksiEngelIconURL}> başlıklarını engelle</span></a>`;
+                      relabel(newButton, menuLink("başlıklarını engelle", { wrapInSpan: true }));
                       newButton.addEventListener("click", function(){ EksiEngel_sendMessage(enums.BanSource.SINGLE, enums.BanMode.BAN, null, authorName, authorId, enums.TargetType.TITLE, enums.ClickSource.PROFILE) });
                   }
                   parentListItem.parentNode.append(newButton);
@@ -666,7 +699,7 @@
               const makeAudienceButton = (label, banSource, targetType) => {
                   const item = document.createElement("li");
                   item.classList.add('eksiengel-injected-button');
-                  item.innerHTML = `<a><span><img src=${eksiEngelIconURL}> ${label}</span></a>`;
+                  relabel(item, menuLink(label, { wrapInSpan: true }));
                   item.addEventListener("click", function(){ EksiEngel_sendMessage(banSource, enums.BanMode.BAN, null, authorName, authorId, targetType, enums.ClickSource.PROFILE) });
                   return markSignedOutState(item);
               };

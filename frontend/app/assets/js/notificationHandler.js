@@ -8,8 +8,8 @@ import { historySync } from './historySync.js';
 class NotificationHandler {
   constructor() {}
 
-  #sendMessage = async (status, statusText, errorText, plannedProcesses, completedProcess, successfulAction, performedAction, plannedAction, remainingTimeInSec) => {
-    const message = { status, statusText, errorText, plannedProcesses, completedProcess, successfulAction, performedAction, plannedAction, remainingTimeInSec };
+  #sendMessage = async (status, statusText, errorText, plannedProcesses, completedProcess, successfulAction, performedAction, plannedAction, remainingTimeInSec, extra = {}) => {
+    const message = { status, statusText, errorText, plannedProcesses, completedProcess, successfulAction, performedAction, plannedAction, remainingTimeInSec, ...extra };
     try {
       if (chrome.extension && chrome.extension.getViews) {
         const views = chrome.extension.getViews({ type: "tab" });
@@ -61,7 +61,11 @@ class NotificationHandler {
 
   // Tasks other devices hold follow this one's own, so İşlem durumu shows one queue.
   updatePlannedProcessesList = (plannedProcessesList) => this.#sendMessage(enums.NotificationType.UPDATE_PLANNED_PROCESSES, "", "", [...plannedProcessesList, ...historySync.remoteRows()], null, 0, 0, 0, 0);
-  notifyCooldown = (remainingTimeInSec) => this.#sendMessage(enums.NotificationType.COOLDOWN, `COOLDOWN: API limiti aşıldı. Dakikada 12 engel limiti bekleniyor. <a target='_blank' href='${config.EksiSozlukURL}/eksi-sozlukun-yazar-engellemeye-sinir-getirmesi--7547420' style='color:red;'>Bu ne demek?</a>`, "", [], null, 0, 0, 0, remainingTimeInSec);
+  // Status lines are plain text on the page, so the explanation travels as a
+  // link of its own rather than as markup inside the text.
+  notifyCooldown = (remainingTimeInSec) => this.#sendMessage(enums.NotificationType.COOLDOWN, "COOLDOWN: API limiti aşıldı. Dakikada 12 engel limiti bekleniyor.", "", [], null, 0, 0, 0, remainingTimeInSec, {
+    helpLink: { text: "Bu ne demek?", href: `${config.EksiSozlukURL}/eksi-sozlukun-yazar-engellemeye-sinir-getirmesi--7547420` },
+  });
 
   notifyOngoing = (successfulAction, performedAction, plannedAction, operationMetadata = null) => {
     // Every run reports progress here, which makes it the one place to tell the
@@ -342,12 +346,12 @@ class NotificationHandler {
     const statusTextDiv = document.getElementById("statusText");
     if (migrationBar && migrationBarText && migrationProgressText) {
       migrationBar.style.width = `${message.percentage}%`;
-      migrationBarText.innerHTML = `%${message.percentage}`;
-      migrationProgressText.innerHTML = `İşlenen: ${message.current} / ${message.total}`;
-      if (migrationStatusText) migrationStatusText.innerHTML = "İşlem devam ediyor...";
+      migrationBarText.textContent = `%${message.percentage}`;
+      migrationProgressText.textContent = `İşlenen: ${message.current} / ${message.total}`;
+      if (migrationStatusText) migrationStatusText.textContent = "İşlem devam ediyor...";
       if (statusTextDiv) {
         const isTitleUnblocking = window.location.href.includes("startTitleMigration");
-        statusTextDiv.innerHTML = isTitleUnblocking ? "Durum: Başlık engelleri kaldırılıyor..." : "Durum: Engellenen kullanıcılar sessize alınıyor...";
+        statusTextDiv.textContent = isTitleUnblocking ? "Durum: Başlık engelleri kaldırılıyor..." : "Durum: Engellenen kullanıcılar sessize alınıyor...";
       }
     }
   }
@@ -355,7 +359,7 @@ class NotificationHandler {
   handleMigrationStatusUpdate = (message) => {
     console.debug(`Received migration status update: ${message.statusText}`);
     const migrationStatusText = document.getElementById("migrationStatusText");
-    if (migrationStatusText) migrationStatusText.innerHTML = message.statusText;
+    if (migrationStatusText) migrationStatusText.textContent = message.statusText;
   }
 
   handleMigrationBatchComplete = (message) => {
@@ -367,14 +371,14 @@ class NotificationHandler {
     const statusTextDiv = document.getElementById("statusText");
     if (migrationBar && migrationBarText) {
       migrationBar.style.width = "0%";
-      migrationBarText.innerHTML = "%0";
+      migrationBarText.textContent = "%0";
     }
-    if (migrationStatusText) migrationStatusText.innerHTML = "Sonraki grup işleniyor...";
+    if (migrationStatusText) migrationStatusText.textContent = "Sonraki grup işleniyor...";
     if (statusTextDiv) {
       const isTitleUnblocking = window.location.href.includes("startTitleMigration");
-      statusTextDiv.innerHTML = isTitleUnblocking ? "Durum: Sonraki başlık grubu işleniyor..." : "Durum: Sonraki grup işleniyor...";
+      statusTextDiv.textContent = isTitleUnblocking ? "Durum: Sonraki başlık grubu işleniyor..." : "Durum: Sonraki grup işleniyor...";
     }
-    if (migrationResultText) migrationResultText.innerHTML = `Grup tamamlandı: Başarılı: ${message.migrated}, Atlanan: ${message.skipped}, Başarısız: ${message.failed}, Toplam: ${message.total}`;
+    if (migrationResultText) migrationResultText.textContent = `Grup tamamlandı: Başarılı: ${message.migrated}, Atlanan: ${message.skipped}, Başarısız: ${message.failed}, Toplam: ${message.total}`;
   }
 
   handleMigrationComplete = (message) => {
@@ -387,14 +391,14 @@ class NotificationHandler {
     const earlyStopButton = document.getElementById("earlyStop");
     if (migrationBar && migrationBarText) {
       migrationBar.style.width = "100%";
-      migrationBarText.innerHTML = "%100";
+      migrationBarText.textContent = "%100";
     }
-    if (migrationStatusText) migrationStatusText.innerHTML = "İşlem tamamlandı!";
+    if (migrationStatusText) migrationStatusText.textContent = "İşlem tamamlandı!";
     if (statusTextDiv) {
       const isTitleUnblocking = window.location.href.includes("startTitleMigration");
-      statusTextDiv.innerHTML = isTitleUnblocking ? "Durum: Başlık engelleri kaldırma işlemi tamamlandı!" : "Durum: İşlem tamamlandı!";
+      statusTextDiv.textContent = isTitleUnblocking ? "Durum: Başlık engelleri kaldırma işlemi tamamlandı!" : "Durum: İşlem tamamlandı!";
     }
-    if (migrationResultText) migrationResultText.innerHTML = `Sonuç: Başarılı: ${message.migrated}, Atlanan: ${message.skipped}, Başarısız: ${message.failed}, Toplam: ${message.total}`;
+    if (migrationResultText) migrationResultText.textContent = `Sonuç: Başarılı: ${message.migrated}, Atlanan: ${message.skipped}, Başarısız: ${message.failed}, Toplam: ${message.total}`;
     if (earlyStopButton) {
       earlyStopButton.innerHTML = '<span class="btn-icon">🛑</span><span class="btn-text">Erken Durdur</span>';
       earlyStopButton.disabled = false;
@@ -407,22 +411,22 @@ class NotificationHandler {
     const migrationResultText = document.getElementById("migrationResultText");
     const statusTextDiv = document.getElementById("statusText");
     const earlyStopButton = document.getElementById("earlyStop");
-    if (migrationStatusText) migrationStatusText.innerHTML = "İşlem kullanıcı tarafından durduruldu!";
+    if (migrationStatusText) migrationStatusText.textContent = "İşlem kullanıcı tarafından durduruldu!";
     if (statusTextDiv) {
       const isTitleUnblocking = window.location.href.includes("startTitleMigration");
-      statusTextDiv.innerHTML = isTitleUnblocking ? "Durum: Başlık engelleri kaldırma işlemi kullanıcı tarafından durduruldu!" : "Durum: İşlem kullanıcı tarafından durduruldu!";
+      statusTextDiv.textContent = isTitleUnblocking ? "Durum: Başlık engelleri kaldırma işlemi kullanıcı tarafından durduruldu!" : "Durum: İşlem kullanıcı tarafından durduruldu!";
     }
     if (migrationResultText) {
-      if (message.cooldown) migrationResultText.innerHTML = "İşlem cooldown sırasında durduruldu.";
-      else if (message.processed !== undefined) migrationResultText.innerHTML = `İşlem durduruldu. İşlenen: ${message.processed} / ${message.total}`;
-      else migrationResultText.innerHTML = "İşlem durduruldu.";
+      if (message.cooldown) migrationResultText.textContent = "İşlem cooldown sırasında durduruldu.";
+      else if (message.processed !== undefined) migrationResultText.textContent = `İşlem durduruldu. İşlenen: ${message.processed} / ${message.total}`;
+      else migrationResultText.textContent = "İşlem durduruldu.";
     }
     if (earlyStopButton) {
       earlyStopButton.innerHTML = '<span class="btn-icon">🛑</span><span class="btn-text">Erken Durdur</span>';
       earlyStopButton.disabled = false;
     }
     const remainingTimeElements = document.querySelectorAll("#remainingTimeInSec");
-    remainingTimeElements.forEach(el => el.innerHTML = message.cooldown ? "Tamamlandı" : "Durduruldu");
+    remainingTimeElements.forEach(el => el.textContent = message.cooldown ? "Tamamlandı" : "Durduruldu");
   }
 
   sendMigrationMessage = (migrationStatus, statusText, errorText, current, total, migrated, skipped, failed, simulatedBlockedCount) => {

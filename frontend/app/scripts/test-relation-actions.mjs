@@ -358,4 +358,17 @@ await check('every settled outcome reaches onOutcome once; a rate limit does not
   const out = await handler.performAction(enums.BanMode.BAN, 6, true, false, false, false);
   assert.equal(out.resultType, enums.ResultType.SUCCESS);
 });
+await check('the content script enums match enums.js', async () => {
+  const scope = vm.createContext({ self: {} });
+  vm.runInContext(source('contentEnums.js'), scope);
+  const copy = scope.self.EksiEngelEnums;
+  assert.deepEqual(Object.keys(copy).sort(), ['BanMode', 'BanSource', 'ClickSource', 'TargetType', 'TimeSpecifier']);
+  for (const [name, values] of Object.entries(copy)) {
+    assert.deepEqual({ ...values }, { ...enums[name] }, `contentEnums.js ${name} drifted from enums.js`);
+  }
+  // Everything script.js reads from it is in the copy.
+  for (const [, name, key] of source('script.js').matchAll(/enums\.([A-Za-z]+)\.([A-Z_0-9]+)/g)) {
+    assert.ok(copy[name] && key in copy[name], `script.js uses enums.${name}.${key}, missing from contentEnums.js`);
+  }
+});
 console.log(`${tests} relation action regression checks passed`);

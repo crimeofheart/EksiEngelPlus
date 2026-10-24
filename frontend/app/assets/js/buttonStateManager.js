@@ -1,5 +1,6 @@
 import { storageHandler } from './storageHandler.js';
 import { processQueue } from './queue.js';
+import { buttonLabel, setContent } from './dom.js';
 class ButtonStateManager {
   constructor() {
     this.buttonStates = new Map();
@@ -235,7 +236,6 @@ class ButtonStateManager {
     const isOperationStopped = this.operationState === 'STOPPED';
     const isOperationCooldown = this.operationState === 'COOLDOWN';
     const isProcessing = this.isProcessing;
-    const originalInnerHTML = buttonElement ? buttonElement.innerHTML : '';
     switch (buttonId) {
       case 'earlyStop':
         // Early stop should be enabled when any operation is running, paused, in cooldown, or has running tasks
@@ -243,7 +243,7 @@ class ButtonStateManager {
         return {
           disabled: !canStopOperation || isProcessing,
           title: !canStopOperation ? 'No active operation to stop' : isProcessing ? 'Stopping operation...' : 'Stop the current operation',
-          innerHTML: isProcessing ? '<span class="btn-icon">⏳</span><span class="btn-text">Durduruluyor...</span>' : '<span class="btn-icon">🛑</span><span class="btn-text">Erken Durdur</span>'
+          label: isProcessing ? ['⏳', 'Durduruluyor...'] : ['🛑', 'Erken Durdur']
         };
       case 'continueOperationButton':
         const activeOperation = await storageHandler.getActiveOperation();
@@ -251,7 +251,7 @@ class ButtonStateManager {
         return {
           disabled: !canContinue || isProcessing,
           title: !canContinue ? (this.operationState === 'INACTIVE' ? 'No operation to continue' : 'Operation cannot be continued') : isProcessing ? 'Continuing operation...' : 'Continue the stopped operation',
-          innerHTML: isProcessing ? '<span class="btn-icon">⏳</span><span class="btn-text">İşlem devam ettiriliyor...</span>' : '<span class="btn-icon">▶️</span><span class="btn-text">İşlemi Devam Ettir</span>'
+          label: isProcessing ? ['⏳', 'İşlem devam ettiriliyor...'] : ['▶️', 'İşlemi Devam Ettir']
         };
       case 'discardOperationButton':
         const activeOp = await storageHandler.getActiveOperation();
@@ -259,7 +259,7 @@ class ButtonStateManager {
         return {
           disabled: !canDiscard || isProcessing,
           title: !canDiscard ? 'No operation to discard' : isProcessing ? 'Discarding operation...' : 'Discard the operation',
-          innerHTML: isProcessing ? '<span class="btn-icon">⏳</span><span class="btn-text">İptal ediliyor...</span>' : '<span class="btn-icon">🗑️</span><span class="btn-text">İşlemi İptal Et</span>'
+          label: isProcessing ? ['⏳', 'İptal ediliyor...'] : ['🗑️', 'İşlemi İptal Et']
         };
       case 'startMigration':
       case 'startTitleMigration':
@@ -272,7 +272,7 @@ class ButtonStateManager {
         return {
           disabled: isProcessing,
           title: isProcessing ? 'İşleniyor...' : 'Bu işlemi başlat (başka bir işlem devam ediyorsa sıraya eklenir)',
-          innerHTML: originalInnerHTML
+          label: null
         };
       case 'refreshMutedList':
       case 'refreshBlockedList':
@@ -281,44 +281,46 @@ class ButtonStateManager {
         return {
           disabled: false,
           title: 'Listeyi yenile',
-          innerHTML: originalInnerHTML
+          label: null
         };
       case 'exportMutedListCSV':
         const mutedTotal = this.listCounts.mutedTotal || this.listCounts.muted;
         return {
           disabled: isOperationActive || isOperationCooldown || mutedTotal === 0,
           title: isOperationActive || isOperationCooldown ? 'Export blocked: Another operation is currently running' : mutedTotal === 0 ? 'No muted users to export' : 'Export muted users list to CSV',
-          innerHTML: originalInnerHTML
+          label: null
         };
       case 'exportBlockedListCSV':
         const blockedTotal = this.listCounts.blockedTotal || this.listCounts.blocked;
         return {
           disabled: isOperationActive || isOperationCooldown || blockedTotal === 0,
           title: isOperationActive || isOperationCooldown ? 'Export blocked: Another operation is currently running' : blockedTotal === 0 ? 'No blocked users to export' : 'Export blocked users list to CSV',
-          innerHTML: originalInnerHTML
+          label: null
         };
         return {
           disabled: isOperationActive || isOperationCooldown || isProcessing,
           title: isOperationActive || isOperationCooldown ? 'Clear blocked: Another operation is currently running' : isProcessing ? 'Clearing data...' : 'Clear all stored data',
-          innerHTML: isProcessing ? '<span class="btn-icon">⏳</span><span class="btn-text">Temizleniyor...</span>' : '<span class="btn-icon">🗑️</span><span class="btn-text">Saklanan Verileri Temizle</span>'
+          label: isProcessing ? ['⏳', 'Temizleniyor...'] : ['🗑️', 'Saklanan Verileri Temizle']
         };
       case 'openauthorListPage':
       case 'openFaq':
         return {
           disabled: isProcessing,
           title: isProcessing ? 'Please wait for current operation to complete' : 'Open this page',
-          innerHTML: originalInnerHTML
+          label: null
         };
       default:
-        return { disabled: false, title: 'Button', innerHTML: originalInnerHTML };
+        return { disabled: false, title: 'Button', label: null };
     }
   }
   applyButtonState(buttonElement, state) {
     if (!buttonElement) return;
     buttonElement.disabled = state.disabled;
     buttonElement.title = state.title;
-    if (state.innerHTML && buttonElement.innerHTML !== state.innerHTML && !this.isProcessing) {
-      buttonElement.innerHTML = state.innerHTML;
+    // [icon, text], or null to leave the button's content alone. A label rather
+    // than a markup string, so nothing here is ever parsed as HTML.
+    if (state.label && buttonElement.textContent !== state.label.join("") && !this.isProcessing) {
+      setContent(buttonElement, ...buttonLabel(...state.label));
     }
   }
   setProcessingState(isProcessing, operationType = '') {

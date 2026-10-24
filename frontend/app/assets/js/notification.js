@@ -18,6 +18,7 @@ import { notificationHandler } from './notificationHandler.js';
 import { generateUnifiedDescription, processQueue, taskCategoryOf, buildRetryParams } from './queue.js';
 import { config } from './config.js';
 import { buttonStateManager } from './buttonStateManager.js';
+import { h, setContent } from './dom.js';
 
 function getCategoryDisplayName(taskCategory) {
   switch (taskCategory) {
@@ -503,29 +504,23 @@ function showPausedOperationBanner(operation) {
   const operationType = getOperationTypeDisplay(operation.type || operation.operationType);
   const timestamp = operation.timestamp ? new Date(operation.timestamp).toLocaleString('tr-TR') : '';
   
-  banner.innerHTML = `
-    <div class="banner-content">
-      <div class="banner-icon">⏸️</div>
-      <div class="banner-text">
-        <div class="banner-title">Duraklatılmış İşlem Bulundu</div>
-        <div class="banner-details">
-          <strong>${operationType}</strong> işlemi duraklatılmış durumda.
-          ${timestamp ? `<br><small>Duraklatılma zamanı: ${timestamp}</small>` : ''}
-        </div>
-      </div>
-      <div class="banner-actions">
-        <button id="bannerResumeBtn" class="banner-btn banner-btn-resume">
-          ▶️ Devam Et
-        </button>
-        <button id="bannerCancelBtn" class="banner-btn banner-btn-cancel">
-          🛑 İptal
-        </button>
-        <button id="bannerDismissBtn" class="banner-btn banner-btn-dismiss">
-          ✕ Kapat
-        </button>
-      </div>
-    </div>
-  `;
+  banner.appendChild(
+    h("div", { className: "banner-content" },
+      h("div", { className: "banner-icon" }, "⏸️"),
+      h("div", { className: "banner-text" },
+        h("div", { className: "banner-title" }, "Duraklatılmış İşlem Bulundu"),
+        h("div", { className: "banner-details" },
+          h("strong", {}, operationType), " işlemi duraklatılmış durumda.",
+          timestamp ? [h("br"), h("small", {}, `Duraklatılma zamanı: ${timestamp}`)] : null,
+        ),
+      ),
+      h("div", { className: "banner-actions" },
+        h("button", { id: "bannerResumeBtn", className: "banner-btn banner-btn-resume" }, "▶️ Devam Et"),
+        h("button", { id: "bannerCancelBtn", className: "banner-btn banner-btn-cancel" }, "🛑 İptal"),
+        h("button", { id: "bannerDismissBtn", className: "banner-btn banner-btn-dismiss" }, "✕ Kapat"),
+      ),
+    ),
+  );
   
   // Insert banner at the top of the main content
   const mainContent = document.querySelector('.main-content') || document.body;
@@ -1043,8 +1038,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     if (migrationBar && migrationBarText && migrationProgressText) {
       const percentage = message.currentPage * 5;
       migrationBar.style.width = `${percentage}%`;
-      migrationBarText.innerHTML = `%${percentage}`;
-      migrationProgressText.innerHTML = `Sayfa: ${message.currentPage}, Toplam: ${message.currentCount}`;
+      migrationBarText.textContent = `%${percentage}`;
+      migrationProgressText.textContent = `Sayfa: ${message.currentPage}, Toplam: ${message.currentCount}`;
 
       if (migrationStatusText) {
         migrationStatusText.innerHTML = "Sessize alınan kullanıcılar alınıyor...";
@@ -1068,7 +1063,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
 
     if (migrationBar && migrationBarText) {
       migrationBar.style.width = message.success ? "100%" : (message.stoppedEarly ? `${(message.count / (message.total || 1)) * 100}%` : "0%");
-      migrationBarText.innerHTML = message.success ? "%100" : (message.stoppedEarly ? `%${Math.round((message.count / (message.total || 1)) * 100)}` : "%0");
+      migrationBarText.textContent = message.success ? "%100" : (message.stoppedEarly ? `%${Math.round((message.count / (message.total || 1)) * 100)}` : "%0");
     }
 
     if (mutedUserCountSpan) {
@@ -1094,17 +1089,17 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }
 
     if (migrationProgressText) {
-      migrationProgressText.innerHTML = message.success ? `Toplam: ${message.count}` : (message.stoppedEarly ? `İşlenen: ${message.count}` : "");
+      migrationProgressText.textContent = message.success ? `Toplam: ${message.count}` : (message.stoppedEarly ? `İşlenen: ${message.count}` : "");
     }
 
     if (migrationResultText) {
       if (message.success) {
-        migrationResultText.innerHTML = `Başarıyla alındı: ${message.count}`;
+        migrationResultText.textContent = `Başarıyla alındı: ${message.count}`;
       } else if (message.stoppedEarly) {
-         migrationResultText.innerHTML = `Durduruldu. İşlenen: ${message.count}`;
+         migrationResultText.textContent = `Durduruldu. İşlenen: ${message.count}`;
       }
       else {
-        migrationResultText.innerHTML = `Hata: ${message.error || "Bilinmeyen hata"}`;
+        migrationResultText.textContent = `Hata: ${message.error || "Bilinmeyen hata"}`;
       }
     }
 
@@ -1260,12 +1255,17 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       if (typeof this.lastCooldownMessage === 'undefined' || this.lastCooldownMessage !== notification.statusText + notification.remainingTimeInSec) {
         this.lastCooldownMessage = notification.statusText + notification.remainingTimeInSec;
         if (statusTextDiv) {
-          statusTextDiv.innerHTML = notification.statusText;
+          const link = notification.helpLink;
+          setContent(
+            statusTextDiv,
+            notification.statusText,
+            link ? [" ", h("a", { target: "_blank", rel: "noopener", href: link.href, style: { color: "red" } }, link.text)] : null,
+          );
         }
 
         const cooldownTimerDiv = document.getElementById("cooldownTimer");
         if (remainingTimeDiv) {
-          remainingTimeDiv.innerHTML = `${notification.remainingTimeInSec} saniye`;
+          remainingTimeDiv.textContent = `${notification.remainingTimeInSec} saniye`;
           remainingTimeDiv.style.display = "inline";
         }
         if (cooldownTimerDiv) {
@@ -1284,7 +1284,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       }
 
       if (statusTextDiv) {
-        statusTextDiv.innerHTML = notification.statusText || "Durum güncellendi.";
+        statusTextDiv.textContent = notification.statusText || "Durum güncellendi.";
       }
 
       if (notification.status === enums.NotificationType.ONGOING && notification.plannedAction > 0) {
@@ -1294,8 +1294,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
             earlyStopButton.disabled = false;
         }
         if (progressBar) progressBar.style.width = percentage + "%";
-        if (progressBarText) progressBarText.innerHTML = "%" + percentage;
-        if (progressText) progressText.innerHTML = "İşlenen: " + notification.performedAction + "/" + notification.plannedAction + " Başarılı: " + notification.successfulAction;
+        if (progressBarText) progressBarText.textContent = "%" + percentage;
+        if (progressText) progressText.textContent = "İşlenen: " + notification.performedAction + "/" + notification.plannedAction + " Başarılı: " + notification.successfulAction;
         
         const successfulActionElement = document.getElementById("successfulAction");
         const performedActionElement = document.getElementById("performedAction");
@@ -1327,7 +1327,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
       } else if (notification.status === enums.NotificationType.FINISH) {
          if (progressBar) progressBar.style.width = "100%";
          if (progressBarText) progressBarText.innerHTML = "%100";
-         if (progressText) progressText.innerHTML = "Tamamlandı. Başarılı: " + notification.successfulAction + "/" + notification.performedAction;
+         if (progressText) progressText.textContent = "Tamamlandı. Başarılı: " + notification.successfulAction + "/" + notification.performedAction;
          
          const successfulActionElement = document.getElementById("successfulAction");
          const performedActionElement = document.getElementById("performedAction");
@@ -1358,7 +1358,7 @@ if (currentOperationDescriptionElement) {
              if (notification.errorText === "İptal edildi") {
                statusText.innerHTML = "İşlem kullanıcı tarafından durduruldu.";
              } else {
-               statusText.innerHTML = `İşlem sonlandı: ${notification.errorText}`;
+               statusText.textContent = `İşlem sonlandı: ${notification.errorText}`;
              }
            } else {
              statusText.innerHTML = "İşlem tamamlandı.";
@@ -1399,7 +1399,7 @@ if (currentOperationDescriptionElement) {
          }
          notificationHandler.updateTableCounts();
          if (notification.errorText && notification.errorText !== "Tamamlandı" && errorTextDiv) {
-            errorTextDiv.innerHTML = `Hata: ${notification.errorText}`;
+            errorTextDiv.textContent = `Hata: ${notification.errorText}`;
             errorTextDiv.style.display = "block";
          }
           updateUniversalControls(null);
@@ -1470,24 +1470,24 @@ async function insertCompletedProcessesTable(banSource, successfulAction, perfor
   let cell5 = row.insertCell(4);
   let cell6 = row.insertCell(5);
   const d = timestamp ? new Date(timestamp) : new Date();
-  cell1.innerHTML = String(d.getHours()).padStart(2, '0') + ":" + String(d.getMinutes()).padStart(2, '0');
+  cell1.textContent = String(d.getHours()).padStart(2, '0') + ":" + String(d.getMinutes()).padStart(2, '0');
   
   // From the task's own metadata: the source alone called every finished
   // follow, mute and unblock "Engelleme".
   const taskCategory = taskCategoryOf(banSource, operationMetadata || {});
   const categoryDisplayName = getCategoryDisplayName(taskCategory);
   const categoryIndicator = getCategoryIndicator(taskCategory);
-  cell2.innerHTML = `${categoryIndicator} ${categoryDisplayName}`;
+  cell2.textContent = `${categoryIndicator} ${categoryDisplayName}`;
   cell2.title = `İşlem türü: ${categoryDisplayName}`;
   
   let description = generateDescriptionFromMetadataForCompleted(banSource, operationMetadata || {});
   
-  cell3.innerHTML = description;
+  cell3.textContent = description;
   cell3.title = `İşlem detayları: ${banSource}`;
   
-  cell4.innerHTML = performedAction;
-  cell5.innerHTML = successfulAction;
-  cell6.innerHTML = errorStatus;
+  cell4.textContent = performedAction;
+  cell5.textContent = successfulAction;
+  cell6.textContent = errorStatus;
 
   // Rebuilt from the stored metadata rather than persisted separately, so a
   // restored row and a live one offer exactly the same actions.
@@ -1677,18 +1677,18 @@ function updatePlannedProcessesTable(plannedProcesses) {
     let row = table.insertRow(-1);
     
     let cell1 = row.insertCell(0);
-    cell1.innerHTML = process.creationDateInStr;
+    cell1.textContent = process.creationDateInStr;
     cell1.title = `Sıra: ${process.queuePosition}/${process.totalQueueSize}`;
     
     let cell2 = row.insertCell(1);
     
     let cell3 = row.insertCell(2);
-    cell3.innerHTML = process.actionDescription || process.banMode;
+    cell3.textContent = process.actionDescription || process.banMode;
     cell3.title = process.operationNotes || 'Açıklama yok';
     
     let cell4 = row.insertCell(3);
     let statusDisplay = process.taskStatus === 'QUEUED' ? 'Sırada' : (process.taskStatus === 'PROCESSING' ? '⚡ Çalışıyor' : (process.taskStatus || 'Sırada'));
-    cell4.innerHTML = statusDisplay;
+    cell4.textContent = statusDisplay;
     cell4.title = `İşlem durumu: ${process.taskStatus}`;
     
     const categoryIndicator = getCategoryIndicator(process.taskCategory);
@@ -1710,7 +1710,7 @@ function updatePlannedProcessesTable(plannedProcesses) {
     }
     
     const categoryDisplayName = getCategoryDisplayName(process.taskCategory);
-    cell2.innerHTML = `${categoryIndicator} ${categoryDisplayName}`;
+    cell2.textContent = `${categoryIndicator} ${categoryDisplayName}`;
     cell2.title = `Kategori: ${categoryDisplayName}\nKarmaşıklık: ${process.taskComplexity}\nÖncelik: ${process.taskPriority}`;
 
     // Waiting rows: "Git" and "Kaldır". A queued task has no outcome to repeat,

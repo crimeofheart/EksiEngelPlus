@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.6.0": {
+    date: "2026-10-24",
     app: [
       "Yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor; kuyruğunuz da eklentinin kurulumlarıyla ve diğer Android cihazlarınızla eşitleniyor. İşlem durumunda diğer cihazlarınızdaki işlemler de görünüyor: oradan iptal edebilir, başka bir Android cihazda başlatılanları bu cihaza alıp burada çalıştırabilirsiniz.",
       "Ayarlara \"işlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle\" seçeneği eklendi. Varsayılan olarak açık; kapatırsanız hiçbir işlem sonucu gönderilmiyor. Cihazlarınızı bir kodla bağlayabilir, \"sunucudaki verilerimi sil\" ile sunucudaki geçmişinizi tamamen silebilirsiniz.",

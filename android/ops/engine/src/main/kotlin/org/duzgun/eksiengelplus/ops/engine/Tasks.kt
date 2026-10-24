@@ -159,14 +159,14 @@ class TargetRunner(
             if (restricted != null) {
                 val key = target.nick.toEksiSlug()
                 if (restricted.isBlocked(key)) {
-                    preparation = performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.USER, id)
+                    preparation = performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.USER, id, target.nick)
                 }
                 if (preparation == Applied.Ok && restricted.isMuted(key)) {
-                    preparation = performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.MUTE, id)
+                    preparation = performWithRetry(ctx, org.duzgun.eksiengelplus.model.BanMode.UNDOBAN, TargetType.MUTE, id, target.nick)
                 }
             }
 
-            when (if (preparation == Applied.Ok) performWithRetry(ctx, mode, targetType, id) else preparation) {
+            when (if (preparation == Applied.Ok) performWithRetry(ctx, mode, targetType, id, target.nick) else preparation) {
                 is Applied.Ok ->
                     cursor = cursor.copy(
                         processed = cursor.processed + 1,
@@ -274,13 +274,13 @@ class TargetRunner(
             // 0 -- the same set that reaches here.
             ctx.recordTarget(target.nick, id)
 
-            when (performWithRetry(ctx, first.first, first.second, id)) {
+            when (performWithRetry(ctx, first.first, first.second, id, target.nick)) {
                 is Applied.SessionGone -> {
                     ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED_AUTH
                 }
                 is Applied.Failed ->
                     cursor = cursor.copy(processed = cursor.processed + 1, failed = cursor.failed + 1)
-                is Applied.Ok -> when (performWithRetry(ctx, second.first, second.second, id)) {
+                is Applied.Ok -> when (performWithRetry(ctx, second.first, second.second, id, target.nick)) {
                     is Applied.SessionGone -> {
                         ctx.checkpoint(cursor.copy(index = i)); return OperationOutcome.PAUSED_AUTH
                     }
@@ -383,6 +383,8 @@ class TargetRunner(
         mode: org.duzgun.eksiengelplus.model.BanMode,
         targetType: TargetType,
         id: Long,
+        /** Who the id is, so the history ledger can name the target. */
+        nick: String,
     ): Applied {
         var attempt = 1
         while (true) {
@@ -396,6 +398,7 @@ class TargetRunner(
                         targetType,
                         id,
                         if (result is RelationResult.AlreadyInState) RelationOutcome.SKIPPED else RelationOutcome.OK,
+                        nick,
                     )
                     return Applied.Ok
                 }
@@ -414,7 +417,7 @@ class TargetRunner(
                     // the retries settled nothing, and a lost session is retried
                     // once the user is back, so only a real refusal is a FAIL.
                     if (result !is RelationResult.SessionExpired && result !is RelationResult.RateLimited) {
-                        ctx.recordOutcome(mode, targetType, id, RelationOutcome.FAIL)
+                        ctx.recordOutcome(mode, targetType, id, RelationOutcome.FAIL, nick)
                     }
                     return if (result is RelationResult.SessionExpired) Applied.SessionGone
                     else Applied.Failed

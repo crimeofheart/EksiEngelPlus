@@ -23,6 +23,9 @@ const STATE_KEY = "historySync";
 const JOIN_KEY = "historyJoinKey";
 
 export const OUTBOX_CAP = 20000;
+// Ids whose nicks are remembered for naming events. A run over a 10,000-name
+// author list fits; past this the oldest are forgotten first.
+const NICK_CACHE = 20000;
 const PUSH_EVENTS = 500;
 const PUSH_TASKS = 100;
 const PUSH_NICKS = 1000;
@@ -131,6 +134,8 @@ export class HistorySync {
   #flushing = null;
   #sinceFlush = 0;
   #current = null;
+  // id -> nick, most recently resolved last. See rememberNicks.
+  #nicks = new Map();
 
   // Set by background.js, which owns the queue and the running operation.
   onCancelRequested = null;
@@ -255,6 +260,7 @@ export class HistorySync {
       uuid: () => crypto.randomUUID(),
     });
     if (events.length === 0) return;
+    for (const event of events) event.target_nick = this.#nicks.get(event.target_eksi_id) || null;
     this.#outbox.gap += appendCapped(this.#outbox.events, events);
     this.#persist();
     this.#sinceFlush += 1;
@@ -264,15 +270,32 @@ export class HistorySync {
   }
 
   /** Nicks for ids the run resolved, so rankings show names rather than numbers. */
+  /**
+   * Nicks for ids a scrape or a run resolved.
+   *
+   * Kept in memory and attached only to the events recorded for those ids --
+   * the ones already waiting in the outbox included -- never sent on their own.
+   * A refresh of the blocked list resolves every nick on it, and none of that
+   * is the server's business unless this device acts on someone.
+   */
   async rememberNicks(ids, names) {
     if (!(await this.isEnabled())) return;
     await this.#load();
     ids.forEach((id, i) => {
       const eksiId = Number(id);
-      if (Number.isSafeInteger(eksiId) && eksiId > 0 && names[i]) this.#outbox.nicks[eksiId] = names[i];
+      if (!Number.isSafeInteger(eksiId) || eksiId <= 0 || !names[i]) return;
+      this.#nicks.delete(eksiId);
+      this.#nicks.set(eksiId, String(names[i]).slice(0, 96));
     });
-    this.#outbox.rev++;
-    this.#persist();
+    while (this.#nicks.size > NICK_CACHE) this.#nicks.delete(this.#nicks.keys().next().value);
+    let named = false;
+    for (const event of this.#outbox.events) {
+      if (!event.target_nick && this.#nicks.has(event.target_eksi_id)) {
+        event.target_nick = this.#nicks.get(event.target_eksi_id);
+        named = true;
+      }
+    }
+    if (named) this.#persist();
   }
 
   // --- the server ------------------------------------------------------------------

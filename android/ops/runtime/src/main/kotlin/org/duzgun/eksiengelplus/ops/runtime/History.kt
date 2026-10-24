@@ -113,7 +113,8 @@ class HistoryRecording(
     private val clock: () -> Long = System::currentTimeMillis,
     private val uuid: () -> String = { UUID.randomUUID().toString() },
 ) {
-    fun row(mode: BanMode, targetType: TargetType, id: Long, outcome: RelationOutcome) = HistoryOutboxEntity(
+    fun row(mode: BanMode, targetType: TargetType, id: Long, outcome: RelationOutcome, nick: String? = null) =
+        HistoryOutboxEntity(
         eventUuid = uuid(),
         taskId = taskId,
         kind = HistoryWire.kind(targetType),
@@ -122,7 +123,7 @@ class HistoryRecording(
         actorId = actorId,
         actorNick = actorNick,
         targetId = id,
-        targetNick = null,
+        targetNick = nick?.takeIf { it.isNotBlank() }?.take(96),
         occurredAt = clock(),
     )
 }

@@ -89,13 +89,13 @@ class HistoryRuntimeTest {
     @Test fun outcomesCommitWithTheirCheckpoint() = runTest {
         seedCheckpoint("op1")
         val ctx = context(HistoryRecording("op1", 7, "me"))
-        ctx.recordOutcome(BanMode.BAN, TargetType.USER, 11, RelationOutcome.OK)
-        ctx.recordOutcome(BanMode.BAN, TargetType.MUTE, 11, RelationOutcome.FAIL)
+        ctx.recordOutcome(BanMode.BAN, TargetType.USER, 11, RelationOutcome.OK, "onbir")
+        ctx.recordOutcome(BanMode.BAN, TargetType.MUTE, 11, RelationOutcome.FAIL, "onbir")
         assertThat(db.historyOutbox().count()).isEqualTo(0)
         ctx.checkpoint(OperationCursor(index = 1, processed = 1))
         val rows = db.historyOutbox().oldest(10)
         assertThat(rows.map { it.kind to it.result }).containsExactly("BLOCK" to "OK", "MUTE" to "FAIL").inOrder()
-        assertThat(rows.all { it.taskId == "op1" && it.actorId == 7L }).isTrue()
+        assertThat(rows.all { it.taskId == "op1" && it.actorId == 7L && it.targetNick == "onbir" }).isTrue()
     }
 
     @Test fun processDeathBeforeTheCheckpointLeavesNothing() = runTest {

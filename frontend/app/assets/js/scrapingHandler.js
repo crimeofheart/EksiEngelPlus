@@ -85,6 +85,21 @@ function Relation(authorName, authorId, isBannedUser, isBannedTitle, isBannedMut
 
 class ScrapingHandler
 {
+  // Called with (nick, id) whenever a scrape pairs the two, so the history
+  // ledger can name the targets it records -- its events carry only the id.
+  // Set by the background to historySync.rememberNicks; never allowed to fail
+  // the scrape it observes.
+  onAuthorResolved = null;
+
+  #resolved = (names, ids) => {
+    if (!this.onAuthorResolved || ids.length === 0) return;
+    try {
+      this.onAuthorResolved(names, ids);
+    } catch (err) {
+      log.warn("scraping", `onAuthorResolved failed: ${err}`);
+    }
+  }
+
   #fetchEksiSozluk = async (url) => {
     let responseText = "";
     try {
@@ -303,6 +318,7 @@ class ScrapingHandler
         authorIdList[i] = String(responseJson.Relations.Items[i].Id);
       }
       
+      this.#resolved(authorNameList, authorIdList);
       return {authorIdList: authorIdList, authorNameList: authorNameList, isLast: isLast};
     } catch(err) {
       log.err("scraping", `#scrapeAuthorNamesFromBannedAuthorPagePartially failed for page ${index}, type ${targetTypeTextInURL}: ${err}`);
@@ -1191,6 +1207,7 @@ class ScrapingHandler
       
       let dom = parseHTML(responseText);
       let authorId = dom.getElementById("who").getAttribute("value"); 
+      if (authorId && authorId !== "0") this.#resolved([authorName], [authorId]);
       return authorId;
     } catch(err) {
       log.err("scraping", "scrapeAuthorIdFromAuthorProfilePage: authorName: " + authorName + ", err: " + err);

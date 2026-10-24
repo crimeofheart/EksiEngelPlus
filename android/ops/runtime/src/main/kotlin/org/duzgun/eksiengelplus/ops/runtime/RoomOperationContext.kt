@@ -166,9 +166,10 @@ class RoomOperationContext(
         targetType: org.duzgun.eksiengelplus.model.TargetType,
         id: Long,
         outcome: org.duzgun.eksiengelplus.ops.engine.RelationOutcome,
+        nick: String?,
     ) {
         val recording = history ?: return
-        pendingHistory += recording.row(mode, targetType, id, outcome)
+        pendingHistory += recording.row(mode, targetType, id, outcome, nick)
     }
 
     /** After a commit: the rows are on disk, and a push may be due. */

@@ -267,4 +267,17 @@ await check('pairing replaces the join key and starts the pull from the top', as
   assert.equal(server.last('GET pull/').path, 'pull/');
 });
 
+await check('nicks name the events they belong to, and only those', async () => {
+  const server = acceptingServer();
+  const h = fresh(server);
+  await h.rememberNicks(['7'], ['yedi']);                    // resolved before the action
+  await h.recordOutcome(outcome);                             // id 7
+  await h.recordOutcome({ ...outcome, id: 8 });               // not known yet
+  await h.rememberNicks(['8', '900'], ['sekiz', 'dokuzyuz']); // 8 resolved later; 900 never acted on
+  await h.flush();
+  const push = server.last('POST push/').body;
+  assert.deepEqual(push.events.map(e => [e.target_eksi_id, e.target_nick]), [[7, 'yedi'], [8, 'sekiz']]);
+  assert.deepEqual(push.nicks, [], 'a nick nobody acted on is never sent');
+});
+
 console.log(`${tests} history sync checks passed`);

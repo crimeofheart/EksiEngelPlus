@@ -65,6 +65,9 @@ initializeOperationState();
 // --- history sync -----------------------------------------------------------------
 // Every settled outcome goes to the outbox; the run never waits for it.
 relationHandler.onOutcome = (outcome) => { historySync.recordOutcome(outcome); };
+// Events carry ids; the names come from whichever scrape paired them, which
+// covers the bulk, migration and undo-all runs that never build a target list.
+scrapingHandler.onAuthorResolved = (names, ids) => { historySync.rememberNicks(ids, names); };
 commHandler.taskIdProvider = () => historySync.currentTaskId;
 
 /** Stops a task on this device: dropped if it is waiting, early-stopped if it runs. */

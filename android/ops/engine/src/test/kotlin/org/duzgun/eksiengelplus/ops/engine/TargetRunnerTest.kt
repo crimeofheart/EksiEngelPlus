@@ -428,6 +428,8 @@ class TargetRunnerTest {
         ).inOrder()
         assertThat(c.outcomes.map { it.first }.distinct())
             .containsExactly(BanMode.BAN to TargetType.USER)
+        // Named, so the ledger can show a nick rather than a number.
+        assertThat(c.nicks).containsExactly("u1", "u2", "u3").inOrder()
     }
 
     @Test fun `a lost session reports nothing for the target it parks on`() = runTest {

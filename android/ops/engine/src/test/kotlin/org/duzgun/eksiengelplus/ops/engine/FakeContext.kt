@@ -54,7 +54,13 @@ class FakeContext(
         targetType: org.duzgun.eksiengelplus.model.TargetType,
         id: Long,
         outcome: RelationOutcome,
-    ) { outcomes += Triple(mode to targetType, id, outcome) }
+        nick: String?,
+    ) {
+        outcomes += Triple(mode to targetType, id, outcome)
+        nicks += nick
+    }
+
+    val nicks = mutableListOf<String?>()
 
     val lastCheckpoint: OperationCursor? get() = checkpoints.lastOrNull()
 }

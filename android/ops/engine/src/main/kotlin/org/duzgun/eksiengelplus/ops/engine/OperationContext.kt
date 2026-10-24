@@ -180,7 +180,13 @@ interface OperationContext {
      * user holds. A no-op by default, so a context with history off, or none at
      * all, is unaffected.
      */
-    suspend fun recordOutcome(mode: BanMode, targetType: TargetType, id: Long, outcome: RelationOutcome) {}
+    suspend fun recordOutcome(
+        mode: BanMode,
+        targetType: TargetType,
+        id: Long,
+        outcome: RelationOutcome,
+        nick: String? = null,
+    ) {}
 
     /** Waits for a pacer permit before a mutation. */
     suspend fun awaitActionPermit()

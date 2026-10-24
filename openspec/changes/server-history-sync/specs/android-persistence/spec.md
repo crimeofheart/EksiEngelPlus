@@ -34,7 +34,9 @@ usage, since almost nobody enables telemetry manually.
 to 10,000 nicknames and ids of people who are not users of this app and cannot
 opt out. The Data Safety form therefore declares *User IDs* as collected, sent
 off-device, and **not** optional, alongside *App activity*, *Device or other IDs*
-(`client_uid`) and *Diagnostics* (the `log` field). A privacy policy enumerating
+(`client_uid`) and *Diagnostics* (the `log` field). History sync sends the same
+classes; the form's retention answer is "until the user deletes it", and deletion
+is offered in the app ("sunucudaki verilerimi sil"). A privacy policy enumerating
 both endpoints, the exact fields, and retention is mandatory. Under KVKK and
 GDPR the third-party identifiers are the exposed surface, and that exposure
 already exists in the shipped extension — this change does not create it, but it
@@ -78,7 +80,17 @@ deleted only after the server acknowledges their `event_id`, and SHALL NOT be ab
 retry count — unlike `telemetry_outbox` — because history is meant to be complete.
 
 The table SHALL be added by a Room migration from schema version 2, with the exported schema
-committed.
+committed, together with `history_task` (what the server was last told about each task this
+device owns), `remote_task` (other devices' tasks as last pulled) and `history_sync_state` (the
+pull cursor and backoff). `queued_task` and `completed_operation` SHALL gain a nullable `taskId`,
+and `completed_operation` a `stopped` flag, so one task keeps one id from the queue to the
+archive.
+
+Task states SHALL be derived from `queued_task`, `operation_checkpoint` and the last seven days of
+`completed_operation` on each sync pass, not reported at each change: a task can leave the queue
+in more ways than any one hook would cover, and a path that forgot to report would leave it
+waiting on every other device. A task this device announced that is in none of the three reads as
+`CANCELLED`, so taking a queued run and writing its checkpoint SHALL happen in one transaction.
 
 #### Scenario: Process death after the request
 

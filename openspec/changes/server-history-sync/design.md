@@ -65,7 +65,7 @@ Event          id bigserial, event_uuid uuid UNIQUE, account→, device→ null,
                action→ null (api.Action, LEGACY only), actor_eksi_id int, target_eksi_id int,
                kind smallint, direction smallint, result smallint, occurred_at, received_at
 RelationState  account→, actor_eksi_id, target_eksi_id, kind,
-               active, first_active_at, last_changed_at, last_event→,
+               active, last_changed_at, last_event_id,
                first_added_at, last_added_at, add_count int, legacy_only bool
                UNIQUE (account, actor_eksi_id, target_eksi_id, kind)
 DailyTally     day date, kind, direction, result, n bigint   UNIQUE (day, kind, direction, result)
@@ -82,10 +82,19 @@ Indexes:
 - `Event`: `(account, id DESC)`, `(actor_eksi_id, id DESC)`, `(target_eksi_id, id DESC)`.
   `device`, `task` and `action` are declared with `db_index=False`, because nothing filters on
   them and each index costs about 30 bytes per event.
-- `RelationState`: partial `(kind, target_eksi_id) WHERE active`, partial
-  `(actor_eksi_id, kind) WHERE active`, `(kind, last_added_at)`, and `(target_eksi_id, kind)` for
-  the per-user and compatibility routes.
-- `Task`: `(account, change_seq)`.
+- `RelationState`: a covering `(kind, target_eksi_id, actor_eksi_id) INCLUDE (active,
+  legacy_only, add_count, first_added_at)` for every ranking, `(kind, last_added_at)` for the
+  window scope, and `(actor_eksi_id, kind)` and `(target_eksi_id, kind)` for the per-user routes.
+  The covering index replaced the partial `(kind, target_eksi_id) WHERE active` this design first
+  named: at 3 M relations the partial one still fetched every row from the heap and took 6-15 s;
+  the covering one answers in about 0.5 s as an index-only scan.
+- `Task`: `(account, change_seq)`. `Task.account`, `Event.account` and `RelationState.account`
+  carry no single-column index of their own, since a composite index or the unique key already
+  leads with the column. `DailyActor` relies on its unique key for `(day, kind)`.
+
+**No `first_active_at`.** The design first kept "when the current active period began". It cannot
+be derived identically by the incremental path and the rebuild once events arrive out of order, so
+it was dropped for `first_added_at` and `last_added_at`, which both paths compute exactly.
 
 **Keyed by Ekşi integer id, not by FK to `api.EksiSozlukUser`.** That table has no uniqueness on
 `eksisozluk_id`. Lookups match on name *and* id (`serializers.py:139-173`, the `TODO` comments),
@@ -137,6 +146,13 @@ incremental ingest equals rebuild for random event orders.
 | `timeseries` | `DailyTally`, `DailyActor` | ≤ `days` × handful rows; `COUNT(DISTINCT actor)` per day |
 | per-user pages | `Event` via actor/target index, `RelationState` | keyset by id |
 
+Measured on 5 M synthetic events (5,000 actors, 50,000 targets, two years), after `VACUUM`:
+`top` current 0.6 s, all-time 0.5 s, 30-day window 0.3 s, 365-day window 0.9 s;
+`most_banned_unique/` 0.4 s; 90-day series 0.1 s; any per-user page under 0.1 s. Table sizes:
+`Event` 1.6 GB, `RelationState` 1.4 GB, `DailyActor` 0.6 GB. The synthetic data spreads every
+actor over every day, so `DailyActor` is a ceiling, and relations come out at nearly one per event,
+which is also what real blocking looks like: a person blocks someone once.
+
 `last_added_at` answers the window question exactly. An actor had at least one `ADD` in the
 window if and only if their latest `ADD` is in it. Distinctness holds because the table has one
 row per actor and target. A per-day counter could not do this: distinct counts do not add across
@@ -181,8 +197,9 @@ The device that enqueues a task owns it.
 60 s or every 25 targets, whichever comes first. It then stops through the existing cooperative
 stop path.
 
-**Takeover** bumps `epoch`. Every upsert carries the sender's epoch, and a lower epoch gets 409,
-after which the old owner drops the task. This is a fencing token. A server-side lease alone cannot
+**Takeover** bumps `epoch` and starts the task over as `QUEUED` with zero counts. Every upsert
+carries the sender's epoch, and a lower one -- or one from a device that is not the owner -- is
+reported as `conflict` for that task, after which the old owner drops it. This is a fencing token. A server-side lease alone cannot
 stop a laptop that wakes from sleep mid-request; rejecting its writes does stop it from recording
 and continuing.
 
@@ -190,6 +207,11 @@ A takeover of a `RUNNING` task restarts it with `enableOnlyRequiredActions`, so 
 the requested state come back `SKIPPED`. This avoids replicating checkpoints: the two clients store
 them differently (`saveOperationState` against `operation_checkpoint`), and unifying that is a
 separate project.
+
+Takeover is offered only where the device can run the task: the extension needs the task's
+`params.retry` (its own single-target tasks), Android needs `params.android_request` (an Android
+task whose request is under 16 KB). The two clients describe a run in different shapes, so a task
+moves between extension installs or between Android devices, not across. Cancel works everywhere.
 
 *Alternative:* any device runs any queued task, first come first served. Rejected: two devices on
 one Ekşi session would double the request rate against the ~12/min limit.
@@ -222,8 +244,16 @@ could read anyone's block list by claiming their id. Rejected outright.
   `background.js:750,832`) already know the task, the target and the actor
   (`commHandler.rememberClient`, `commHandler.js:131`), so they build the events.
   `TOO_MANY_REQ` returns early (`relationHandler.js:67-77`) and so emits nothing.
-- **Android:** `OperationWorker` writes `history_outbox` rows inside the checkpoint transaction
-  (spec `android-persistence`).
+- **Android:** `TargetRunner.performWithRetry` reports each settled relation to the context;
+  `RoomOperationContext` holds them until the next checkpoint and writes them in its transaction.
+  A cancelled run's checkpoint still writes them before raising the stop, because the relations
+  really changed.
+- **Android task states** are derived, not reported. Each sync pass reads `queued_task`,
+  `operation_checkpoint` and the last week of `completed_operation`, and compares them with
+  `history_task`, what the server was last told. A task can leave the queue through the screen, the
+  reconciler, the archive or a stop; deriving covers all of them without a hook in each. A task in
+  none of the three reads as cancelled, so `OperationReconciler`'s queue drain now takes the run
+  and writes its checkpoint in one transaction (`OperationWorker.startNextQueued`).
 
 **Flushing the outbox.** On task end; every 25 events or 60 s while running; and periodically. The
 periodic trigger is `chrome.alarms` every 5 min in the extension (the new `alarms` permission
@@ -253,7 +283,9 @@ the ids are deterministic, deploy order does not matter: rows the live path alre
 ignored by the backfill and the reverse, and the command is resumable.
 
 The `ban_mode` × `ActionConfig` flags → kind mapping is one table in `history/legacy.py`, used by
-both paths. Anything unmapped is skipped and counted. Task 5.1 lists the production `ban_mode`
+both paths. A report naming its action in `bulk_action` is read by that name; both clients now
+name a list run's action there. A report from the app is read by its `target_type`, which names
+the relation it applied; the extension's does not, for audience runs. Anything unmapped is skipped and counted. Task 5.1 lists the production `ban_mode`
 values before the table is finalised.
 
 Who still produces `LEGACY` rows after this release: shipped clients until they update, and any
@@ -305,6 +337,9 @@ so ids that had duplicate rows merge. That is the only expected difference after
 - **[Clock skew on `occurred_at`]** It only orders state changes for one `(actor, target, kind)`,
   and those almost always come from one device. → Cross-device conflicts within the skew window
   resolve last-writer-wins. That is acceptable for state a person can simply toggle again.
+- **[A device clock outside what is possible]** → The server stamps such a timestamp with its own
+  arrival time instead of refusing the batch, which would otherwise fail every retry and stop that
+  device syncing for good.
 - **[Outbox overflow in the extension]** Capped at 20 k events, about 3 MB. → The oldest are dropped
   first and the next push reports a gap count, so history is visibly incomplete rather than
   silently wrong.
@@ -327,6 +362,9 @@ so ids that had duplicate rows merge. That is the only expected difference after
 outboxes. `migrate history zero` plus reverting the `task_id` migration restores `api` exactly.
 Clients that sent `author_list: []` during the window are the one loss: their targets live only in
 the dropped ledger. Take a `pg_dump` of the `history_*` tables before any rollback.
+
+**Done here, not in production:** the deploy and backfill steps above need the production host.
+They are the remaining tasks.
 
 ## Open Questions
 

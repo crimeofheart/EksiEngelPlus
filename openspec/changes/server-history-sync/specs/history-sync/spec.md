@@ -51,6 +51,9 @@ The extension SHALL also write an account join key to `chrome.storage.sync`, so 
 the extension on the same synced browser profile enrols straight into that account with its own
 device token. Two installs SHALL never share one device token.
 
+A claim SHALL rotate the target account's join key and return it, so the claiming extension
+replaces the key in its synced storage; the old key named an account that no longer exists.
+
 Code claims SHALL be throttled per IP so the 40-bit code space cannot be searched.
 
 #### Scenario: Phone joins laptop
@@ -69,8 +72,10 @@ Code claims SHALL be throttled per IP so the 40-bit code space cannot be searche
 
 Binds: **backend**, **extension**, **Android**.
 
-`POST /api/sync/push` SHALL accept up to 100 task upserts and 500 events per request and return
-the ids it accepted. `GET /api/sync/pull?cursor=<n>` SHALL return task changes for the device's
+`POST /api/sync/push` SHALL accept up to 100 task upserts, 500 events and 1000 nicks per request
+and return the ids it accepted. A device timestamp before 2015 or more than a day ahead SHALL be
+replaced by the time it arrived rather than refused: refusing it would refuse the whole batch on
+every retry, and one wrong clock would stop a device from syncing at all. `GET /api/sync/pull?cursor=<n>` SHALL return task changes for the device's
 account with a change sequence greater than `n`, in order, at most 500 per page, with
 `next_cursor` and `has_more`. The cursor SHALL be a server-assigned, monotonically increasing
 integer; device clocks SHALL NOT be used to decide what is new.
@@ -98,10 +103,18 @@ Other devices SHALL show it read-only with its owner's label and progress, and M
 - request cancellation, which the owner SHALL honour cooperatively on its next pull and then
   report as `CANCELLED`;
 - take it over (`POST /api/sync/tasks/<id>/takeover`), allowed while the task is `QUEUED`, or
-  `RUNNING` with an owner unseen for 15 minutes. Takeover SHALL increment `epoch`.
+  `RUNNING` with an owner unseen for 15 minutes. Takeover SHALL increment `epoch` and start the
+  task over as `QUEUED` with zero counts.
 
-The server SHALL reject (409) an upsert carrying an epoch lower than the task's. The previous
-owner SHALL then drop its local copy without executing further.
+A device SHALL offer takeover only for a task it can run. The extension runs a task whose params
+carry `retry` (a single-target extension task); Android runs a task whose params carry
+`android_request` (an Android task whose request fits in 16 KB). Cross-client takeover is not
+offered: the two clients describe a run in different shapes, and mapping one to the other is
+left for a later change. Cancel works across clients.
+
+The server SHALL refuse an upsert carrying an epoch lower than the task's, or sent by a device
+that does not own it, reporting `conflict` for that task in the push response. The previous owner
+SHALL then drop its local copy without executing further.
 
 A takeover of a `RUNNING` task SHALL restart it on the new owner with
 `enableOnlyRequiredActions`, so targets already in the requested state are skipped.
@@ -112,7 +125,7 @@ A takeover of a `RUNNING` task SHALL restart it on the new owner with
 
 #### Scenario: Laptop closed mid-run
 - **WHEN** the laptop has been unseen for 20 minutes with a task `RUNNING`, and the phone takes it over
-- **THEN** the phone owns the task at epoch +1, and if the laptop wakes and pushes progress it receives 409 and stops
+- **THEN** the phone owns the task at epoch +1, and if the laptop wakes and pushes progress the push reports `conflict` for it and the laptop stops
 
 #### Scenario: Takeover refused
 - **WHEN** the owner was seen 2 minutes ago and the task is `RUNNING`

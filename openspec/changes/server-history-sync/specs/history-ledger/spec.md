@@ -16,7 +16,15 @@ the target does.
 
 An event SHALL carry: `event_id` (UUIDv4, generated on the device), `task_id`, `kind`,
 `direction`, `result`, `target_eksi_id`, `target_nick` (when known), `actor_eksi_id`,
-`actor_nick`, `occurred_at` (device clock, UTC ms), `client` (`EXTENSION`|`ANDROID`), `version`.
+`actor_nick` and `occurred_at` (device clock, UTC ms). The client and version are the device's,
+recorded once at enrolment. Nicks a run resolved MAY instead travel in the push's `nicks` list;
+the extension sends them that way, from the run's id-to-nick map.
+
+The extension records in `RelationHandler.performAction`, so every relation it applies is an
+event -- including the unblock or unmute a follow does first. Android records in
+`TargetRunner.performWithRetry`, where `RelationResult.AlreadyInState` is `SKIPPED`. Neither
+records a rate limit that outlasted its retries, and Android records nothing for a target whose
+session expired, since that target is attempted again once the user is back.
 
 #### Scenario: One request type per target
 - **WHEN** a task blocks and mutes user id 123 and both requests succeed
@@ -56,8 +64,8 @@ any API; they are removed only by account deletion (see `history-sync`) or by th
 Binds: **backend**.
 
 The server SHALL maintain one relation-state row per `(account, actor_eksi_id, target_eksi_id,
-kind)` holding `active`, `first_active_at`, `last_changed_at`, `first_added_at`, `last_added_at`,
-`add_count`, `legacy_only`, and the id of the event that last changed `active`. It SHALL be updated in the same
+kind)` holding `active`, `last_changed_at`, `first_added_at`, `last_added_at`, `add_count`,
+`legacy_only`, and the id of the event that last changed `active`. It SHALL be updated in the same
 database transaction as the event insert.
 
 `active` follows these rules:

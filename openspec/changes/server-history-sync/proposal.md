@@ -88,4 +88,7 @@ makes it a measure of noise rather than of who is blocked.
 - Executing a task on two devices at once, or server-initiated execution.
 - Showing other users' data to end users. Rankings and per-user lookups are admin-only.
 - A user-facing history screen. The own-history endpoint ships without UI.
+- Taking a task over across clients. An extension task moves between extension installs and an
+  Android task between Android devices; the two describe a run in different shapes. Cancel works
+  across both.
 - Removing `/api/action/` or the `sendData` diagnostics payload.

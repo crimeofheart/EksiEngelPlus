@@ -114,13 +114,14 @@ For any Ekşi id, the admin SHALL be able to get:
 - `GET /api/stats/users/<eksi_id>/events?role=actor|target&kind=&before=&limit=`: the full ledger
   in either role, newest first, keyset-paginated by event id;
 - `GET /api/stats/users/<eksi_id>/relations?role=actor|target&kind=&active=`: who they block or
-  mute, or who blocks or mutes them, with `first_active_at` and `last_changed_at`;
+  mute, or who blocks or mutes them, with `first_added_at`, `last_added_at` and
+  `last_changed_at`;
 - `GET /api/stats/users/<eksi_id>/tasks`: their queued and finished tasks, each linked to its
   `api.Action` run report when one carries the task's `task_id`.
 
 #### Scenario: Who did X block
 - **WHEN** the admin requests `relations?role=actor&kind=BLOCK&active=true` for id 42
-- **THEN** every target id 42 currently blocks is listed with the date the block began
+- **THEN** every target id 42 currently blocks is listed with when it was first and last blocked
 
 #### Scenario: Deep history
 - **WHEN** an actor has 40,000 events
@@ -139,7 +140,8 @@ history and relations. Dashboard and JSON SHALL share one query module so they c
 ### Requirement: Admin reads of one person's data are logged
 
 Every request to a `/api/stats/users/<eksi_id>/` route, and every admin page showing one person's
-history, SHALL append a row recording the admin user, the Ekşi id, the route and the time. The log
+history -- the event and task lists searched or filtered by an Ekşi id, and a single event or
+task -- SHALL append a row recording the admin user, the Ekşi id, the route and the time. The log
 SHALL be readable in the admin and not editable there.
 
 #### Scenario: Lookup leaves a trace

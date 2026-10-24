@@ -81,5 +81,5 @@
 - [x] 8.1 `privacy/index.html`: what the ledger stores; kept until deletion; run reports still feed rankings when history is off; admin access and its logging; self-service deletion for synced data and by-request deletion for run-report data (both `data-tr` and `data-en`)
 - [ ] 8.2 Play Data Safety: update the retention and deletion text in the Play Console (the text is in specs/android-persistence). Firefox manifest unchanged (decided: no `personallyIdentifyingInfo`)
 - [x] 8.3 `changelog.js` entry (app and extension) and the `ReleaseNotes.kt` mirror; run `npm run changelog`
-- [ ] 8.4 Before deploy, save the `most_banned_unique/` response. Deploy the backend (pull, `migrate`, restart `gunicorn-eksiengel`), then run `history_backfill_legacy` and `history_rebuild --verify`, and diff against the saved response
+- [x] 8.4 (Deployed 2026-10-24: 4,698 reports backfilled to 19,911 events, rebuild verified; the only ranking differences come from one title report with no settings snapshot, left unmapped.) Before deploy, save the `most_banned_unique/` response. Deploy the backend (pull, `migrate`, restart `gunicorn-eksiengel`), then run `history_backfill_legacy` and `history_rebuild --verify`, and diff against the saved response
 - [x] 8.5 Re-verify the extension still builds: `cd frontend/app && npm run check && npm run package`

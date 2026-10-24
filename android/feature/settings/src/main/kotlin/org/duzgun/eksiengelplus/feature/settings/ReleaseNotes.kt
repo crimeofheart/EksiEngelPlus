@@ -45,6 +45,18 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.6.0" to VersionNotes(
+            app = listOf(
+                "Yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor; kuyruğunuz da eklentinin kurulumlarıyla ve diğer Android cihazlarınızla eşitleniyor. İşlem durumunda diğer cihazlarınızdaki işlemler de görünüyor: oradan iptal edebilir, başka bir Android cihazda başlatılanları bu cihaza alıp burada çalıştırabilirsiniz.",
+                "Ayarlara \"işlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle\" seçeneği eklendi. Varsayılan olarak açık; kapatırsanız hiçbir işlem sonucu gönderilmiyor. Cihazlarınızı bir kodla bağlayabilir, \"sunucudaki verilerimi sil\" ile sunucudaki geçmişinizi tamamen silebilirsiniz.",
+                "Eşitleme açıkken işlem raporu artık hedeflerin listesini değil yalnızca sayısını gönderiyor; aynı kişiler sunucuya iki kez gitmiyor.",
+            ),
+            extension = listOf(
+                "Yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor; kuyruğunuz da eklentinin diğer kurulumları ve Android uygulamasıyla eşitleniyor. İşlem durumu sayfasında diğer cihazlarınızdaki işlemler de görünüyor: oradan iptal edebilir, tek hedefli olanları bu cihaza alıp burada çalıştırabilirsiniz.",
+                "Ayarlara \"İşlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle\" seçeneği eklendi. Varsayılan olarak açık; kapatırsanız hiçbir işlem sonucu gönderilmiyor. Cihazlarınızı bir kodla bağlayabilir, \"Sunucudaki verilerimi sil\" ile sunucudaki geçmişinizi tamamen silebilirsiniz. Aynı tarayıcı hesabıyla eşitlenen kurulumlar kendiliğinden bağlanıyor.",
+                "Eşitleme açıkken işlem raporu artık hedeflerin listesini değil yalnızca sayısını gönderiyor; aynı kişiler sunucuya iki kez gitmiyor.",
+            ),
+        ),
         "0.5.6" to VersionNotes(
             app = listOf(
                 "Bir başlığa uzun basınca açılan menüde paylaşılan ya da kopyalanan bağlantı artık başlığı bugünün entry'leriyle açıyor. Eskiden bağlantı başlığın ilk sayfasını, yani en eski entry'leri açıyordu.",

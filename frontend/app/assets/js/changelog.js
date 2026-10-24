@@ -19,6 +19,18 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.6.0": {
+    app: [
+      "Yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor; kuyruğunuz da eklentinin kurulumlarıyla ve diğer Android cihazlarınızla eşitleniyor. İşlem durumunda diğer cihazlarınızdaki işlemler de görünüyor: oradan iptal edebilir, başka bir Android cihazda başlatılanları bu cihaza alıp burada çalıştırabilirsiniz.",
+      "Ayarlara \"işlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle\" seçeneği eklendi. Varsayılan olarak açık; kapatırsanız hiçbir işlem sonucu gönderilmiyor. Cihazlarınızı bir kodla bağlayabilir, \"sunucudaki verilerimi sil\" ile sunucudaki geçmişinizi tamamen silebilirsiniz.",
+      "Eşitleme açıkken işlem raporu artık hedeflerin listesini değil yalnızca sayısını gönderiyor; aynı kişiler sunucuya iki kez gitmiyor."
+    ],
+    extension: [
+      "Yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor; kuyruğunuz da eklentinin diğer kurulumları ve Android uygulamasıyla eşitleniyor. İşlem durumu sayfasında diğer cihazlarınızdaki işlemler de görünüyor: oradan iptal edebilir, tek hedefli olanları bu cihaza alıp burada çalıştırabilirsiniz.",
+      "Ayarlara \"İşlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle\" seçeneği eklendi. Varsayılan olarak açık; kapatırsanız hiçbir işlem sonucu gönderilmiyor. Cihazlarınızı bir kodla bağlayabilir, \"Sunucudaki verilerimi sil\" ile sunucudaki geçmişinizi tamamen silebilirsiniz. Aynı tarayıcı hesabıyla eşitlenen kurulumlar kendiliğinden bağlanıyor.",
+      "Eşitleme açıkken işlem raporu artık hedeflerin listesini değil yalnızca sayısını gönderiyor; aynı kişiler sunucuya iki kez gitmiyor."
+    ]
+  },
   "0.5.6": {
     date: "2026-10-15",
     app: [

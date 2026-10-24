@@ -239,6 +239,12 @@ the skin lives in `assets/eksiengel/admin.css` and is loaded site-wide by
 
 ### Deploying the backend
 
+TLS ends at Caddy on the router (OPNsense, automatic HTTPS), which proxies plain HTTP to
+gunicorn on `:8000`. The production `.env` therefore carries `BEHIND_TLS_PROXY=True` (trust
+Caddy's `X-Forwarded-Proto`) and `SECURE_SSL_REDIRECT=True`; secure cookies follow `DEBUG`
+unless `SECURE_COOKIES` says otherwise. `python manage.py check --deploy` on the host should
+report no security warnings.
+
 Static files are served by WhiteNoise from `STATIC_ROOT`, and `STATIC_ROOT` (`static/`) is
 gitignored as build output. So after changing anything under `assets/` — or after
 upgrading Django — run collectstatic before restarting, or the admin will serve stale CSS:

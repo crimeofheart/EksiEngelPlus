@@ -206,5 +206,21 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+# TLS ends at Caddy on the router (OPNsense, automatic HTTPS), which proxies plain
+# HTTP to gunicorn and sets X-Forwarded-Proto. Without trusting that header Django
+# took every request for plain HTTP, so the HSTS settings above were never sent and
+# none of the three below could be turned on.
+#
+# Trusted only where the environment says a TLS proxy is in front: anything that
+# reaches gunicorn directly could send the header itself. Production sets
+# BEHIND_TLS_PROXY=True and SECURE_SSL_REDIRECT=True in .env; development and the
+# test runner, which speak plain HTTP, leave both off.
+if env.bool("BEHIND_TLS_PROXY", default=False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
+# Off with DEBUG, so the admin still logs in over runserver's plain HTTP.
+SESSION_COOKIE_SECURE = env.bool("SECURE_COOKIES", default=not DEBUG)
+CSRF_COOKIE_SECURE = env.bool("SECURE_COOKIES", default=not DEBUG)
+
 # CSRF settings
 CSRF_TRUSTED_ORIGINS = ["https://eksiengelplus.duzgun.org", "http://localhost:8000"]

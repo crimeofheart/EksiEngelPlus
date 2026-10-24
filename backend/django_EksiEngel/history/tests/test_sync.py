@@ -194,6 +194,13 @@ class PushPullTests(LedgerTestCase):
             Event.objects.get().occurred_at, timezone.now() + timedelta(minutes=1)
         )
 
+    def test_impossible_past_clock_is_stamped_not_refused(self):
+        t = task(created_at=10)
+        response = self.laptop.push([t], [wire_event(5, occurred_at=10)])
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertGreater(Event.objects.get().occurred_at.year, 2020)
+        self.assertGreater(Task.objects.get().created_at.year, 2020)
+
     def test_gap_marker_is_recorded(self):
         self.laptop.push([], [], gap=7)
         self.assertEqual(self.laptop.device.dropped_events, 7)

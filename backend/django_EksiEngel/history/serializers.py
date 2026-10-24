@@ -18,15 +18,24 @@ MAX_NICKS = 1000
 
 
 class EpochMillis(serializers.IntegerField):
-    """UTC milliseconds from a device clock, as an aware datetime."""
+    """UTC milliseconds from a device clock, as an aware datetime.
+
+    A timestamp outside what is possible -- before EksiEngel existed, or more
+    than a day ahead -- is stamped with the time it arrived instead of refused.
+    Refusing it would refuse the whole batch, every time it is retried, and one
+    device with a wrong clock would never get anything into the ledger again.
+    """
 
     def to_internal_value(self, data):
         millis = super().to_internal_value(data)
-        moment = datetime.fromtimestamp(millis / 1000, tz=dt_timezone.utc)
-        if moment < EARLIEST:
-            raise serializers.ValidationError("timestamp before 2015")
         now = timezone.now()
-        return now if moment > now + MAX_CLOCK_LEAD else moment
+        try:
+            moment = datetime.fromtimestamp(millis / 1000, tz=dt_timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return now
+        if moment < EARLIEST or moment > now + MAX_CLOCK_LEAD:
+            return now
+        return moment
 
 
 class NameChoice(serializers.ChoiceField):

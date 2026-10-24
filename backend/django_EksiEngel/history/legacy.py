@@ -12,6 +12,8 @@ from collections import Counter
 
 from django.db import IntegrityError, transaction
 
+from api.models import CLIENT_ANDROID
+
 from . import constants as c
 from .ingest import NewEvent, ingest
 from .models import Account
@@ -61,6 +63,12 @@ def relations_of(action):
         return None
     if action.bulk_action in NAMED_ACTIONS:
         return NAMED_ACTIONS[action.bulk_action]
+    # The app's target_type is what it did, for every source (ActionReport.kt
+    # sends request.targetType). The extension's is not: its audience runs
+    # block or mute by the enableMute setting whatever the type says.
+    if action.client == CLIENT_ANDROID:
+        kind = TARGET_TYPE_KIND.get(action.target_type_id)
+        return [(kind, direction)] if kind else None
     source = action.ban_source_id
     if source == SINGLE:
         kind = TARGET_TYPE_KIND.get(action.target_type_id)

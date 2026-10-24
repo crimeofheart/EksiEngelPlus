@@ -170,6 +170,11 @@ class MappingTests(LedgerTestCase):
         self.assertEqual(relations_of(self.action(15, 2)), [(c.FOLLOW, c.REMOVE)])
         self.assertIsNone(relations_of(self.action(11, 1)))
 
+    def test_android_target_type_is_taken_as_said(self):
+        action = self.action(2, 1, 3, config={"enable_mute": False, "enable_title_ban": True})
+        action.client = "ANDROID"
+        self.assertEqual(relations_of(action), [(c.MUTE, c.ADD)])
+
     def test_combined_named_action(self):
         self.assertEqual(
             relations_of(self.action(12, 1, bulk_action="ENGEL_KALDIR_VE_TAKIP_ET")),

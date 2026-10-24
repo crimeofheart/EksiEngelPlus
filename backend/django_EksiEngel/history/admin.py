@@ -6,6 +6,42 @@ from . import sync
 from .models import Account, AdminAccess, Device, Event, Task
 
 
+class LogsPersonalReads:
+    """Writes an access-log row whenever a list of one person's rows is opened.
+
+    The privacy page promises every look at one person's history is logged,
+    and these lists show exactly that once they are searched or filtered by an
+    Ekşi id, so they keep the promise the same way /api/stats/users/ does.
+    """
+
+    id_params = ("q", "actor_eksi_id", "actor_eksi_id__exact", "target_eksi_id", "target_eksi_id__exact")
+
+    def changelist_view(self, request, extra_context=None):
+        for name in self.id_params:
+            value = request.GET.get(name, "").strip()
+            if value.isdigit():
+                AdminAccess.objects.create(
+                    admin_user=request.user,
+                    admin_username=request.user.get_username(),
+                    eksi_id=int(value),
+                    path=request.get_full_path()[:512],
+                )
+                break
+        return super().changelist_view(request, extra_context)
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        obj = self.get_object(request, object_id)
+        eksi_id = getattr(obj, "actor_eksi_id", None) if obj else None
+        if eksi_id:
+            AdminAccess.objects.create(
+                admin_user=request.user,
+                admin_username=request.user.get_username(),
+                eksi_id=eksi_id,
+                path=request.get_full_path()[:512],
+            )
+        return super().change_view(request, object_id, form_url, extra_context)
+
+
 class ReadOnlyAdmin(admin.ModelAdmin):
     """The ledger is written by ingest only; the admin is a lens over it."""
 
@@ -71,7 +107,7 @@ class AccountAdmin(ReadOnlyAdmin):
 
 
 @admin.register(Task)
-class TaskAdmin(ReadOnlyAdmin):
+class TaskAdmin(LogsPersonalReads, ReadOnlyAdmin):
     list_display = (
         "id",
         "description",
@@ -93,7 +129,7 @@ class TaskAdmin(ReadOnlyAdmin):
 
 
 @admin.register(Event)
-class EventAdmin(ReadOnlyAdmin):
+class EventAdmin(LogsPersonalReads, ReadOnlyAdmin):
     list_display = (
         "id",
         "occurred_at",

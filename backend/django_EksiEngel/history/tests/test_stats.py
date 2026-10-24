@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import connection
+from django.test import Client
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -183,6 +184,15 @@ class PerUserTests(AdminClientMixin, LedgerTestCase):
         self.client.get("/api/stats/users/42/events/?role=target")
         log = list(AdminAccess.objects.values_list("admin_username", "eksi_id"))
         self.assertEqual(log, [("admin", 42), ("admin", 42)])
+
+    def test_admin_list_searched_by_id_leaves_a_trace(self):
+        ingest([event(account(), 42, 5)])
+        browser = Client()
+        browser.force_login(self.admin)
+        response = browser.get("/admin/history/event/?q=42")
+        self.assertEqual(response.status_code, 200)
+        browser.get("/admin/history/event/")
+        self.assertEqual(list(AdminAccess.objects.values_list("eksi_id", flat=True)), [42])
 
     def test_refused_requests_leave_no_trace(self):
         APIClient().get("/api/stats/users/42/")

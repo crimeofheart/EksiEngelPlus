@@ -157,44 +157,57 @@
             
             <p data-tr="EksiEngelPlus olarak, gizliliğiniz bizim için önemlidir. Bu gizlilik politikası, eklentinin nasıl çalıştığı ve verilerinizi nasıl işlediği hakkında sizi bilgilendirmek amacıyla hazırlanmıştır." data-en="At EksiEngelPlus, your privacy is important to us. This privacy policy is designed to inform you about how the extension works and processes your data."></p>
 
-            <h3 data-tr="Toplanan Veriler" data-en="Data Collected"></h3>
-            <p data-tr="EksiEngelPlus eklentisi aşağıdaki verileri işler:" data-en="The EksiEngelPlus extension processes the following data:"></p>
+            <h3 data-tr="Cihazınızda Tutulanlar" data-en="Kept on Your Device"></h3>
+            <p data-tr="Eklenti ve Android uygulaması şunları cihazınızda saklar:" data-en="The extension and the Android app keep the following on your device:"></p>
             <ul>
-                <li data-tr="Ekşi Sözlük kullanıcı adları ve engelleme listeleri - Yalnızca yerel olarak tarayıcınızda saklanır" data-en="Ekşi Sözlük usernames and block lists - Stored only locally in your browser"></li>
-                <li data-tr="Eklenti ayarları ve tercihleri - Tarayıcı depolama alanında saklanır" data-en="Extension settings and preferences - Stored in browser storage"></li>
-                <li data-tr="İşlem geçmişi - Yerel olarak saklanır" data-en="Operation history - Stored locally"></li>
+                <li data-tr="Engellediğiniz, sessize aldığınız ve takip ettiğiniz yazarların listeleri" data-en="Lists of the authors you block, mute and follow"></li>
+                <li data-tr="Ayarlarınız ve tercihleriniz" data-en="Your settings and preferences"></li>
+                <li data-tr="Kuyruk ve son işlemlerin kaydı" data-en="The queue and a record of recent operations"></li>
             </ul>
 
-            <h3 data-tr="Telemetri (İsteğe Bağlı)" data-en="Telemetry (Optional)"></h3>
-            <p data-tr="EksiEngelPlus, eklenti kullanım istatistiklerini toplamak için telemetri sistemi içerir. Bu özellik varsayılan olarak <strong>AÇIK</strong> durumdadır ancak eklenti ayarlarından istediğiniz zaman <strong>KAPATILABİLİR</strong>." data-en="EksiEngelPlus includes a telemetry system to collect extension usage statistics. This feature is <strong>ON</strong> by default but can be <strong>DISABLED</strong> at any time from the extension settings."></p>
+            <h3 data-tr="Sunucuya Gönderilenler" data-en="Sent to Our Server"></h3>
+            <p data-tr="Aşağıdakiler yalnızca EksiEngelPlus'ın kendi sunucusuna (eksiengelplus.duzgun.org) gönderilir. İki ayrı ayar vardır; ikisi de varsayılan olarak <strong>AÇIK</strong>tır ve ikisi de ayarlardan birbirinden bağımsız olarak <strong>KAPATILABİLİR</strong>." data-en="The following is sent only to EksiEngelPlus's own server (eksiengelplus.duzgun.org). There are two separate settings; both are <strong>ON</strong> by default, and each can be <strong>TURNED OFF</strong> in the settings independently of the other."></p>
+            <p data-tr="<strong>İşlem geçmişi ve eşitleme</strong> (“İşlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle”):" data-en="<strong>Operation history and sync</strong> (“Keep my operation history on the server and sync it across my devices”):"></p>
             <ul>
-                <li data-tr="Telemetri verileri anonim olarak toplanır ve kişisel bilgi içermez" data-en="Telemetry data is collected anonymously and contains no personal information"></li>
-                <li data-tr="Toplanan veriler: engelleme/sessize alma sayıları, eklenti özelliklerinin kullanım sıklığı, genel istatistikler" data-en="Collected data: block/mute counts, feature usage frequency, general statistics"></li>
-                <li data-tr="Telemetri verileri yalnızca istatistik amaçlı kullanılır ve satılmaz" data-en="Telemetry data is used only for statistics and is not sold"></li>
-                <li data-tr="Kullanıcılar eklentinin FAQ/Settings sayfasından telemetriyi kapatabilir" data-en="Users can disable telemetry from the extension's FAQ/Settings page"></li>
+                <li data-tr="Her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu: Ekşi Sözlük kullanıcı adınız ve numaranız, işlemin hedefi olan yazarın kullanıcı adı ve numarası, işlemin türü, sonucu ve zamanı" data-en="The outcome of every block, mute, title-block and follow: your Ekşi Sözlük username and id, the username and id of the author it targeted, the kind of action, its result and its time"></li>
+                <li data-tr="Kuyruktaki işlemler ve durumları, böylece aynı kişinin eklenti kurulumları ve uygulaması tek bir kuyruk görür" data-en="Queued operations and their status, so one person's extension installs and app see a single queue"></li>
+                <li data-tr="Her cihaz için rastgele bir cihaz anahtarı; sunucu yalnızca bu anahtarın özetini saklar. Bir cihaz yalnızca kendi hesabının gönderdiklerini görebilir." data-en="A random key per device; the server keeps only a hash of it. A device can see only what its own account sent."></li>
             </ul>
+            <p data-tr="<strong>Toplanan verileri gönder</strong> (kullanım verisi):" data-en="<strong>Send collected data</strong> (usage data):"></p>
+            <ul>
+                <li data-tr="Her işlem bitince bir işlem raporu: Ekşi Sözlük kullanıcı adınız ve numaranız, işlemin türü, sayıları, eklenti sürümü ve ayarlarınız; günlük kaydı gönderimi açıksa hata ayıklama günlüğü" data-en="A report when each operation finishes: your Ekşi Sözlük username and id, the kind of operation, its counts, the version and your settings; and, if log sending is on, a debug log"></li>
+                <li data-tr="İşlem geçmişi eşitlemesi kapalıyken bu rapor, işlemin hedefi olan yazarların kullanıcı adlarını ve numaralarını da içerir; açıkken yalnızca sayıları içerir" data-en="While history sync is off, this report also lists the usernames and ids of the authors the operation targeted; while it is on, it carries only their count"></li>
+                <li data-tr="Eklentide hangi düğmelerin kullanıldığına dair sayılar" data-en="Counts of which buttons in the extension are used"></li>
+            </ul>
+            <p data-tr="Gönderilen kullanıcı adları kişisel veri sayılabilir; bu veriler anonim değildir." data-en="Usernames that are sent can count as personal data; this data is not anonymous."></p>
 
             <h3 data-tr="Veri Kullanımı" data-en="Data Usage"></h3>
-            <p data-tr="Toplanan veriler yalnızca aşağıdaki amaçlar için kullanılır:" data-en="Collected data is used only for the following purposes:"></p>
+            <p data-tr="Sunucudaki veriler yalnızca şunlar için kullanılır:" data-en="Data on the server is used only to:"></p>
             <ul>
-                <li data-tr="Ekşi Sözlük'te toplu engelleme işlemlerini gerçekleştirmek" data-en="Performing bulk blocking operations on Ekşi Sözlük"></li>
-                <li data-tr="Engellenen kullanıcı listelerini yönetmek" data-en="Managing blocked user lists"></li>
-                <li data-tr="Eklenti ayarlarını ve tercihlerini hatırlamak" data-en="Remembering extension settings and preferences"></li>
-                <li data-tr="İşlem geçmişini görüntülemek" data-en="Displaying operation history"></li>
-                <li data-tr="Anonim kullanım istatistiklerini toplamak (telemetri açık ise)" data-en="Collecting anonymous usage statistics (if telemetry is enabled)"></li>
+                <li data-tr="Kuyruğunuzu ve işlem geçmişinizi cihazlarınız arasında eşitlemek" data-en="Sync your queue and operation history across your devices"></li>
+                <li data-tr="En çok engellenen ve sessize alınan yazarlar gibi toplu istatistikler çıkarmak" data-en="Produce aggregate statistics, such as the most blocked and most muted authors"></li>
+                <li data-tr="Hataları bulmak ve eklentiyi geliştirmek" data-en="Find bugs and improve the extension"></li>
+            </ul>
+            <p data-tr="İstatistiklere ve tek bir kişinin geçmişine yalnızca proje yöneticisi erişebilir. Bir kişinin geçmişine yapılan her bakış, kimin ve ne zaman baktığıyla birlikte kayda geçer. Veriler satılmaz ve herkese açık yayınlanmaz." data-en="Only the project maintainer can access the statistics and any one person's history. Every look at one person's history is logged with who looked and when. The data is not sold and is not published."></p>
+
+            <h3 data-tr="Saklama ve Silme" data-en="Retention and Deletion"></h3>
+            <ul>
+                <li data-tr="Eşitlenen işlem geçmişi, siz silene kadar saklanır." data-en="Synced operation history is kept until you delete it."></li>
+                <li data-tr="Ayarlardaki “Sunucudaki verilerimi sil” düğmesi, cihazlarınızın eşitlediği geçmişi ve kuyruğu sunucudan kalıcı olarak siler ve eşitlemeyi kapatır. Eşitlemeyi yalnızca kapatmak, sunucudaki verileri silmez." data-en="The “Delete my data on the server” button in the settings permanently deletes the history and queue your devices synced and turns sync off. Only turning sync off does not delete anything on the server."></li>
+                <li data-tr="“Toplanan verileri gönder” ile gönderilen işlem raporları bir cihaza bağlı olmadığından bu düğme onları silmez; silinmelerini istiyorsanız GitHub üzerinden bize yazın." data-en="Operation reports sent with “Send collected data” are not tied to a device, so that button does not delete them; to have them deleted, contact us via GitHub."></li>
             </ul>
 
             <h3 data-tr="Veri Paylaşımı" data-en="Data Sharing"></h3>
-            <p data-tr="EksiEngelPlus, kullanıcı verilerinizi üçüncü taraflarla PAYLAŞMAZ. Hiçbir reklamcılık ağı, analiz servisi veya diğer üçüncü taraflar bu eklenti aracılığıyla veri toplamaz." data-en="EksiEngelPlus does NOT share your user data with third parties. No advertising networks, analytics services, or other third parties collect data through this extension."></p>
+            <p data-tr="EksiEngelPlus, verilerinizi üçüncü taraflarla PAYLAŞMAZ. Hiçbir reklamcılık ağı, analiz servisi veya başka bir üçüncü taraf bu eklenti aracılığıyla veri toplamaz." data-en="EksiEngelPlus does NOT share your data with third parties. No advertising network, analytics service or other third party collects data through this extension."></p>
 
             <h3 data-tr="Üçüncü Taraf Bağlantıları" data-en="Third-Party Links"></h3>
             <p data-tr="Bu eklenti, Ekşi Sözlük web sitesi ile etkileşim halindedir. Ekşi Sözlük'ün gizlilik politikası bu eklentiden bağımsızdır ve bizim kontrolümüzde değildir." data-en="This extension interacts with the Ekşi Sözlük website. Ekşi Sözlük's privacy policy is independent of this extension and is not under our control."></p>
 
             <h3 data-tr="Çerezler" data-en="Cookies"></h3>
-            <p data-tr="EksiEngelPlus eklentisi çerez kullanmaz. Eklenti verileri yalnızca tarayıcınızın yerel depolama alanında saklar." data-en="The EksiEngelPlus extension does not use cookies. The extension stores data only in your browser's local storage."></p>
+            <p data-tr="EksiEngelPlus kendi çerezini kullanmaz. Ekşi Sözlük'teki işlemler, sizin Ekşi Sözlük oturumunuzla yapılır; bu oturum bilgileri hiçbir zaman bizim sunucumuza gönderilmez." data-en="EksiEngelPlus sets no cookies of its own. Operations on Ekşi Sözlük are carried out with your own Ekşi Sözlük session, and that session is never sent to our server."></p>
 
             <h3 data-tr="Güvenlik" data-en="Security"></h3>
-            <p data-tr="Tüm veriler yerel olarak tarayıcınızda saklandığı için, verileriniz bizim sunucularımızda bulunmaz. Yerel depolama verilerinize yalnızca siz erişebilirsiniz. Telemetri verileri anonim olarak toplanır ve kimliğinizi belirlemek için kullanılamaz." data-en="Since all data is stored locally in your browser, your data is not present on our servers. Only you can access the data in your local storage. Telemetry data is collected anonymously and cannot be used to identify you."></p>
+            <p data-tr="Sunucuyla iletişim şifreli (HTTPS) bağlantı üzerinden yapılır. Cihaz anahtarları sunucuda yalnızca özet olarak tutulur ve bir cihaz başka bir hesabın verisini okuyamaz." data-en="Communication with the server uses an encrypted (HTTPS) connection. Device keys are kept on the server only as hashes, and a device cannot read another account's data."></p>
 
             <h3 data-tr="Değişiklikler" data-en="Changes"></h3>
             <p data-tr="Bu gizlilik politikası zaman zaman güncellenebilir. Önemli değişiklikler olması durumunda eklenti açıklamasında veya sitemizde bilgi verilecektir." data-en="This privacy policy may be updated from time to time. In case of significant changes, information will be provided in the extension description or on our website."></p>
@@ -204,7 +217,7 @@
             <p><a href="https://github.com/crimeofheart/EksiEngelPlus" target="_blank">github.com/crimeofheart/EksiEngelPlus</a></p>
 
             <h3 data-tr="Son Güncelleme" data-en="Last Updated"></h3>
-            <p data-tr="Bu gizlilik politikası en son Mart 2026'da güncellenmiştir." data-en="This privacy policy was last updated in March 2026."></p>
+            <p data-tr="Bu gizlilik politikası en son Ekim 2026'da güncellenmiştir." data-en="This privacy policy was last updated in October 2026."></p>
         </section>
 
         <footer>

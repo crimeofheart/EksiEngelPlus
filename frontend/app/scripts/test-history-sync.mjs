@@ -1,0 +1,270 @@
+// Offline checks for the history sync client. chrome.storage and the server are
+// replaced with in-memory fakes; nothing here needs a network or a browser.
+import assert from 'node:assert/strict';
+
+function store(initial = {}) {
+  const data = structuredClone(initial);
+  const pick = keys => {
+    if (keys == null) return structuredClone(data);
+    const list = typeof keys === 'string' ? [keys] : Array.isArray(keys) ? keys : Object.keys(keys);
+    return Object.fromEntries(list.filter(k => k in data).map(k => [k, structuredClone(data[k])]));
+  };
+  return {
+    data,
+    get(keys, cb) { const out = pick(keys); if (cb) { cb(out); return undefined; } return Promise.resolve(out); },
+    set(items, cb) { Object.assign(data, structuredClone(items)); if (cb) { cb(); return undefined; } return Promise.resolve(); },
+    remove(keys, cb) { for (const k of [].concat(keys)) delete data[k]; if (cb) { cb(); return undefined; } return Promise.resolve(); },
+  };
+}
+
+const local = store({ clientIdentity: { client_name: 'me', client_uid: 42 }, config: { syncHistory: true } });
+const sync = store();
+globalThis.chrome = {
+  storage: { local, sync },
+  runtime: { getManifest: () => ({ version: '0.6.0-test' }), lastError: null },
+};
+
+/** A scripted server: routes by method + path, records every request. */
+class FakeServer {
+  constructor() { this.requests = []; this.routes = {}; this.down = false; }
+  on(method, path, handler) { this.routes[`${method} ${path}`] = handler; return this; }
+  fetch = async (url, init) => {
+    const path = new URL(url).pathname.replace('/api/sync/', '');
+    const key = `${init.method} ${path.split('?')[0]}`;
+    const body = init.body ? JSON.parse(init.body) : null;
+    this.requests.push({ key, path, body, headers: init.headers });
+    if (this.down) throw new TypeError('network down');
+    const handler = this.routes[key];
+    if (!handler) return new Response('{}', { status: 404 });
+    const [status, json] = await handler(body, path);
+    // A 204 may carry no body at all, not even an empty string.
+    return new Response(json === undefined ? null : JSON.stringify(json), { status });
+  };
+  count(key) { return this.requests.filter(r => r.key === key).length; }
+  last(key) { return this.requests.filter(r => r.key === key).at(-1); }
+}
+
+const { config } = await import('../assets/js/config.js');
+const enums = await import('../assets/js/enums.js');
+const { HistorySync, mergeStatus, eventsForOutcome, appendCapped, OUTBOX_CAP } =
+  await import('../assets/js/historySync.js');
+config.serverURL = 'https://fixture.invalid/api/action/';
+config.logConsole = false;
+const { log } = await import('../assets/js/log.js');
+log.logConsole = false;
+
+let tests = 0;
+async function check(name, fn) {
+  await fn();
+  tests++;
+  console.log(`ok: ${name}`);
+}
+
+function fresh(server) {
+  for (const key of Object.keys(local.data)) {
+    if (key !== 'clientIdentity') delete local.data[key];
+  }
+  local.data.config = { syncHistory: true };
+  for (const key of Object.keys(sync.data)) delete sync.data[key];
+  globalThis.fetch = server.fetch;
+  return new HistorySync();
+}
+
+function acceptingServer() {
+  const server = new FakeServer();
+  let cursor = 0;
+  server
+    .on('POST', 'enroll/', body => [201, { device_token: 'tok-1', join_key: body.join_key ? null : 'join-1' }])
+    .on('POST', 'push/', body => [200, {
+      tasks: body.tasks.map(t => ({ id: t.id, result: 'ok', epoch: t.epoch, status: t.status, cancel_requested: false })),
+      events_accepted: body.events.map(e => e.id),
+      cursor: ++cursor,
+    }])
+    .on('GET', 'pull/', () => [200, { tasks: [], next_cursor: cursor, has_more: false }]);
+  return server;
+}
+
+const outcome = { banMode: enums.BanMode.BAN, id: 7, statuses: { [enums.TargetType.USER]: 'SUCCESS' } };
+
+await check('status only moves forward, and a terminal one never changes', async () => {
+  assert.equal(mergeStatus(null, 'QUEUED'), 'QUEUED');
+  assert.equal(mergeStatus('QUEUED', 'RUNNING'), 'RUNNING');
+  assert.equal(mergeStatus('RUNNING', 'QUEUED'), 'RUNNING');
+  assert.equal(mergeStatus('DONE', 'FAILED'), 'DONE');
+  assert.equal(mergeStatus('CANCELLED', 'DONE'), 'CANCELLED');
+});
+
+await check('one event per relation attempted, with the wire names the server expects', async () => {
+  let n = 0;
+  const events = eventsForOutcome(
+    { banMode: enums.BanMode.UNDOBAN, id: '9',
+      statuses: { [enums.TargetType.USER]: 'SUCCESS', [enums.TargetType.MUTE]: 'FAIL' } },
+    { taskId: 't', actor: { id: 42, nick: 'me' }, now: 1000, uuid: () => `u${n++}` },
+  );
+  assert.deepEqual(events.map(e => [e.kind, e.direction, e.result]),
+    [['BLOCK', 'REMOVE', 'OK'], ['MUTE', 'REMOVE', 'FAIL']]);
+  assert.equal(events[0].target_eksi_id, 9);
+  assert.equal(events[0].task_id, 't');
+  assert.deepEqual(eventsForOutcome({ ...outcome, id: 0 }, { actor: { id: 1 }, now: 1, uuid: () => 'x' }), []);
+  assert.deepEqual(eventsForOutcome(outcome, { actor: null, now: 1, uuid: () => 'x' }), []);
+});
+
+await check('the outbox drops its oldest past the cap and says how many', async () => {
+  const list = Array.from({ length: OUTBOX_CAP - 1 }, (_, i) => i);
+  assert.equal(appendCapped(list, [1, 2, 3]), 2);
+  assert.equal(list.length, OUTBOX_CAP);
+  assert.equal(list[0], 2);
+});
+
+await check('off means nothing is written, not even to the outbox', async () => {
+  const server = acceptingServer();
+  const h = fresh(server);
+  local.data.config = { syncHistory: false };
+  await h.recordOutcome(outcome);
+  await h.trackTask({ id: 'a', banSource: '1', banMode: '1' }, 'QUEUED');
+  await h.flush();
+  assert.equal(server.requests.length, 0);
+  assert.equal((await h.status()).pendingEvents, 0);
+});
+
+await check('first flush enrols, keeps the join key in synced storage, and empties the outbox', async () => {
+  const server = acceptingServer();
+  const h = fresh(server);
+  await h.trackTask({ id: 'task-a', banSource: '4', banMode: '1', description: 'Listeden Engelle', params: {} }, 'QUEUED');
+  h.setCurrentTask('task-a');
+  await h.recordOutcome(outcome);
+  await h.flush();
+  assert.equal(server.count('POST enroll/'), 1);
+  assert.equal(sync.data.historyJoinKey, 'join-1');
+  const push = server.last('POST push/');
+  assert.equal(push.headers.Authorization, 'Device tok-1');
+  assert.equal(push.body.events.length, 1);
+  assert.equal(push.body.events[0].actor_eksi_id, 42);
+  assert.equal(push.body.events[0].task_id, 'task-a');
+  assert.equal(push.body.tasks[0].ban_source, 4);
+  assert.equal((await h.status()).pendingEvents, 0);
+});
+
+await check('a second install on the same synced profile enrols into the same account', async () => {
+  const server = acceptingServer();
+  const h = fresh(server);
+  sync.data.historyJoinKey = 'join-existing';
+  await h.flush();
+  assert.equal(server.last('POST enroll/').body.join_key, 'join-existing');
+  assert.equal(sync.data.historyJoinKey, 'join-existing');
+});
+
+await check('server down: the run carries on, the outbox keeps everything, sync backs off', async () => {
+  const server = acceptingServer();
+  const h = fresh(server);
+  await h.flush();
+  server.down = true;
+  for (let i = 0; i < 30; i++) await h.recordOutcome({ ...outcome, id: 100 + i });
+  await h.flush({ force: true });
+  const status = await h.status();
+  assert.equal(status.pendingEvents, 30);
+  assert.ok(status.deferredUntil > Date.now());
+  const before = server.requests.length;
+  await h.flush();
+  assert.equal(server.requests.length, before, 'a backed-off flush does not even try');
+  server.down = false;
+  await h.flush({ force: true });
+  assert.equal((await h.status()).pendingEvents, 0);
+});
+
+await check('a revoked token means enrolling again, not failing forever', async () => {
+  const server = acceptingServer();
+  const h = fresh(server);
+  await h.flush();
+  server.on('POST', 'push/', () => [401, { detail: 'revoked' }]);
+  await h.recordOutcome(outcome);
+  await h.flush({ force: true });
+  assert.equal((await h.status()).enrolled, false);
+});
+
+await check('a stale epoch stops the task here and forgets it', async () => {
+  const server = acceptingServer();
+  const lost = [];
+  const h = fresh(server);
+  h.onTaskLost = id => lost.push(id);
+  server.on('POST', 'push/', body => [200, {
+    tasks: body.tasks.map(t => ({ id: t.id, result: 'conflict', epoch: 1, status: 'QUEUED' })),
+    events_accepted: [], cursor: 1,
+  }]);
+  await h.trackTask({ id: 'task-b', banSource: '1', banMode: '1' }, 'RUNNING');
+  await h.flush();
+  assert.deepEqual(lost, ['task-b']);
+  await h.flush({ force: true });
+  // Nothing left to say about it: the next flush has nothing to push.
+  assert.equal(server.count('POST push/'), 1);
+});
+
+await check('pull: other devices\' tasks show as remote rows; own cancels and takeovers act here', async () => {
+  const server = acceptingServer();
+  const cancelled = [], lost = [];
+  let changed = 0;
+  const h = fresh(server);
+  h.onCancelRequested = id => cancelled.push(id);
+  h.onTaskLost = id => lost.push(id);
+  h.onRemoteChanged = () => changed++;
+  await h.trackTask({ id: 'mine-1', banSource: '1', banMode: '1' }, 'RUNNING');
+  await h.trackTask({ id: 'mine-2', banSource: '1', banMode: '1' }, 'QUEUED');
+  server.on('GET', 'pull/', () => [200, {
+    tasks: [
+      { id: 'mine-1', is_mine: true, status: 'RUNNING', cancel_requested: true },
+      { id: 'mine-2', is_mine: false, status: 'QUEUED', owner: { label: 'phone', client: 'ANDROID' },
+        description: 'Tek Kullanıcı Engelle', params: { retry: { banSource: '1' } }, performed: 0, planned: 1 },
+      { id: 'theirs', is_mine: false, status: 'RUNNING', owner: { label: 'desktop', client: 'EXTENSION' },
+        description: 'Favori Edenleri Engelle', params: {}, performed: 3, planned: 10 },
+      { id: 'finished', is_mine: false, status: 'DONE', owner: null, params: {} },
+    ],
+    next_cursor: 9, has_more: false,
+  }]);
+  await h.flush();
+  assert.deepEqual(cancelled, ['mine-1']);
+  assert.deepEqual(lost, ['mine-2']);
+  assert.ok(changed > 0);
+  const rows = h.remoteRows();
+  assert.deepEqual(rows.map(r => r.taskId).sort(), ['mine-2', 'theirs']);
+  const theirs = rows.find(r => r.taskId === 'theirs');
+  assert.equal(theirs.ownerLabel, 'desktop');
+  assert.equal(theirs.runnableHere, false);
+  assert.equal(rows.find(r => r.taskId === 'mine-2').runnableHere, true);
+});
+
+await check('progress reaches the server even after the first snapshot was sent', async () => {
+  const server = acceptingServer();
+  const h = fresh(server);
+  await h.trackTask({ id: 'task-p', banSource: '2', banMode: '1', params: {} }, 'QUEUED');
+  await h.flush();
+  h.setCurrentTask('task-p');
+  await h.progress(3, 4, 10);
+  await h.flush();
+  const task = server.last('POST push/').body.tasks.find(t => t.id === 'task-p');
+  assert.deepEqual([task.status, task.performed, task.planned, task.ban_source], ['RUNNING', 4, 10, 2]);
+});
+
+await check('erasing the account forgets everything here and turns sync off', async () => {
+  const server = acceptingServer().on('DELETE', 'account/', () => [204, undefined]);
+  const h = fresh(server);
+  await h.flush();
+  await h.recordOutcome(outcome);
+  await h.deleteAccount();
+  assert.equal(server.count('DELETE account/'), 1);
+  assert.equal(local.data.config.syncHistory, false);
+  assert.equal(sync.data.historyJoinKey, undefined);
+  const status = await h.status();
+  assert.deepEqual([status.enabled, status.enrolled, status.pendingEvents], [false, false, 0]);
+});
+
+await check('pairing replaces the join key and starts the pull from the top', async () => {
+  const server = acceptingServer().on('POST', 'pair/claim/', () => [200, { join_key: 'join-2' }]);
+  const h = fresh(server);
+  await h.flush();
+  await h.pairClaim('7k3m-qx9a');
+  assert.equal(server.last('POST pair/claim/').body.code, '7k3m-qx9a');
+  assert.equal(sync.data.historyJoinKey, 'join-2');
+  assert.equal(server.last('GET pull/').path, 'pull/');
+});
+
+console.log(`${tests} history sync checks passed`);

@@ -2,6 +2,7 @@ import { programController } from './programController.js';
 import * as enums from './enums.js';
 import { storageHandler } from './storageHandler.js';
 import { resumableOperationRegistry, OperationState } from './resumableOperation.js';
+import { historySync } from './historySync.js';
 
 class Queue {
   constructor() { this._items = []; }
@@ -308,11 +309,39 @@ export function isCancelledTask(result) {
   return result === CANCELLED_TASK;
 }
 
-let taskIdCounter = 0;
-
-/** Unique within a session, and stable across a save/restore of the queue. */
+/**
+ * Stable across a save/restore of the queue, and a UUID because the history
+ * ledger keys the task by it on every device: two installs must never mint the
+ * same one.
+ */
 function newTaskId() {
-  return `task-${Date.now().toString(36)}-${(taskIdCounter++).toString(36)}`;
+  return crypto.randomUUID();
+}
+
+/**
+ * What the history ledger is told about a task when it is queued.
+ *
+ * `retry` is what lets another device run it ("Burada çalıştır"); a task without
+ * a single target has none, and other devices can only watch or cancel it.
+ */
+export function historyTaskInfo(action) {
+  const metadata = action.metadata || {};
+  return {
+    id: action.taskId,
+    banSource: action.banSource,
+    banMode: action.banMode,
+    description: action.actionDescription || metadata.actionDescription
+      || generateUnifiedDescription(action.banSource, { ...metadata, banMode: action.banMode }),
+    params: {
+      retry: buildRetryParams(action, metadata),
+      listAction: metadata.listAction || null,
+      bulkAction: metadata.bulkAction || null,
+      dateCriteria: metadata.dateCriteria || null,
+      sourceList: typeof metadata.sourceList === "string" ? metadata.sourceList : null,
+      targetTypes: metadata.targetTypes || [],
+    },
+    createdAt: Date.now(),
+  };
 }
 
 class AutoQueue extends Queue {
@@ -535,6 +564,7 @@ class AutoQueue extends Queue {
     if (removed.length === 0) return false;
     
     this._items = this._items.filter(item => item?.action?.taskId !== taskId);
+    historySync.trackTask({ id: taskId }, "CANCELLED");
     
     // Whoever called enqueue is still awaiting the promise it handed back.
     // Settling it keeps that await from hanging for the life of the page;
@@ -566,6 +596,7 @@ class AutoQueue extends Queue {
       // whichever task had moved into that slot. It lives on `action` because
       // that is the only part of an item persistence keeps.
       if (action && !action.taskId) action.taskId = newTaskId();
+      if (action) historySync.trackTask(historyTaskInfo(action), "QUEUED");
       super.enqueue({ action, resolve, reject });
       await this._saveQueueState();
       this.dequeue();
@@ -602,6 +633,8 @@ class AutoQueue extends Queue {
     // Items restored from storage will have a plain object as action, not a function
     if (typeof item.action !== 'function') {
       console.warn("Queue: Item action is not executable (likely restored from storage). Skipping item.");
+      // It will never run; other devices should not keep showing it as waiting.
+      if (item.action?.taskId) historySync.trackTask({ id: item.action.taskId }, "CANCELLED");
       await this._saveQueueState();
       // Try to process next item
       setTimeout(() => this.dequeue(), 0);
@@ -615,13 +648,20 @@ class AutoQueue extends Queue {
       // Store the full item for itemAttributes to include currently running task
       this._currentItem = item;
       this._currentItemMetadata = (item.action && item.action.metadata) ? item.action.metadata : null;
+      historySync.setCurrentTask(item.action.taskId);
+      historySync.trackTask({ id: item.action.taskId }, "RUNNING");
       const payload = await item.action(this);
       this._pendingPromise = false;
+      // processHandler settles DONE or STOPPED itself; this covers the runs that
+      // do not go through it. A terminal status already recorded is kept.
+      historySync.trackTask({ id: item.action.taskId }, programController?.earlyStop ? "STOPPED" : "DONE");
       if (item.resolve) item.resolve(payload);
     } catch (e) {
       this._pendingPromise = false;
+      historySync.trackTask({ id: item.action.taskId }, "FAILED");
       if (item.reject) item.reject(e);
     } finally {
+      historySync.clearCurrentTask();
       this._currentItem = null;
       this._currentItemMetadata = null;
       console.log(`Queue: Finished processing item, queue size after: ${this._items.length}, continuing to next item...`);
@@ -643,6 +683,7 @@ class AutoQueue extends Queue {
   }
 
   get currentItemMetadata() { return this._currentItemMetadata || null; }
+  get currentTaskId() { return this._currentItem?.action?.taskId || null; }
   async restoreFromStorage() { await this._initializePersistedQueue(); }
   async forceSave() { await this._saveQueueState(); }
 }

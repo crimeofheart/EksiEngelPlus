@@ -1287,3 +1287,10 @@ body {
 }
 
 
+
+/* A task another device holds: shown so the queue reads as one, but quieter
+   than this device's own rows, which are the ones that run here. */
+#plannedProcesses tr.remote-task td {
+  opacity: 0.8;
+  font-style: italic;
+}

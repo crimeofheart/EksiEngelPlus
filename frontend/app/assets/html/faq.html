@@ -341,6 +341,21 @@ margin-bottom: 8px;
     <a class="grid-item tooltip bottom" tip="Engellediğiniz yazarların listesini EksiEngelPlus sunucularına gönderin. 
     Böylece en çok engellenen yazarları belirleyip yayınlayabiliriz." 
     style="text-align: left;" id="sendData">Toplanan verileri EksiEngelPlus sunucularına gönder.</a>
+
+    <div class="grid-item">
+      <div id="syncHistorySwitch" class="switch-toggle switch-3 switch-candy" style="display:inline-flex;width:132px;">
+        <input id="syncHistoryDisabled" value="syncHistoryDisabled" name="state-d-syncHistory" type="radio">
+        <label for="syncHistoryDisabled">Kapalı</label>
+
+        <input id="syncHistoryEnabled" value="syncHistoryEnabled" name="state-d-syncHistory" type="radio" checked="">
+        <label for="syncHistoryEnabled">Açık</label>
+
+        <a></a>
+      </div>
+    </div>
+    <a class="grid-item tooltip bottom" tip="Yaptığınız her engelleme, sessize alma ve takip işleminin sonucu EksiEngelPlus sunucusunda saklanır.
+    Kuyruğunuz eklentinin diğer kurulumları ve android uygulamasıyla eşitlenir. Kapatırsanız hiçbir şey gönderilmez."
+    style="text-align: left;" id="syncHistory">İşlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle.</a>
     
       </div>
     </div>
@@ -431,6 +446,39 @@ margin-bottom: 8px;
       <div class="cache-stats-inline">
         <span class="cache-mini">Kullanım: <b id="storageUsage">Yükleniyor...</b> / 5MB</span>
       </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- History Sync Section -->
+  <div class="card" style="margin-bottom: 20px;" id="historySyncCard">
+    <div class="card-header">
+      <h2>🔄 Cihazlar Arası Eşitleme</h2>
+    </div>
+    <div class="card-body" style="padding: 0;">
+    <div class="sub-section">
+      <p class="sub-section-description" id="historySyncStatus">Yükleniyor...</p>
+    </div>
+
+    <div class="sub-section" id="historyPairSection">
+      <div class="sub-section-header">
+        <h3>📱 Cihaz bağla</h3>
+        <button id="historyPairStartBtn" class="btn btn-primary btn-tiny">Kod oluştur</button>
+      </div>
+      <p class="sub-section-description">Bir cihazda kod oluşturun, 10 dakika içinde diğer cihazda girin. Aynı tarayıcı hesabıyla eşitlenen kurulumlar kendiliğinden bağlanır.</p>
+      <p class="sub-section-description"><b id="historyPairCode"></b></p>
+      <div class="cache-stats-inline">
+        <input id="historyPairCodeInput" type="text" maxlength="9" placeholder="XXXX-XXXX" style="text-transform: uppercase; width: 120px;">
+        <button id="historyPairClaimBtn" class="btn btn-success btn-tiny">Bağla</button>
+      </div>
+    </div>
+
+    <div class="sub-section" id="historyDeleteSection">
+      <div class="sub-section-header">
+        <h3>🗑️ Sunucudaki verilerim</h3>
+        <button id="historyDeleteBtn" class="btn btn-danger btn-tiny">Sunucudaki verilerimi sil</button>
+      </div>
+      <p class="sub-section-description">Bu cihazların eşitlediği işlem geçmişini ve kuyruğu sunucudan kalıcı olarak siler, ardından eşitlemeyi kapatır. "Toplanan verileri gönder" açıkken gönderilen işlem raporları bu kapsamda değildir; onlar için bizimle iletişime geçin.</p>
     </div>
     </div>
   </div>

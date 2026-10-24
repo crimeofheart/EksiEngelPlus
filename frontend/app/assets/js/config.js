@@ -24,6 +24,10 @@ let defaultConfig = {
   "apiKey": getApiKey(),
   "sendData": true,
   "sendLog": true,
+  // Per-target history and queue sync with the other devices (historySync.js).
+  // On by default, like sendData, and independent of it. Mirrored by
+  // EksiConfig.syncHistory in android/core/datastore/.../Config.kt.
+  "syncHistory": true,
   "enableLog": true,
   "logConsole": true,
   "enableNoobBan": true,

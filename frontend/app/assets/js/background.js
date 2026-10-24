@@ -13,6 +13,7 @@ import {handleEksiSozlukURL} from './urlHandler.js';
 import { notificationHandler } from './notificationHandler.js';
 import { storageHandler } from './storageHandler.js';
 import { resumableOperationRegistry, OperationState } from './resumableOperation.js';
+import { historySync, ALARM_NAME as HISTORY_ALARM, ALARM_PERIOD_MINUTES as HISTORY_ALARM_MINUTES } from './historySync.js';
 
 log.info("bg", "initialized");
 
@@ -60,6 +61,50 @@ async function initializeOperationState() {
 
 // Run initialization immediately
 initializeOperationState();
+
+// --- history sync -----------------------------------------------------------------
+// Every settled outcome goes to the outbox; the run never waits for it.
+relationHandler.onOutcome = (outcome) => { historySync.recordOutcome(outcome); };
+commHandler.taskIdProvider = () => historySync.currentTaskId;
+
+/** Stops a task on this device: dropped if it is waiting, early-stopped if it runs. */
+async function stopLocalTask(taskId) {
+  if (await processQueue.removeByTaskId(taskId)) {
+    notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+    return;
+  }
+  if (processQueue.currentTaskId === taskId) {
+    await programController.stopCurrentOperation(true);
+    programController.stopAllOperations();
+  }
+}
+
+// Another device asked for a cancel: record it as cancelled, then stop. The
+// terminal status is recorded first so the run's own "stopped" cannot replace it.
+historySync.onCancelRequested = (taskId) => {
+  historySync.trackTask({ id: taskId }, "CANCELLED");
+  stopLocalTask(taskId).catch(e => log.warn("bg", `cancel from another device failed: ${e}`));
+};
+// Taken over elsewhere, or refused as stale: this device must not run it further.
+historySync.onTaskLost = (taskId) => {
+  stopLocalTask(taskId).catch(e => log.warn("bg", `could not drop a task taken over elsewhere: ${e}`));
+};
+historySync.onRemoteChanged = () => {
+  notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+};
+
+chrome.alarms.create(HISTORY_ALARM, { periodInMinutes: HISTORY_ALARM_MINUTES });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === HISTORY_ALARM) historySync.flush();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes.config) return;
+  const before = changes.config.oldValue?.syncHistory;
+  const after = changes.config.newValue?.syncHistory;
+  if (after === false && before !== false) historySync.dropPending();
+  if (after !== false && before === false) historySync.flush({ force: true });
+});
+historySync.flush();
 let g_notificationTabId = 0;
 let g_notificationTabCreationInProgress = null;
 
@@ -163,7 +208,39 @@ async function ensureNotificationTabExistsAndIsReady() {
   return g_notificationTabCreationInProgress;
 }
 
-chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sender, sendResponse) {
+/**
+ * History sync requests from the settings page and İşlem durumu. Answers
+ * {success, ...} and never throws to the page: a failed request is a message.
+ */
+const HISTORY_ACTIONS = {
+  historyStatus: () => historySync.status(),
+  historyPairStart: () => historySync.pairStart(),
+  historyPairClaim: (message) => historySync.pairClaim(message.code),
+  historyDeleteAccount: () => historySync.deleteAccount(),
+  cancelRemoteTask: (message) => historySync.cancelRemote(message.taskId),
+  takeOverRemoteTask: async (message) => {
+    const task = await historySync.takeOver(message.taskId);
+    const retry = task.params && task.params.retry;
+    if (!retry) throw new Error("bu işlem bu cihazda çalıştırılamaz");
+    // Rejoins the queue through the ordinary path, under the same task id so the
+    // ledger sees one task change hands rather than a new one appear. Already
+    // done targets come back as no-ops: the new owner skips what is in place.
+    messageListener_Popup({ ...retry, taskId: task.id }, {}, () => {});
+    return { task };
+  },
+};
+
+function messageListener_Popup(message, sender, sendResponse) {
+  if (message && HISTORY_ACTIONS[message.action]) {
+    Promise.resolve(HISTORY_ACTIONS[message.action](message))
+      .then(result => sendResponse({ success: true, ...(result || {}) }))
+      .catch(error => {
+        log.warn("bg", `${message.action} failed: ${error?.message || error}`);
+        sendResponse({ success: false, status: error?.status || null, error: error?.message || String(error) });
+      });
+    return true;
+  }
+
   const actionsRequiringNotification = [
     "startMigration", "startTitleMigration", "refreshMutedList", "refreshBlockedList", "refreshFollowedList",
     "blockMutedUsers", "blockTitlesOfBlockedMuted", "startDateBasedBulkAction"
@@ -472,6 +549,8 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
       }
 
       let wrapperProcessHandler = processHandler.bind(null, obj.banSource, obj.banMode, obj.entryUrl, obj.authorName, obj.authorId, obj.targetType, obj.clickSource, obj.titleName, obj.titleId, obj.timeSpecifier, obj.action);
+      // A task taken over from another device keeps the id it already has there.
+      if (message.taskId) wrapperProcessHandler.taskId = message.taskId;
       wrapperProcessHandler.banSource = obj.banSource;
       wrapperProcessHandler.banMode = obj.banMode;
       wrapperProcessHandler.creationDateInStr = String(new Date().getHours()).padStart(2, '0') + ":" + String(new Date().getMinutes()).padStart(2, '0');
@@ -512,7 +591,8 @@ chrome.runtime.onMessage.addListener(function messageListener_Popup(message, sen
     });
     return true;  // Keep message port open for async response
   }
-});
+}
+chrome.runtime.onMessage.addListener(messageListener_Popup);
 
 /**
  * The enableMute setting as saved, for labelling a task at enqueue.
@@ -1288,20 +1368,31 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
       eksisozluk_id: id,
       eksisozluk_name: authorNameList[index]
   })).filter(item => item.eksisozluk_id != 0);
+  const author_list_size = author_list.length;
 
   // Get metadata for date-based bulk operations
   const metadata = processQueue.currentItemMetadata || {};
+
+  // With history sync on, every target already went to the ledger with its own
+  // outcome, so the report carries the count and not the list. With it off, the
+  // list goes as it always has. Mirrored by ActionReport.kt on Android.
+  const syncingHistory = await historySync.isEnabled();
+  historySync.rememberNicks(authorIdList, authorNameList);
+  if (syncingHistory) author_list = [];
   
   let action = new Action({
     eksi_engel_user, version: chrome.runtime.getManifest().version, user_agent: userAgent,
-    ban_source: banSource, ban_mode: banMode, author_list, author_list_size: author_list.length,
+    ban_source: banSource, ban_mode: banMode, author_list, author_list_size,
     planned_action: authorNameList.length, performed_action: performedAction, successful_action: successfulAction,
     is_early_stopped: programController.earlyStop, log_level: null, log: null, target_type: targetType,
     click_source: clickSource, fav_title, fav_entry, fav_author, time_specifier: timeSpecifier,
     date_criteria: metadata.dateCriteria || null,
-    bulk_action: metadata.bulkAction || null,
+    // An author-list run's action rides here too, so the server can tell a list
+    // follow from a list block; reports sent before this could not.
+    bulk_action: metadata.bulkAction || listAction || null,
     source_list: metadata.sourceList || null
   });
+  action.task_id = historySync.currentTaskId;
 
   if(config.sendLog && log.isEnabled) {
     action.log_level = log.level;
@@ -1333,6 +1424,9 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   }
   
   log.info("bg", `Program finished: successful=${successfulAction}, performed=${performedAction}, planned=${authorNameList.length}`);
+  historySync.trackTask({ id: historySync.currentTaskId }, programController.earlyStop ? "STOPPED" : "DONE", {
+    successful: successfulAction, performed: performedAction, planned: authorNameList.length,
+  });
   programController.earlyStop = false;
   log.resetData();
 }

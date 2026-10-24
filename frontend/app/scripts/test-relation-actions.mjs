@@ -260,6 +260,9 @@ function backgroundHarness(fetch, extra = {}) {
     notificationHandler: new Proxy({ finishSuccess: (...args) => finished.push(args) }, { get: (o, k) => o[k] || (() => {}) }),
     createEksiSozlukUser: () => ({}), createEksiSozlukTitle: () => ({}), createEksiSozlukEntry: () => ({}),
     Action: class { constructor(data) { Object.assign(this, data); } }, ActionConfig: class {},
+    historySync: { isEnabled: async () => false, rememberNicks() {}, trackTask() {}, currentTaskId: null,
+      ...extra.historySync },
+    commHandler: extra.commHandler,
   });
   scope.programController._performActionWithRetry = (...args) => handler.performAction(...args);
   vm.runInContext(declaration('background.js', 'async function processHandler'), scope);
@@ -308,5 +311,51 @@ await check('combined bulk removal retains failed users in both cached lists', a
   assert.deepEqual(blockedCache, ['u1']);
   assert.deepEqual(mutedRemoved, ['u4']);
   assert.deepEqual(finished[0].slice(2, 5), [2, 4, 4]);
+});
+await check('history sync on: the run report carries the count, not the list, and the task id', async () => {
+  for (const syncing of [true, false]) {
+    const sent = [];
+    const h = backgroundHarness(async () => response('0'), {
+      historySync: { isEnabled: async () => syncing, currentTaskId: 'task-1' },
+      commHandler: { sendData: async action => { sent.push(action); } },
+    });
+    config.sendData = true;
+    try {
+      await h.scope.processHandler(enums.BanSource.SINGLE, enums.BanMode.BAN, null, 'u7', 7, enums.TargetType.USER);
+    } finally {
+      config.sendData = false;
+    }
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].author_list_size, 1);
+    assert.equal(sent[0].author_list.length, syncing ? 0 : 1);
+    assert.equal(sent[0].task_id, 'task-1');
+  }
+});
+await check('a list run reports its action, so a list follow is not read as a block', async () => {
+  const sent = [];
+  const h = backgroundHarness(async () => response('0'), {
+    commHandler: { sendData: async action => { sent.push(action); } },
+  });
+  config.sendData = true;
+  try {
+    await h.scope.processHandler(enums.BanSource.LIST, enums.BanMode.BAN, null, null, null, null, null, null, null, null, 'TAKIP_ET');
+  } finally {
+    config.sendData = false;
+  }
+  assert.equal(sent[0].bulk_action, 'TAKIP_ET');
+});
+await check('every settled outcome reaches onOutcome once; a rate limit does not', async () => {
+  const seen = [];
+  let calls = 0;
+  const handler = relation(async () => (++calls === 1 ? response('', 429, '1') : response('0')));
+  handler.onOutcome = outcome => seen.push(outcome);
+  await handler.performAction(enums.BanMode.BAN, 5, true, false, true, false);
+  assert.equal(seen.length, 0);
+  await handler.performAction(enums.BanMode.BAN, 5, true, false, true, false);
+  assert.equal(seen.length, 1);
+  assert.deepEqual(Object.keys(seen[0].statuses).sort(), [enums.TargetType.USER, enums.TargetType.MUTE].sort());
+  handler.onOutcome = () => { throw new Error('recording broke'); };
+  const out = await handler.performAction(enums.BanMode.BAN, 6, true, false, false, false);
+  assert.equal(out.resultType, enums.ResultType.SUCCESS);
 });
 console.log(`${tests} relation action regression checks passed`);

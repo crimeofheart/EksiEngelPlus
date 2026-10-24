@@ -9,6 +9,11 @@ class RelationHandler
 {
   successfulAction = 0;
   performedAction = 0;
+  // Called with each settled outcome, one per target: {banMode, id, statuses}, where
+  // statuses maps every TargetType attempted to its ResultTypeHttpReq. Set by the
+  // background to historySync.recordOutcome; a rate-limited attempt is not settled
+  // and never reaches it.
+  onOutcome = null;
   
   async performAction(banMode, id, isTargetUser, isTargetTitle, isTargetMute, isTargetFollow)
   {
@@ -90,6 +95,20 @@ class RelationHandler
         this.successfulAction++;
       } else {
          log.warn("relation", `One or more actions failed for id ${id} (not rate limit). User: ${resUser.status}, Title: ${resTitle.status}, Mute: ${resMute.status}, Follow: ${resFollow.status}`);
+      }
+
+      const statuses = {};
+      if (isTargetUser) statuses[enums.TargetType.USER] = resUser.status;
+      if (isTargetTitle) statuses[enums.TargetType.TITLE] = resTitle.status;
+      if (isTargetMute) statuses[enums.TargetType.MUTE] = resMute.status;
+      if (isTargetFollow) statuses[enums.TargetType.FOLLOW] = resFollow.status;
+      if (this.onOutcome && Object.keys(statuses).length > 0) {
+        try {
+          this.onOutcome({ banMode, id, statuses });
+        } catch (e) {
+          // Recording is never allowed to fail the run.
+          log.warn("relation", `outcome hook failed: ${e}`);
+        }
       }
 
       // Mirrored by Android RelationClient: only confirmed outcomes are successes.

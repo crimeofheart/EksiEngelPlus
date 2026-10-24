@@ -140,6 +140,13 @@ class CommHandler
     }
   }
 
+  /** The cached eksisozluk identity, {client_name, client_uid}, or {} before the first scrape. */
+  currentIdentity = async () => this.#getIdentity();
+
+  // Returns the history task id of the run now going, so every run report carries
+  // it without each of the eight call sites having to. Set by the background.
+  taskIdProvider = null;
+
   #getIdentity = async () => {
     if(this.#identity)
       return this.#identity;
@@ -158,6 +165,9 @@ class CommHandler
       return;
     }
     
+    if (action && action.task_id === undefined && this.taskIdProvider) {
+      action.task_id = this.taskIdProvider() || null;
+    }
     const actionData = {action, action_config};
 
     try {

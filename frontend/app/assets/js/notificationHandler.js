@@ -3,6 +3,7 @@ import {log} from './log.js';
 import * as enums from './enums.js';
 import { storageHandler } from './storageHandler.js';
 import { generateUnifiedDescription } from './queue.js';
+import { historySync } from './historySync.js';
 
 class NotificationHandler {
   constructor() {}
@@ -58,10 +59,14 @@ class NotificationHandler {
     this.#finish(banSource, banMode, message, message, successfulAction, performedAction, plannedAction, operationMetadata);
   finishSuccess = (banSource, banMode, successfulAction, performedAction, plannedAction, operationMetadata = null) => this.#finish(banSource, banMode, "İşlem tamamlandı.", "Tamamlandı", successfulAction, performedAction, plannedAction, operationMetadata);
 
-  updatePlannedProcessesList = (plannedProcessesList) => this.#sendMessage(enums.NotificationType.UPDATE_PLANNED_PROCESSES, "", "", plannedProcessesList, null, 0, 0, 0, 0);
+  // Tasks other devices hold follow this one's own, so İşlem durumu shows one queue.
+  updatePlannedProcessesList = (plannedProcessesList) => this.#sendMessage(enums.NotificationType.UPDATE_PLANNED_PROCESSES, "", "", [...plannedProcessesList, ...historySync.remoteRows()], null, 0, 0, 0, 0);
   notifyCooldown = (remainingTimeInSec) => this.#sendMessage(enums.NotificationType.COOLDOWN, `COOLDOWN: API limiti aşıldı. Dakikada 12 engel limiti bekleniyor. <a target='_blank' href='${config.EksiSozlukURL}/eksi-sozlukun-yazar-engellemeye-sinir-getirmesi--7547420' style='color:red;'>Bu ne demek?</a>`, "", [], null, 0, 0, 0, remainingTimeInSec);
 
   notifyOngoing = (successfulAction, performedAction, plannedAction, operationMetadata = null) => {
+    // Every run reports progress here, which makes it the one place to tell the
+    // other devices how far the task has got.
+    historySync.progress(successfulAction, performedAction, plannedAction);
     let statusText = "İşlem devam ediyor.";
     if (operationMetadata) statusText = this.#generateDescriptionFromMetadata(operationMetadata);
     this.#sendMessage(enums.NotificationType.ONGOING, statusText, "", [], null, successfulAction, performedAction, plannedAction, 0);

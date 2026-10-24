@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', async function () {
   // load the current states to switch buttons
   document.getElementById("sendDataEnabled").checked = config.sendData === true;
   document.getElementById("sendDataDisabled").checked = config.sendData !== true;
+  document.getElementById("syncHistoryEnabled").checked = config.syncHistory !== false;
+  document.getElementById("syncHistoryDisabled").checked = config.syncHistory === false;
   document.getElementById("titleBanEnabled").checked = config.enableTitleBan === true;
   document.getElementById("titleBanDisabled").checked = config.enableTitleBan !== true;
   document.getElementById("noobBanEnabled").checked = config.enableNoobBan === true;
@@ -58,6 +60,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     sendDataSwitchOnClick();
     commHandler.sendAnalyticsData({ click_type: enums.ClickType.SETTINGS_TOGGLE });
   });
+
+  for (const id of ["syncHistoryEnabled", "syncHistoryDisabled"]) {
+    document.getElementById(id).addEventListener("click", function() {
+      syncHistorySwitchOnClick();
+      commHandler.sendAnalyticsData({ click_type: enums.ClickType.SETTINGS_TOGGLE });
+    });
+  }
+  setupHistorySync();
 
   // add onclick function to two state radio buttons
   document.getElementById("titleBanEnabled").addEventListener("click", function(element) {
@@ -137,6 +147,88 @@ function sendDataSwitchOnClick()
 	config.sendData = document.getElementById("sendDataEnabled").checked;
 	console.log("sendData:" + config.sendData);
 	saveConfig(config);
+}
+
+function syncHistorySwitchOnClick()
+{
+	config.syncHistory = document.getElementById("syncHistoryEnabled").checked;
+	saveConfig(config);
+	// The background drops anything pending the moment this lands in storage.
+	setTimeout(refreshHistoryStatus, 500);
+}
+
+function historyRequest(action, extra = {}) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(null, { action, ...extra }, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({ success: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      resolve(response || { success: false });
+    });
+  });
+}
+
+async function refreshHistoryStatus() {
+  const status = await historyRequest("historyStatus");
+  const line = document.getElementById("historySyncStatus");
+  if (!status.success) {
+    line.textContent = "Eşitleme durumu alınamadı.";
+    return;
+  }
+  if (!status.enabled) {
+    line.textContent = "Eşitleme kapalı: hiçbir işlem sonucu gönderilmiyor.";
+  } else if (!status.enrolled) {
+    line.textContent = "Eşitleme açık. Bu cihaz sunucuya ilk işlemde kaydedilecek.";
+  } else {
+    const last = status.lastFlushAt ? new Date(status.lastFlushAt).toLocaleString("tr-TR") : "henüz yok";
+    const pending = status.pendingEvents ? ` · gönderilmeyi bekleyen: ${status.pendingEvents}` : "";
+    line.textContent = `Eşitleme açık. Son eşitleme: ${last}${pending}`;
+  }
+  for (const id of ["historyPairStartBtn", "historyPairClaimBtn", "historyPairCodeInput"]) {
+    document.getElementById(id).disabled = !status.enabled;
+  }
+}
+
+function setupHistorySync() {
+  refreshHistoryStatus();
+
+  document.getElementById("historyPairStartBtn").addEventListener("click", async () => {
+    const response = await historyRequest("historyPairStart");
+    const out = document.getElementById("historyPairCode");
+    out.textContent = response.success
+      ? `Kod: ${response.code} (10 dakika geçerli)`
+      : "Kod oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin.";
+  });
+
+  document.getElementById("historyPairClaimBtn").addEventListener("click", async () => {
+    const input = document.getElementById("historyPairCodeInput");
+    const code = input.value.trim();
+    if (!code) return;
+    const response = await historyRequest("historyPairClaim", { code });
+    const out = document.getElementById("historyPairCode");
+    out.textContent = response.success
+      ? "Bu cihaz bağlandı. Diğer cihazlardaki işlemler artık burada da görünecek."
+      : "Kod geçersiz ya da süresi dolmuş.";
+    if (response.success) input.value = "";
+    refreshHistoryStatus();
+  });
+
+  document.getElementById("historyDeleteBtn").addEventListener("click", async () => {
+    if (!confirm("Bu cihazların sunucudaki işlem geçmişi ve kuyruğu kalıcı olarak silinecek, eşitleme kapanacak. Emin misiniz?")) {
+      return;
+    }
+    const response = await historyRequest("historyDeleteAccount");
+    if (response.success) {
+      config.syncHistory = false;
+      document.getElementById("syncHistoryEnabled").checked = false;
+      document.getElementById("syncHistoryDisabled").checked = true;
+      alert("Sunucudaki verileriniz silindi ve eşitleme kapatıldı.");
+    } else {
+      alert("Silinemedi. Bağlantınızı kontrol edip tekrar deneyin.");
+    }
+    refreshHistoryStatus();
+  });
 }
 
 function muteSwitchOnClick()

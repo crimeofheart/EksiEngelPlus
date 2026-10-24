@@ -1617,6 +1617,50 @@ function fillTaskActionsCell(cell, retryParams, { withRetry = true, taskId = nul
   }
 }
 
+const REMOTE_STATUS = { QUEUED: "Sırada", RUNNING: "⚡ Çalışıyor" };
+
+function remoteTaskRequest(action, taskId, success, failure) {
+  chrome.runtime.sendMessage(null, { action, taskId }, (response) => {
+    if (chrome.runtime.lastError || !response || !response.success) {
+      notificationHandler.showStatusMessage(failure(response), "error");
+      return;
+    }
+    notificationHandler.showStatusMessage(success, "success");
+  });
+}
+
+/**
+ * A task another device holds. It runs there, not here: this row can only ask
+ * for a cancel, or take the task over when it has a single target to rerun.
+ */
+function insertRemoteTaskRow(table, process) {
+  const row = table.insertRow(-1);
+  row.classList.add("remote-task");
+  row.insertCell(0).textContent = process.creationDateInStr || "";
+  const device = row.insertCell(1);
+  device.textContent = `🔗 ${process.ownerLabel}`;
+  device.title = "Bu işlem başka bir cihazınızda";
+  row.insertCell(2).textContent = process.actionDescription;
+  const status = row.insertCell(3);
+  const progress = process.planned ? ` (${process.performed}/${process.planned})` : "";
+  status.textContent = `${REMOTE_STATUS[process.taskStatus] || process.taskStatus}${progress}`
+    + (process.cancelRequested ? " · iptal istendi" : "");
+  const actions = row.insertCell(4);
+  actions.classList.add("task-actions");
+  if (!process.cancelRequested) {
+    actions.appendChild(taskActionButton("İptal et", "Diğer cihazdaki işlemi durdur", () =>
+      remoteTaskRequest("cancelRemoteTask", process.taskId, "İptal isteği gönderildi.",
+        () => "İptal isteği gönderilemedi.")));
+  }
+  if (process.runnableHere) {
+    actions.appendChild(taskActionButton("Burada çalıştır", "İşlemi bu cihaza al ve burada çalıştır", () =>
+      remoteTaskRequest("takeOverRemoteTask", process.taskId, "İşlem bu cihaza alındı ve sıraya eklendi.",
+        (response) => response && response.status === 409
+          ? "Diğer cihaz bu işlemi hâlâ çalıştırıyor."
+          : "İşlem bu cihaza alınamadı.")));
+  }
+}
+
 function updatePlannedProcessesTable(plannedProcesses) {
   let rowNumber = document.getElementById("plannedProcesses").tBodies[0].rows.length;
   let table = document.getElementById("plannedProcesses").getElementsByTagName('tbody')[0];
@@ -1626,6 +1670,10 @@ function updatePlannedProcessesTable(plannedProcesses) {
   
   for(let i = 0; i < plannedProcesses.length; i++) {
     const process = plannedProcesses[i];
+    if (process.remote) {
+      insertRemoteTaskRow(table, process);
+      continue;
+    }
     let row = table.insertRow(-1);
     
     let cell1 = row.insertCell(0);

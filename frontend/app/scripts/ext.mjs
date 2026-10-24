@@ -556,6 +556,7 @@ switch (command) {
   case "check":
     cmdCheck();
     execFileSync(process.execPath, [path.join(APP_DIR, "scripts/test-relation-actions.mjs")], { stdio: "inherit" });
+    execFileSync(process.execPath, [path.join(APP_DIR, "scripts/test-history-sync.mjs")], { stdio: "inherit" });
     break;
   case "changelog":
     cmdChangelog();

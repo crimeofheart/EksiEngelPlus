@@ -57,6 +57,7 @@ class OperationsActivity : AppCompatActivity() {
     @Inject lateinit var collecting: OperationCollecting
     @Inject lateinit var reconciler: OperationReconciler
     @Inject lateinit var config: org.duzgun.eksiengelplus.datastore.ConfigRepository
+    @Inject lateinit var historySync: org.duzgun.eksiengelplus.ops.runtime.HistorySync
 
     private lateinit var refresh: SwipeRefreshLayout
     private lateinit var running: ViewGroup
@@ -65,6 +66,8 @@ class OperationsActivity : AppCompatActivity() {
     private lateinit var queuedEmpty: TextView
     private lateinit var finished: ViewGroup
     private lateinit var finishedEmpty: TextView
+    private lateinit var remote: ViewGroup
+    private lateinit var remoteHeader: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +86,8 @@ class OperationsActivity : AppCompatActivity() {
         refresh.onPullToRefresh {
             lifecycleScope.launch {
                 reconciler.reconcile()
+                // What the other devices hold, fresh rather than up to 15 minutes old.
+                historySync.syncOnce(force = true)
                 refresh.isRefreshing = false
             }
         }
@@ -93,6 +98,9 @@ class OperationsActivity : AppCompatActivity() {
         queuedEmpty = findViewById(R.id.opsQueuedEmpty)
         finished = findViewById(R.id.opsFinished)
         finishedEmpty = findViewById(R.id.opsFinishedEmpty)
+        remote = findViewById(R.id.opsRemote)
+        remoteHeader = findViewById(R.id.opsRemoteHeader)
+        org.duzgun.eksiengelplus.ops.runtime.HistorySyncWorker.syncNow(WorkManager.getInstance(applicationContext))
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -135,6 +143,9 @@ class OperationsActivity : AppCompatActivity() {
                 }
                 launch {
                     db.completedOperations().recent(50).collect { renderFinished(it) }
+                }
+                launch {
+                    db.remoteTasks().observeAll().collect { renderRemote(it) }
                 }
             }
         }
@@ -335,6 +346,70 @@ class OperationsActivity : AppCompatActivity() {
                     task.payloadJson,
                 ) { lifecycleScope.launch { db.queuedTasks().remove(task.id) } },
             )
+        }
+    }
+
+    /**
+     * Tasks the user's other devices hold.
+     *
+     * Hidden while there are none, so a single-device user never sees the
+     * section. They run there, not here: a row can ask for a cancel, or take the
+     * task over when another Android device created it -- the extension's tasks
+     * carry no request this client can run.
+     */
+    private fun renderRemote(all: List<org.duzgun.eksiengelplus.database.RemoteTaskEntity>) {
+        remote.removeAllViews()
+        remoteHeader.visibility = if (all.isEmpty()) View.GONE else View.VISIBLE
+        for (task in all) {
+            val row = section()
+            row.addView(label("${task.description.ifBlank { "işlem" }} · ${task.ownerLabel}", bold = true))
+            val state = getString(
+                if (task.status == "QUEUED") R.string.ops_remote_queued else R.string.ops_remote_running,
+            )
+            val progress = if (task.planned > 0) " · ${task.performed} / ${task.planned}" else ""
+            val cancel = if (task.cancelRequested) " · ${getString(R.string.ops_remote_cancel_requested)}" else ""
+            row.addView(label(state + progress + cancel, small = true))
+            val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            if (!task.cancelRequested) {
+                controls.addView(
+                    action(R.string.ops_remote_cancel) {
+                        lifecycleScope.launch {
+                            val sent = runCatching { historySync.cancelRemote(task.taskId) }.isSuccess
+                            showMessage(
+                                UiMessage(
+                                    getString(if (sent) R.string.ops_remote_cancel_sent else R.string.ops_remote_failed),
+                                ),
+                            )
+                        }
+                    },
+                )
+            }
+            if (task.requestJson != null) {
+                controls.addView(action(R.string.ops_remote_take_over) { takeOver(task.taskId) })
+            }
+            if (controls.childCount > 0) row.addView(controls)
+            remote.addView(row)
+        }
+    }
+
+    private fun takeOver(taskId: String) {
+        lifecycleScope.launch {
+            val outcome = runCatching { historySync.takeOver(taskId) }
+            val request = outcome.getOrNull()
+            if (request == null) {
+                val busy = (outcome.exceptionOrNull() as? org.duzgun.eksiengelplus.ops.runtime.HistoryClient.HttpError)
+                    ?.code == 409
+                showMessage(UiMessage(getString(if (busy) R.string.ops_remote_busy else R.string.ops_remote_failed)))
+                return@launch
+            }
+            // Same id: the ledger sees one task change hands, not a new one appear.
+            OperationWorker.enqueue(
+                WorkManager.getInstance(applicationContext),
+                db = db,
+                operationId = taskId,
+                request = request,
+            )
+            showMessage(UiMessage(getString(R.string.ops_remote_taken_over)))
         }
     }
 

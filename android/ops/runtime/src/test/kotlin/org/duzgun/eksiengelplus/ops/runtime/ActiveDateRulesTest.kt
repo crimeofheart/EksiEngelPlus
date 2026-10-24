@@ -130,7 +130,7 @@ class ActiveDateRulesTest {
     /**
      * And a date-based undo the user composed is still filtered, by its own
      * criterion. That is the whole feature -- the extension's default
-     * composition is an unmute (config.js:58-66).
+     * composition is an unmute (config.js:74-82).
      */
     @Test fun `a composed undo is filtered by the criterion it carries`() {
         val config = EksiConfig()

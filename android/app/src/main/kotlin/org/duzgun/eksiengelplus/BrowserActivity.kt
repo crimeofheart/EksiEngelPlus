@@ -185,6 +185,10 @@ class BrowserActivity : AppCompatActivity() {
          * which is resumable, and until now nothing called it.
          */
         lifecycleScope.launch { reconciler.reconcile() }
+        // Kept by WorkManager across restarts; KEEP makes this a no-op once scheduled.
+        org.duzgun.eksiengelplus.ops.runtime.HistorySyncWorker.schedulePeriodic(
+            androidx.work.WorkManager.getInstance(applicationContext),
+        )
         // Before the config is first read, so a corrected default is what the
         // screens and the engine see rather than the stale stored value.
         lifecycleScope.launch { configRepository.migrate() }

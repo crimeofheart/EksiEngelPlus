@@ -156,6 +156,9 @@ class OperationWorker @AssistedInject constructor(
                         payloadJson = Json.encodeToString(OperationRequest.serializer(), request),
                         status = "QUEUED",
                         enqueuedAt = System.currentTimeMillis(),
+                        // The id the run keeps once adopted, so the history
+                        // ledger sees one task from the queue to the archive.
+                        taskId = operationId,
                     ),
                 )
                 true
@@ -193,14 +196,33 @@ class OperationWorker @AssistedInject constructor(
          * so every later drain read the same row and the queue never moved
          * again.
          */
-        internal suspend fun takeNextQueued(db: EksiDatabase): OperationRequest? {
+        internal suspend fun takeNextQueued(db: EksiDatabase): QueuedRun? {
             while (true) {
                 val next = db.queuedTasks().next() ?: return null
                 db.queuedTasks().remove(next.id)
                 runCatching {
                     Json.decodeFromString(OperationRequest.serializer(), next.payloadJson)
-                }.getOrNull()?.let { return it }
+                }.getOrNull()?.let {
+                    // Rows queued before the ledger carry no id; they get one now.
+                    return QueuedRun(next.taskId ?: java.util.UUID.randomUUID().toString(), it)
+                }
             }
+        }
+
+        /**
+         * Takes the next queued run and writes its checkpoint in one transaction,
+         * then schedules it.
+         *
+         * One transaction so there is no moment at which the task is in neither
+         * table: history sync derives task states from them, and a task found in
+         * neither reads as cancelled -- a status that never changes again.
+         */
+        suspend fun startNextQueued(wm: WorkManager, db: EksiDatabase): Boolean {
+            val run = db.withTransaction {
+                takeNextQueued(db)?.also { db.checkpoints().upsert(freshCheckpoint(it.taskId, it.request)) }
+            } ?: return false
+            schedule(wm, run.taskId)
+            return true
         }
 
         /** Writes the run's row and schedules it, with no queue check. */
@@ -211,7 +233,11 @@ class OperationWorker @AssistedInject constructor(
             request: OperationRequest,
         ) {
             db.checkpoints().upsert(freshCheckpoint(operationId, request))
+            schedule(wm, operationId)
+        }
 
+        /** Schedules a run whose checkpoint is already written. */
+        private fun schedule(wm: WorkManager, operationId: String) {
             val data = Data.Builder()
                 .putString(KEY_OPERATION_ID, operationId)
                 .build()
@@ -537,6 +563,20 @@ class OperationWorker @AssistedInject constructor(
          */
         val config = configRepository.config.first()
         val activeRules = activeDateRules(request, config)
+
+        /*
+         * Who the outcomes belong to. Resolved up front only when history sync is
+         * on -- it is two page reads the first time, cached after -- and without
+         * it nothing is recorded: an event the server cannot attribute is one it
+         * would refuse.
+         */
+        val history = if (config.syncHistory) {
+            resolveEksiUser()?.let { (nick, userId) -> HistoryRecording(operationId, userId, nick) }
+        } else {
+            null
+        }
+        val workManager = WorkManager.getInstance(applicationContext)
+        if (history != null) HistorySyncWorker.syncNow(workManager)
         val today = java.time.LocalDate.now(org.duzgun.eksiengelplus.model.TurkishDateParser.ZONE).toEpochDay()
 
         val ctx = RoomOperationContext(
@@ -575,6 +615,8 @@ class OperationWorker @AssistedInject constructor(
                 notifier.budgetWarning(remainingItems = lastRemaining, launchIntent = launch)
             },
             onCollecting = { found -> collecting.set(operationId, found) },
+            history = history,
+            onHistoryDue = { HistorySyncWorker.syncNow(workManager) },
             onProgress = { p ->
                 // The target list exists now, so the collecting line must go:
                 // leaving it would have the row showing both a count of what was
@@ -631,10 +673,12 @@ class OperationWorker @AssistedInject constructor(
 
         collecting.clear(operationId)
         commands.clear(operationId)
+        ctx.flushHistory()
+        if (history != null) HistorySyncWorker.syncNow(workManager)
 
         return when (outcome) {
             OperationOutcome.COMPLETED -> {
-                val archived = archive(request, ctx.logs(), ctx.targets())
+                val archived = archive(request, ctx.logs(), ctx.targets(), stopped = false)
                 handedOffTo = archived.next
 
                 /*
@@ -684,7 +728,7 @@ class OperationWorker @AssistedInject constructor(
                 Result.success()
             }
             OperationOutcome.STOPPED -> {
-                handedOffTo = archive(request, ctx.logs(), ctx.targets()).next
+                handedOffTo = archive(request, ctx.logs(), ctx.targets(), stopped = true).next
                 // recordState only writes if the row is still there, so a run
                 // stopped by cancellation stays deleted rather than coming back
                 // as a stopped one.
@@ -749,6 +793,7 @@ class OperationWorker @AssistedInject constructor(
         request: OperationRequest,
         logLines: List<String>,
         targets: List<Pair<String, Long>>,
+        stopped: Boolean,
     ): Archived {
         val archived = db.withTransaction {
             val next = adoptNextQueued()
@@ -772,6 +817,8 @@ class OperationWorker @AssistedInject constructor(
                     // history screen replays the run from this, and the checkpoint
                     // that held it does not survive the next two lines.
                     requestJson = Json.encodeToString(OperationRequest.serializer(), request),
+                    taskId = operationId,
+                    stopped = stopped,
                 ),
             )
             db.checkpoints().remove(operationId)
@@ -825,6 +872,8 @@ class OperationWorker @AssistedInject constructor(
                 isEarlyStopped = cp.processed < cp.total,
                 logLines = logLines,
                 targets = targets,
+                taskId = operationId,
+                syncingHistory = config.syncHistory,
             ),
             now = System.currentTimeMillis(),
         )
@@ -936,10 +985,10 @@ class OperationWorker @AssistedInject constructor(
      * starting new work replaces whatever holds the unique name.
      */
     private suspend fun adoptNextQueued(): String? {
-        val request = takeNextQueued(db) ?: return null
-        val next = java.util.UUID.randomUUID().toString()
+        val run = takeNextQueued(db) ?: return null
+        val next = run.taskId
         db.checkpoints().upsert(
-            freshCheckpoint(next, request).copy(
+            freshCheckpoint(next, run.request).copy(
                 state = OperationState.RUNNING.name,
                 workRequestId = id.toString(),
             ),
@@ -954,6 +1003,9 @@ class OperationWorker @AssistedInject constructor(
     }
 }
 
+/** A queued request and the task id it keeps once it starts. */
+data class QueuedRun(val taskId: String, val request: OperationRequest)
+
 /**
  * The rules that gate one run's targets.
  *
@@ -964,7 +1016,7 @@ class OperationWorker @AssistedInject constructor(
  * A run's **own criterion** is a target selector the user just typed, and it
  * applies whatever the run does. The extension's default composition is itself
  * an unmute -- muted users, older than 5475 days, sessizden çıkar
- * (config.js:58-66) -- so a criterion that only worked on blocking would be no
+ * (config.js:74-82) -- so a criterion that only worked on blocking would be no
  * feature at all.
  *
  * The **saved rules** are standing protection, and they only narrow a run that

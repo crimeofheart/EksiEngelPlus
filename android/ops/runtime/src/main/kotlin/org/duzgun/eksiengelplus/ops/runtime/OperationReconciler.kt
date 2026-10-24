@@ -89,13 +89,7 @@ class OperationReconciler @Inject constructor(
      */
     private suspend fun drainQueue() {
         if (db.checkpoints().liveCount() != 0) return
-        val request = OperationWorker.takeNextQueued(db) ?: return
-        OperationWorker.startNow(
-            workManager,
-            db,
-            java.util.UUID.randomUUID().toString(),
-            request,
-        )
+        OperationWorker.startNextQueued(workManager, db)
     }
 
     /**

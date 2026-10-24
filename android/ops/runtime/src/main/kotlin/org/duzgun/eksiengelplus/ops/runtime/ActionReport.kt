@@ -40,6 +40,14 @@ object ActionReport {
         isEarlyStopped: Boolean,
         logLines: List<String>,
         targets: List<Pair<String, Long>>,
+        /** The run's history task id: its operationId. */
+        taskId: String? = null,
+        /**
+         * Whether history sync is on. Then every target already went to the
+         * ledger with its own outcome, so the report sends the count and not the
+         * list. Mirrored by background.js.
+         */
+        syncingHistory: Boolean = false,
     ): String {
         val action = buildJsonObject {
             put("eksi_engel_user", user(nick, userId))
@@ -63,12 +71,15 @@ object ActionReport {
             put(
                 "author_list",
                 buildJsonArray {
-                    for ((nick, id) in targets) {
-                        user(nick, id).takeIf { it != JsonNull }?.let { add(it) }
+                    if (!syncingHistory) {
+                        for ((nick, id) in targets) {
+                            user(nick, id).takeIf { it != JsonNull }?.let { add(it) }
+                        }
                     }
                 },
             )
             put("author_list_size", JsonPrimitive(targets.size))
+            put("task_id", taskId?.let(::JsonPrimitive) ?: JsonNull)
 
             put("planned_action", JsonPrimitive(plannedAction))
             put("performed_action", JsonPrimitive(performedAction))
@@ -93,7 +104,9 @@ object ActionReport {
 
             put("time_specifier", if (request.lastDayOnly) JsonPrimitive(TIME_LAST_24H) else JsonNull)
             put("date_criteria", JsonNull)
-            put("bulk_action", JsonNull)
+            // What a list run did, by the names the extension's author list uses,
+            // so the server can tell a list follow from a list block.
+            put("bulk_action", namedListAction(request)?.let(::JsonPrimitive) ?: JsonNull)
             put("source_list", JsonNull)
         }
 
@@ -128,6 +141,33 @@ object ActionReport {
                 put("eksisozluk_id", JsonPrimitive(id))
             }
         }
+
+    /**
+     * A LIST run's action as background.js's listAction names it, or null.
+     *
+     * Only for LIST: the other sources say what they did through target_type,
+     * which the server reads directly for this client.
+     */
+    internal fun namedListAction(request: OperationRequest): String? {
+        if (request.source != org.duzgun.eksiengelplus.model.BanSource.LIST) return null
+        val ban = request.mode == org.duzgun.eksiengelplus.model.BanMode.BAN
+        return when (request.targetType) {
+            org.duzgun.eksiengelplus.model.TargetType.FOLLOW -> if (ban) "TAKIP_ET" else "TAKIPTEN_CIKAR"
+            org.duzgun.eksiengelplus.model.TargetType.USER -> when {
+                request.thenApplyTo == org.duzgun.eksiengelplus.model.TargetType.FOLLOW && !ban ->
+                    "ENGEL_KALDIR_VE_TAKIP_ET"
+                ban -> "ENGELLE"
+                else -> "ENGEL_KALDIR"
+            }
+            org.duzgun.eksiengelplus.model.TargetType.MUTE -> when {
+                request.thenApplyTo == org.duzgun.eksiengelplus.model.TargetType.FOLLOW && !ban ->
+                    "SESSIZDEN_CIKAR_VE_TAKIP_ET"
+                ban -> "SESSIZE_AL"
+                else -> "SESSIZDEN_CIKAR"
+            }
+            org.duzgun.eksiengelplus.model.TargetType.TITLE -> null
+        }
+    }
 
     /*
      * The seeded LogLevel rows are 1..4 = DEBUG, INFO, WARNING, ERROR

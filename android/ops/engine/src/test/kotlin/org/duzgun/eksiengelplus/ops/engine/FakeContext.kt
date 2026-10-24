@@ -47,5 +47,14 @@ class FakeContext(
     override suspend fun log(message: String) { logs += message }
     override suspend fun onRateLimited(retryAfterSeconds: Int) { penalties += retryAfterSeconds }
 
+    /** Every settled relation, in order: what the history ledger would be told. */
+    val outcomes = mutableListOf<Triple<Pair<org.duzgun.eksiengelplus.model.BanMode, org.duzgun.eksiengelplus.model.TargetType>, Long, RelationOutcome>>()
+    override suspend fun recordOutcome(
+        mode: org.duzgun.eksiengelplus.model.BanMode,
+        targetType: org.duzgun.eksiengelplus.model.TargetType,
+        id: Long,
+        outcome: RelationOutcome,
+    ) { outcomes += Triple(mode to targetType, id, outcome) }
+
     val lastCheckpoint: OperationCursor? get() = checkpoints.lastOrNull()
 }

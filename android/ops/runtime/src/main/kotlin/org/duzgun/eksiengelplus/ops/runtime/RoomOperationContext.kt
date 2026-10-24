@@ -147,7 +147,52 @@ class RoomOperationContext(
      */
     private val onBudgetWarning: suspend (remainingMs: Long) -> Unit = {},
     private val clock: () -> Long = System::currentTimeMillis,
+    /**
+     * Who the run acts as, for the history ledger; null when history sync is off
+     * or the user is not known, and then no outcome is written anywhere.
+     */
+    private val history: HistoryRecording? = null,
+    /** Asked for when enough has been written that the other devices should hear it. */
+    private val onHistoryDue: () -> Unit = {},
 ) : OperationContext, RateLimitAware {
+
+    /** Outcomes since the last checkpoint. They commit with it, or not at all. */
+    private val pendingHistory = ArrayList<org.duzgun.eksiengelplus.database.HistoryOutboxEntity>()
+    private var historySinceDue = 0
+    private var historyDueAt = clock()
+
+    override suspend fun recordOutcome(
+        mode: org.duzgun.eksiengelplus.model.BanMode,
+        targetType: org.duzgun.eksiengelplus.model.TargetType,
+        id: Long,
+        outcome: org.duzgun.eksiengelplus.ops.engine.RelationOutcome,
+    ) {
+        val recording = history ?: return
+        pendingHistory += recording.row(mode, targetType, id, outcome)
+    }
+
+    /** After a commit: the rows are on disk, and a push may be due. */
+    private fun historyCommitted() {
+        if (pendingHistory.isEmpty()) return
+        historySinceDue += pendingHistory.size
+        pendingHistory.clear()
+        if (historySinceDue >= HISTORY_DUE_EVERY || clock() - historyDueAt >= HISTORY_DUE_MS) {
+            historySinceDue = 0
+            historyDueAt = clock()
+            onHistoryDue()
+        }
+    }
+
+    /**
+     * Writes outcomes left over after the last checkpoint, for a task that ended
+     * without one. Every TargetRunner path checkpoints on the way out, so this is
+     * a backstop, not the route.
+     */
+    suspend fun flushHistory() {
+        if (pendingHistory.isEmpty()) return
+        db.historyOutbox().addAll(pendingHistory.toList())
+        historyCommitted()
+    }
 
     private val logBuffer = ArrayDeque<String>()
 
@@ -174,7 +219,14 @@ class RoomOperationContext(
     @Volatile private var lastTotal: Int = 0
 
     override suspend fun checkpoint(cursor: OperationCursor, effects: suspend () -> Unit) {
-        db.withTransaction {
+        val alive = db.withTransaction {
+            /*
+             * The outcomes first, and whatever happens to the row. A run cancelled
+             * mid-way still changed what the user holds for the targets it
+             * reached, and losing those would make the ledger disagree with the
+             * site. The cursor and its rows are a separate matter, handled below.
+             */
+            if (pendingHistory.isNotEmpty()) db.historyOutbox().addAll(pendingHistory.toList())
             /*
              * A missing row means the run was cancelled while it was working.
              *
@@ -182,9 +234,10 @@ class RoomOperationContext(
              * exactly what happened: cancelling deleted the checkpoint, the live
              * worker rebuilt it on its next pass, and the app was left reporting
              * an operation in progress that nothing could pause, stop or resume,
-             * because RUNNING is neither terminal nor resumable.
+             * because RUNNING is neither terminal nor resumable. The StopSignal is
+             * raised once the outcomes above have committed.
              */
-            val existing = db.checkpoints().get(operationId) ?: throw StopSignal()
+            val existing = db.checkpoints().get(operationId) ?: return@withTransaction false
             effects()
             db.checkpoints().upsert(
                 OperationCheckpointEntity(
@@ -209,7 +262,10 @@ class RoomOperationContext(
                     requestJson = Json.encodeToString(OperationRequest.serializer(), request),
                 ),
             )
+            true
         }
+        historyCommitted()
+        if (!alive) throw StopSignal()
     }
 
     override suspend fun allows(nick: String): Boolean = allowTarget(nick)
@@ -284,5 +340,9 @@ class RoomOperationContext(
 
     private companion object {
         const val MAX_REPORTED_TARGETS = 10_000
+
+        /** While a run goes: push every 25 outcomes or every minute, whichever first. */
+        const val HISTORY_DUE_EVERY = 25
+        const val HISTORY_DUE_MS = 60_000L
     }
 }

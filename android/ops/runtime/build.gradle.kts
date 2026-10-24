@@ -90,4 +90,5 @@ dependencies {
     androidTestImplementation(libs.truth)
     androidTestImplementation(libs.work.testing)
     androidTestImplementation(libs.kotlin.coroutines.test)
+    androidTestImplementation(libs.okhttp.mockwebserver)
 }

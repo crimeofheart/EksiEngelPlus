@@ -151,9 +151,38 @@ class IdentityRepository(private val store: DataStore<Identity>) {
         if (nick.isBlank()) return
         store.updateData { it.copy(eksiNick = nick, eksiUserId = userId) }
     }
+
+    /**
+     * The history sync device token, or blank to forget it.
+     *
+     * Here and not in config, so resetting settings does not detach the device
+     * from its account; blank after the account is erased, so the next sync
+     * enrols afresh.
+     */
+    suspend fun rememberHistoryToken(token: String) {
+        store.updateData { it.copy(historyDeviceToken = token) }
+    }
 }
 
 object Stores {
+    /**
+     * Repositories over files of the caller's choosing. For tests: DataStore
+     * refuses two live instances on one file, so each test needs its own.
+     */
+    fun configRepositoryAt(file: java.io.File): ConfigRepository = ConfigRepository(
+        DataStoreFactory.create(
+            serializer = JsonSerializer(EksiConfig.serializer(), EksiConfig()),
+            produceFile = { file },
+        ),
+    )
+
+    fun identityRepositoryAt(file: java.io.File): IdentityRepository = IdentityRepository(
+        DataStoreFactory.create(
+            serializer = JsonSerializer(Identity.serializer(), Identity()),
+            produceFile = { file },
+        ),
+    )
+
     fun config(context: Context): DataStore<EksiConfig> = DataStoreFactory.create(
         serializer = JsonSerializer(EksiConfig.serializer(), EksiConfig()),
         produceFile = { context.dataStoreFile("config.json") },

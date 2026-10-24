@@ -77,6 +77,12 @@ data class QueuedTaskEntity(
     val payloadJson: String,
     val status: String,
     val enqueuedAt: Long,
+    /**
+     * The id the run will have once it starts, and the history ledger's task id
+     * from the moment it is queued. Null on rows queued before the ledger, which
+     * get a fresh one when they are adopted.
+     */
+    val taskId: String? = null,
 )
 
 /**
@@ -132,6 +138,11 @@ data class CompletedOperationEntity(
      * was archived. Those rows offer neither action rather than guessing.
      */
     val requestJson: String? = null,
+    /** The run's history task id: the checkpoint's operationId. Null before the ledger. */
+    val taskId: String? = null,
+    /** Ended by Durdur rather than by running out of targets. */
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val stopped: Boolean = false,
 )
 
 /** The pasted author list, replacing the userList storage key. */
@@ -151,4 +162,84 @@ data class TelemetryOutboxEntity(
     val bodyJson: String,
     val attempts: Int,
     val nextAttemptAt: Long,
+)
+
+/**
+ * One settled outcome, waiting to reach the history ledger.
+ *
+ * Written in the same transaction as the checkpoint that records the target as
+ * processed, so a crash leaves both or neither. Deleted only once the server has
+ * acknowledged the event id -- never abandoned after N attempts the way
+ * telemetry_outbox is, because history is meant to be complete.
+ */
+@Entity(tableName = "history_outbox", indices = [Index(value = ["eventUuid"], unique = true)])
+data class HistoryOutboxEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val eventUuid: String,
+    val taskId: String?,
+    /** Wire names: BLOCK, TITLE_BLOCK, MUTE, FOLLOW / ADD, REMOVE / OK, FAIL, SKIPPED. */
+    val kind: String,
+    val direction: String,
+    val result: String,
+    val actorId: Long,
+    val actorNick: String?,
+    val targetId: Long,
+    val targetNick: String?,
+    val occurredAt: Long,
+)
+
+/**
+ * What the server was last told about a task this device owns.
+ *
+ * The state itself is derived from queued_task, operation_checkpoint and
+ * completed_operation each time history syncs, so no cancel path in the app has
+ * to remember to report; this row is what makes the derivation incremental.
+ */
+@Entity(tableName = "history_task")
+data class HistoryTaskEntity(
+    @PrimaryKey val taskId: String,
+    val epoch: Int,
+    /** QUEUED, RUNNING, DONE, FAILED, CANCELLED, STOPPED; or LOST once another device owns it. */
+    val status: String,
+    val banSourcePk: Int,
+    val banModePk: Int,
+    val description: String,
+    val requestJson: String?,
+    val actorId: Long?,
+    val planned: Int,
+    val performed: Int,
+    val successful: Int,
+    val createdAt: Long,
+    /** Another device asked for a cancel; the run's end is then reported as CANCELLED. */
+    val cancelRequested: Boolean = false,
+    /** Whether the server has the current state. */
+    val pushed: Boolean = false,
+)
+
+/** A task another device holds, as the last pull described it. */
+@Entity(tableName = "remote_task")
+data class RemoteTaskEntity(
+    @PrimaryKey val taskId: String,
+    val description: String,
+    val status: String,
+    val ownerLabel: String,
+    val ownerClient: String?,
+    val performed: Int,
+    val planned: Int,
+    val cancelRequested: Boolean,
+    /** The task's OperationRequest when an Android device created it, so it can run here. */
+    val requestJson: String?,
+    val updatedAt: Long,
+)
+
+/** Where history sync stands. One row, id 0. */
+@Entity(tableName = "history_sync_state")
+data class HistorySyncStateEntity(
+    @PrimaryKey val id: Int = 0,
+    val cursor: Long = 0,
+    val failures: Int = 0,
+    val backoffUntil: Long = 0,
+    val lastSyncAt: Long = 0,
+    /** Events the outbox could not keep. Room has no cap today, so this stays 0. */
+    val droppedEvents: Long = 0,
 )

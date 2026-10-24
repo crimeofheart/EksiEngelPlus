@@ -26,6 +26,27 @@
 
     <string name="settings_group_telemetry">veri</string>
     <string name="settings_send_data">kullanım verisi gönder</string>
+    <string name="settings_sync_history">işlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle</string>
+    <string name="settings_sync_history_hint">her engelleme, sessize alma ve takip işleminin sonucu saklanır; kuyruğunuz eklentinin kurulumları ve bu uygulama arasında eşitlenir. kapatırsanız hiçbir şey gönderilmez.</string>
+    <string name="settings_history_off">eşitleme kapalı: hiçbir işlem sonucu gönderilmiyor</string>
+    <string name="settings_history_waiting">eşitleme açık · bu cihaz ilk işlemde kaydedilecek</string>
+    <string name="settings_history_status">eşitleme açık · son eşitleme: %1$s · bekleyen: %2$d</string>
+    <string name="settings_history_never">henüz yok</string>
+    <string name="settings_pair_start">kod oluştur</string>
+    <string name="settings_pair_claim">kodla bağla</string>
+    <string name="settings_pair_code">diğer cihazda bu kodu girin (10 dakika geçerli):\n\n%1$s</string>
+    <string name="settings_pair_claim_title">cihaz bağla</string>
+    <string name="settings_pair_claim_hint">XXXX-XXXX</string>
+    <string name="settings_pair_claim_ok">bağla</string>
+    <string name="settings_pair_done">bu cihaz bağlandı</string>
+    <string name="settings_pair_failed">kod geçersiz ya da süresi dolmuş</string>
+    <string name="settings_history_failed">sunucuya ulaşılamadı, sonra tekrar deneyin</string>
+    <string name="settings_history_delete">sunucudaki verilerimi sil</string>
+    <string name="settings_history_delete_title">sunucudaki veriler silinsin mi?</string>
+    <string name="settings_history_delete_body">bu cihazların eşitlediği işlem geçmişi ve kuyruk sunucudan kalıcı olarak silinir, ardından eşitleme kapanır. "kullanım verisi gönder" açıkken gönderilen işlem raporları bu kapsamda değildir; onlar için bizimle iletişime geçin.</string>
+    <string name="settings_history_delete_confirm">sil</string>
+    <string name="settings_history_deleted">sunucudaki verileriniz silindi ve eşitleme kapatıldı</string>
+    <string name="settings_cancel">vazgeç</string>
     <string name="settings_send_log">hata kaydı gönder</string>
 
     <string name="settings_group_filter">tarih filtresi</string>

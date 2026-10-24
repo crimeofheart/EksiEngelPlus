@@ -37,6 +37,8 @@ class ActionReportTest {
         userId: Long = 7,
         logLines: List<String> = emptyList(),
         targets: List<Pair<String, Long>> = listOf("victim" to 99L),
+        taskId: String? = null,
+        syncingHistory: Boolean = false,
     ): JsonObject = Json.parseToJsonElement(
         ActionReport.body(
             request = request,
@@ -51,6 +53,8 @@ class ActionReportTest {
             isEarlyStopped = true,
             logLines = logLines,
             targets = targets,
+            taskId = taskId,
+            syncingHistory = syncingHistory,
         ),
     ).jsonObject
 
@@ -163,5 +167,27 @@ class ActionReportTest {
         val a = body(targets = emptyList()).action
         assertThat(a["author_list"]!!.toString()).isEqualTo("[]")
         assertThat(a["author_list_size"]!!.jsonPrimitive.content).isEqualTo("0")
+    }
+
+    @Test fun `with history sync on the report carries the count, not the list`() {
+        val targets = listOf("a" to 1L, "b" to 2L, "c" to 3L)
+        val on = body(targets = targets, syncingHistory = true, taskId = "task-1").action
+        assertThat(on["author_list"]!!.jsonArray).isEmpty()
+        assertThat(on["author_list_size"]!!.jsonPrimitive.content).isEqualTo("3")
+        assertThat(on["task_id"]!!.jsonPrimitive.content).isEqualTo("task-1")
+        val off = body(targets = targets, syncingHistory = false).action
+        assertThat(off["author_list"]!!.jsonArray).hasSize(3)
+        assertThat(off["task_id"]).isEqualTo(JsonNull)
+    }
+
+    @Test fun `a list run names its action, the way the extension's author list does`() {
+        fun named(mode: BanMode, type: TargetType, then: TargetType? = null) = body(
+            request = OperationRequest(BanSource.LIST, mode, type, nicks = listOf("x"), thenApplyTo = then),
+        ).action["bulk_action"]
+        assertThat(named(BanMode.BAN, TargetType.USER)!!.jsonPrimitive.content).isEqualTo("ENGELLE")
+        assertThat(named(BanMode.BAN, TargetType.FOLLOW)!!.jsonPrimitive.content).isEqualTo("TAKIP_ET")
+        assertThat(named(BanMode.UNDOBAN, TargetType.MUTE, TargetType.FOLLOW)!!.jsonPrimitive.content)
+            .isEqualTo("SESSIZDEN_CIKAR_VE_TAKIP_ET")
+        assertThat(body().action["bulk_action"]).isEqualTo(JsonNull)
     }
 }

@@ -56,7 +56,7 @@ class ParityTest {
      */
     private val deliberatelyDifferentDefault = mapOf(
         "enableDateFilter" to
-            "On here, off in config.js:36. The extension's default rule cannot " +
+            "On here, off in config.js:40. The extension's default rule cannot " +
             "protect anyone -- utils.js:238 blocks every user who matched no " +
             "rule, so a decade-old account falls through it and is blocked " +
             "anyway. This client requires every enabled rule to pass and " +

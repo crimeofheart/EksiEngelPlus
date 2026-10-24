@@ -66,6 +66,40 @@ object OpsModule {
     fun runner(relations: RelationClient, scrape: ScrapeClient) = TargetRunner(relations, scrape)
 
     /**
+     * History sync, shared by its worker and the screens that pair, cancel or erase.
+     *
+     * The sync routes sit beside the report endpoint, and authenticate enrolment
+     * with the same shared key the report uses.
+     */
+    @Provides @Singleton
+    fun historySync(
+        @ApplicationContext context: Context,
+        db: EksiDatabase,
+        config: org.duzgun.eksiengelplus.datastore.ConfigRepository,
+        identity: org.duzgun.eksiengelplus.datastore.IdentityRepository,
+        http: okhttp3.OkHttpClient,
+        commands: OperationCommandBus,
+    ): org.duzgun.eksiengelplus.ops.runtime.HistorySync =
+        org.duzgun.eksiengelplus.ops.runtime.HistorySync(
+            db = db,
+            config = config,
+            identity = identity,
+            client = org.duzgun.eksiengelplus.ops.runtime.HistoryClient(
+                http,
+                org.duzgun.eksiengelplus.ops.runtime.BuildConfig.TELEMETRY_URL,
+                org.duzgun.eksiengelplus.ops.runtime.BuildConfig.TELEMETRY_KEY,
+            ),
+            commands = commands,
+            describe = { request ->
+                request?.let { org.duzgun.eksiengelplus.ops.runtime.OperationLabel.of(context, it) }.orEmpty()
+            },
+            deviceLabel = "Android · ${android.os.Build.MODEL}",
+            appVersion = runCatching {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            }.getOrNull().orEmpty(),
+        )
+
+    /**
      * Persisted so a killed process does not resume with a full token bucket and
      * fire a burst at a server that already counted those requests.
      *

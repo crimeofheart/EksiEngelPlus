@@ -10,7 +10,7 @@ import org.duzgun.eksiengelplus.model.DateFilterRule
 /**
  * Ported from frontend/app/assets/js/config.js.
  *
- * Defaults are taken from config.js:25-36 and verified against it, not assumed.
+ * Defaults are taken from config.js:25-40 and verified against it, not assumed.
  * enableMute and enableProtectFollowedUsers were both wrong here until that
  * check was actually done. The
  * shared API key is deliberately absent: it belongs in BuildConfig, not in a file
@@ -33,7 +33,7 @@ data class EksiConfig(
     val enableNoobBan: Boolean = true,
     val enableProtectFollowedUsers: Boolean = true,
     val enableOnlyRequiredActions: Boolean = false,
-    /** config.js:32. Checks the existing relation before acting on it. */
+    /** config.js:36. Checks the existing relation before acting on it. */
     val enableAnalysisBeforeOperation: Boolean = true,
     val banPremiumIcons: Boolean = false,
 
@@ -70,6 +70,18 @@ data class EksiConfig(
      */
     val sendData: Boolean = true,
     val sendLog: Boolean = true,
+
+    /**
+     * Per-target history and queue sync with the user's other devices.
+     *
+     * On by default, at parity with the extension (config.js:30), and for the
+     * same reason as sendData: history only the few who enable it by hand can
+     * answer "who is blocked most" for nobody. Independent of sendData -- either
+     * can be off with the other on. While it is on, the action report sends
+     * author_list empty, because the ledger already has every target with its
+     * outcome (ActionReport). See openspec/specs/android-persistence.
+     */
+    val syncHistory: Boolean = true,
 
     /**
      * On, unlike the extension, and only because this client can honour it.
@@ -118,7 +130,7 @@ data class EksiConfig(
 
 /**
  * The chooser's last composition, defaulted to the extension's
- * createDefaultDateBulkConfig (config.js:58-66) so someone arriving from it
+ * createDefaultDateBulkConfig (config.js:74-82) so someone arriving from it
  * finds the dialog already set the way they left the other one.
  *
  * The unit is not stored. The extension keeps a `lastValueType` beside its
@@ -204,4 +216,10 @@ data class Identity(
      * install sees the notes for what it installed rather than nothing.
      */
     val lastNotesVersion: String = "",
+    /**
+     * This install's history sync token, as /api/sync/enroll/ issued it. Blank
+     * until the first sync. Not a password: it reads only what this device's own
+     * account sent, and the server keeps nothing but its hash.
+     */
+    val historyDeviceToken: String = "",
 )

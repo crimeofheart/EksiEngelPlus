@@ -113,7 +113,7 @@ only as a crash on a user's device.
 
 Config SHALL use a **typed** DataStore — `DataStore<T>` with a custom serializer —
 not Preferences, because `dateFilterRules` is a repeated structured value
-(`config.js:43-55`) and Preferences would mean hand-parsing JSON out of a string
+(`config.js:59-71`) and Preferences would mean hand-parsing JSON out of a string
 key. It SHALL carry the eight booleans from `config.js`, the base URL, and the
 rule list. Install identity SHALL live in a separate store.
 

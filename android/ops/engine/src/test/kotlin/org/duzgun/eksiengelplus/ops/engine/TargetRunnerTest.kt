@@ -413,4 +413,28 @@ class TargetRunnerTest {
         assertThat(c.lastCheckpoint!!.failed).isEqualTo(1)
     }
 
+
+    @Test fun `each settled target is one outcome, a rate limit is none`() = runTest {
+        ok("0")
+        server.enqueue(MockResponse().setResponseCode(429).addHeader("Retry-After", "1"))
+        ok("2")
+        server.enqueue(MockResponse().setResponseCode(200).setBody("99"))
+        val c = ctx()
+        runner.applyToAll(c, targets(3))
+        assertThat(c.outcomes.map { it.second to it.third }).containsExactly(
+            1L to RelationOutcome.OK,
+            2L to RelationOutcome.SKIPPED,
+            3L to RelationOutcome.FAIL,
+        ).inOrder()
+        assertThat(c.outcomes.map { it.first }.distinct())
+            .containsExactly(BanMode.BAN to TargetType.USER)
+    }
+
+    @Test fun `a lost session reports nothing for the target it parks on`() = runTest {
+        ok()
+        server.enqueue(MockResponse().setResponseCode(302).addHeader("Location", "/giris"))
+        val c = ctx()
+        runner.applyToAll(c, targets(3))
+        assertThat(c.outcomes.map { it.second }).containsExactly(1L)
+    }
 }

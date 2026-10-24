@@ -25,14 +25,14 @@ class ConfigTest {
     @Test fun `defaults match the extension`() {
         val c = EksiConfig()
         assertThat(c.eksiSozlukUrl).isEqualTo("https://eksisozluk.com")
-        assertThat(c.enableNoobBan).isTrue()                  // config.js:29
-        assertThat(c.enableMute).isTrue()                     // config.js:30
-        assertThat(c.enableTitleBan).isFalse()                // config.js:31
-        assertThat(c.enableAnalysisBeforeOperation).isTrue()  // config.js:32
-        assertThat(c.enableOnlyRequiredActions).isFalse()     // config.js:33
-        assertThat(c.enableProtectFollowedUsers).isTrue()     // config.js:34
-        assertThat(c.banPremiumIcons).isFalse()               // config.js:35
-        // Deliberate divergence from config.js:36, which ships this off. The
+        assertThat(c.enableNoobBan).isTrue()                  // config.js:33
+        assertThat(c.enableMute).isTrue()                     // config.js:34
+        assertThat(c.enableTitleBan).isFalse()                // config.js:35
+        assertThat(c.enableAnalysisBeforeOperation).isTrue()  // config.js:36
+        assertThat(c.enableOnlyRequiredActions).isFalse()     // config.js:37
+        assertThat(c.enableProtectFollowedUsers).isTrue()     // config.js:38
+        assertThat(c.banPremiumIcons).isFalse()               // config.js:39
+        // Deliberate divergence from config.js:40, which ships this off. The
         // extension's own default rule cannot protect anyone -- utils.js:238
         // blocks every user who matched no rule, so a decade-old account falls
         // through it and is blocked anyway. Here every enabled rule must pass,
@@ -44,6 +44,8 @@ class ConfigTest {
         // nobody enables telemetry by hand. See openspec/specs/android-persistence.
         assertThat(c.sendData).isTrue()
         assertThat(c.sendLog).isTrue()
+        // config.js:30, and on for the same reason. Independent of sendData.
+        assertThat(c.syncHistory).isTrue()
     }
 
     /**
@@ -77,10 +79,25 @@ class ConfigTest {
         assertThat(back.sendLog).isFalse()
     }
 
+    @Test fun `history sync turns off on its own and survives a round trip`() {
+        val off = EksiConfig(syncHistory = false)
+        val back = json.decodeFromString(
+            EksiConfig.serializer(),
+            json.encodeToString(EksiConfig.serializer(), off),
+        )
+        assertThat(back.syncHistory).isFalse()
+        assertThat(back.sendData).isTrue()
+    }
+
+    @Test fun `a config stored before history sync existed reads as on`() {
+        val old = json.decodeFromString(EksiConfig.serializer(), """{"sendData":false}""")
+        assertThat(old.syncHistory).isTrue()
+    }
+
     @Test fun `a fresh install already protects fifteen-year-old accounts`() {
         val rule = EksiConfig().dateFilterRules.single()
 
-        // The extension's values, field for field (config.js:43-55).
+        // The extension's values, field for field (config.js:59-71).
         assertThat(rule.id).isEqualTo("block-new-users")
         assertThat(rule.criteria).isEqualTo(DateCriteria.NEWER_THAN)
         assertThat(rule.days).isEqualTo(5475)

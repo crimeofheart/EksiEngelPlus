@@ -81,6 +81,7 @@ class SettingsActivity : AppCompatActivity() {
             bind(R.id.switchDateFilter, { it.enableDateFilter }, { c, v -> c.copy(enableDateFilter = v) }),
             bind(R.id.switchSendData, { it.sendData }, { c, v -> c.copy(sendData = v) }),
             bind(R.id.switchSendLog, { it.sendLog }, { c, v -> c.copy(sendLog = v) }),
+            bind(R.id.switchSyncHistory, { it.syncHistory }, { c, v -> c.copy(syncHistory = v) }),
         )
 
         rulesSection = findViewById(R.id.rulesSection)
@@ -92,6 +93,10 @@ class SettingsActivity : AppCompatActivity() {
         dbStats = findViewById(R.id.dbStats)
         findViewById<android.widget.Button>(R.id.clearCache).setOnClickListener { clearCache() }
         findViewById<android.widget.Button>(R.id.clearData).setOnClickListener { confirmClearData() }
+        historyStatus = findViewById(R.id.historyStatus)
+        findViewById<android.widget.Button>(R.id.historyPairStart).setOnClickListener { pairStart() }
+        findViewById<android.widget.Button>(R.id.historyPairClaim).setOnClickListener { pairClaim() }
+        findViewById<android.widget.Button>(R.id.historyDelete).setOnClickListener { confirmHistoryDelete() }
         findViewById<android.widget.Button>(R.id.openReleaseNotes).setOnClickListener {
             startActivity(ReleaseNotesActivity.intent(this, appVersion()))
         }
@@ -103,6 +108,15 @@ class SettingsActivity : AppCompatActivity() {
                     switches.forEach { (view, b) -> view.isChecked = b.read(config) }
                     renderRules(config)
                     binding = false
+                    if (config.syncHistory) {
+                        org.duzgun.eksiengelplus.ops.runtime.HistorySyncWorker.syncNow(
+                            androidx.work.WorkManager.getInstance(applicationContext),
+                        )
+                    } else {
+                        // Off means nothing pending may leave the device later.
+                        historySync.dropPending()
+                    }
+                    refreshHistoryStatus()
                 }
             }
         }
@@ -321,6 +335,84 @@ class SettingsActivity : AppCompatActivity() {
                     toast(R.string.settings_clear_refused)
             }
         }
+    }
+
+    // ---------------------------------------------------------- history sync
+
+    @Inject lateinit var historySync: org.duzgun.eksiengelplus.ops.runtime.HistorySync
+    private lateinit var historyStatus: android.widget.TextView
+
+    private fun refreshHistoryStatus() {
+        lifecycleScope.launch {
+            val status = historySync.status()
+            historyStatus.text = when {
+                !status.enabled -> getString(R.string.settings_history_off)
+                !status.enrolled -> getString(R.string.settings_history_waiting)
+                else -> getString(
+                    R.string.settings_history_status,
+                    if (status.lastSyncAt > 0) {
+                        java.text.DateFormat.getDateTimeInstance().format(java.util.Date(status.lastSyncAt))
+                    } else {
+                        getString(R.string.settings_history_never)
+                    },
+                    status.pendingEvents,
+                )
+            }
+            for (id in listOf(R.id.historyPairStart, R.id.historyPairClaim)) {
+                findViewById<android.widget.Button>(id).isEnabled = status.enabled
+            }
+        }
+    }
+
+    private fun pairStart() {
+        lifecycleScope.launch {
+            val code = runCatching { historySync.pairStart() }.getOrNull()
+            if (code == null) {
+                toast(R.string.settings_history_failed)
+                return@launch
+            }
+            androidx.appcompat.app.AlertDialog.Builder(this@SettingsActivity)
+                .setMessage(getString(R.string.settings_pair_code, code))
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        }
+    }
+
+    private fun pairClaim() {
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.settings_pair_claim_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.settings_pair_claim_title)
+            .setView(input)
+            .setPositiveButton(R.string.settings_pair_claim_ok) { _, _ ->
+                val code = input.text.toString().trim()
+                if (code.isEmpty()) return@setPositiveButton
+                lifecycleScope.launch {
+                    val ok = runCatching { historySync.pairClaim(code) }.isSuccess
+                    toast(if (ok) R.string.settings_pair_done else R.string.settings_pair_failed)
+                    refreshHistoryStatus()
+                }
+            }
+            .setNegativeButton(R.string.settings_cancel, null)
+            .show()
+    }
+
+    private fun confirmHistoryDelete() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.settings_history_delete_title)
+            .setMessage(R.string.settings_history_delete_body)
+            .setPositiveButton(R.string.settings_history_delete_confirm) { _, _ ->
+                lifecycleScope.launch {
+                    val ok = runCatching { historySync.deleteAccount() }.isSuccess
+                    toast(if (ok) R.string.settings_history_deleted else R.string.settings_history_failed)
+                    refreshHistoryStatus()
+                }
+            }
+            .setNegativeButton(R.string.settings_cancel, null)
+            .show()
     }
 
     private fun toast(res: Int) =

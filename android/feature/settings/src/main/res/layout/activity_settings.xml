@@ -210,6 +210,47 @@
             android:textSize="15sp"
             android:text="@string/settings_send_log"/>
 
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchSyncHistory"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="10dp" android:paddingBottom="2dp"
+            android:textSize="15sp"
+            android:text="@string/settings_sync_history"/>
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="12sp" android:alpha="0.7" android:paddingBottom="6dp"
+            android:text="@string/settings_sync_history_hint"/>
+
+        <TextView
+            android:id="@+id/historyStatus"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="13sp" android:paddingBottom="6dp"
+            android:text="@string/settings_storage_loading"/>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent" android:layout_height="wrap_content">
+            <Button
+                android:id="@+id/historyPairStart"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/settings_pair_start"/>
+            <Button
+                android:id="@+id/historyPairClaim"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/settings_pair_claim"/>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/historyDelete"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/settings_history_delete"/>
+
         <TextView
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/settings_group_storage"

@@ -390,7 +390,15 @@ class TargetRunner(
             val result = relations.perform(mode, targetType, id)
 
             when (val decision = retry.decide(result, attempt)) {
-                is RetryPolicy.Decision.Done -> return Applied.Ok
+                is RetryPolicy.Decision.Done -> {
+                    ctx.recordOutcome(
+                        mode,
+                        targetType,
+                        id,
+                        if (result is RelationResult.AlreadyInState) RelationOutcome.SKIPPED else RelationOutcome.OK,
+                    )
+                    return Applied.Ok
+                }
                 is RetryPolicy.Decision.RetryAfter -> {
                     // Hand the delay to the pacer so every caller waits, not just
                     // this one. That is the whole reason the client returns the
@@ -402,6 +410,12 @@ class TargetRunner(
                     // Keep the actual status/code; unknown codes are not evidence
                     // that this target has blocked the authenticated user.
                     ctx.log("relation failed: id=$id mode=$mode type=$targetType result=$result")
+                    // Mirrored by relationHandler.js: a rate limit that outlasted
+                    // the retries settled nothing, and a lost session is retried
+                    // once the user is back, so only a real refusal is a FAIL.
+                    if (result !is RelationResult.SessionExpired && result !is RelationResult.RateLimited) {
+                        ctx.recordOutcome(mode, targetType, id, RelationOutcome.FAIL)
+                    }
                     return if (result is RelationResult.SessionExpired) Applied.SessionGone
                     else Applied.Failed
                 }

@@ -160,6 +160,12 @@ interface QueuedTaskDao {
 
     @Query("SELECT COUNT(*) FROM queued_task")
     fun count(): Flow<Int>
+
+    @Query("SELECT * FROM queued_task ORDER BY seq ASC")
+    suspend fun all(): List<QueuedTaskEntity>
+
+    @Query("DELETE FROM queued_task WHERE taskId = :taskId")
+    suspend fun removeByTaskId(taskId: String): Int
 }
 
 @Dao
@@ -171,6 +177,9 @@ interface OperationCheckpointDao {
 
     @Query("SELECT * FROM operation_checkpoint WHERE state = :state")
     suspend fun withState(state: String): List<OperationCheckpointEntity>
+
+    @Query("SELECT * FROM operation_checkpoint")
+    suspend fun all(): List<OperationCheckpointEntity>
 
     /**
      * Runs that are actually under way.
@@ -274,6 +283,10 @@ interface CompletedOperationDao {
     @Query("SELECT * FROM completed_operation ORDER BY finishedAt DESC LIMIT :limit")
     fun recent(limit: Int = 1000): Flow<List<CompletedOperationEntity>>
 
+    /** Finished runs the history ledger may still need to hear about. */
+    @Query("SELECT * FROM completed_operation WHERE taskId IS NOT NULL AND finishedAt >= :since")
+    suspend fun recentWithTaskIds(since: Long): List<CompletedOperationEntity>
+
     @Query(
         "DELETE FROM completed_operation WHERE id NOT IN " +
             "(SELECT id FROM completed_operation ORDER BY finishedAt DESC LIMIT :keep)",
@@ -325,4 +338,64 @@ interface TelemetryOutboxDao {
 
     @Query("DELETE FROM telemetry_outbox WHERE id = :id")
     suspend fun remove(id: Long)
+}
+
+@Dao
+interface HistoryOutboxDao {
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addAll(rows: List<HistoryOutboxEntity>)
+
+    @Query("SELECT * FROM history_outbox ORDER BY id LIMIT :limit")
+    suspend fun oldest(limit: Int): List<HistoryOutboxEntity>
+
+    @Query("DELETE FROM history_outbox WHERE eventUuid IN (:uuids)")
+    suspend fun removeAll(uuids: List<String>)
+
+    @Query("SELECT COUNT(*) FROM history_outbox")
+    suspend fun count(): Int
+
+    @Query("DELETE FROM history_outbox")
+    suspend fun clear()
+}
+
+@Dao
+interface HistoryTaskDao {
+    @Upsert suspend fun upsert(row: HistoryTaskEntity)
+
+    @Query("SELECT * FROM history_task")
+    suspend fun all(): List<HistoryTaskEntity>
+
+    @Query("SELECT * FROM history_task WHERE taskId = :taskId")
+    suspend fun get(taskId: String): HistoryTaskEntity?
+
+    @Query("SELECT * FROM history_task WHERE pushed = 0 AND status != 'LOST' LIMIT :limit")
+    suspend fun unpushed(limit: Int): List<HistoryTaskEntity>
+
+    @Query("DELETE FROM history_task WHERE taskId = :taskId")
+    suspend fun remove(taskId: String)
+
+    @Query("DELETE FROM history_task")
+    suspend fun clear()
+}
+
+@Dao
+interface RemoteTaskDao {
+    @Query("SELECT * FROM remote_task ORDER BY updatedAt DESC")
+    fun observeAll(): Flow<List<RemoteTaskEntity>>
+
+    @Upsert suspend fun upsert(row: RemoteTaskEntity)
+
+    @Query("DELETE FROM remote_task WHERE taskId = :taskId")
+    suspend fun remove(taskId: String)
+
+    @Query("DELETE FROM remote_task")
+    suspend fun clear()
+}
+
+@Dao
+interface HistorySyncStateDao {
+    @Query("SELECT * FROM history_sync_state WHERE id = 0")
+    suspend fun get(): HistorySyncStateEntity?
+
+    @Upsert suspend fun upsert(row: HistorySyncStateEntity)
 }

@@ -28,6 +28,16 @@
     <string name="state_interrupted">yarım kaldı</string>
     <string name="ops_clear_pending">başlamayanları temizle</string>
     <string name="ops_finished">tamamlananlar</string>
+    <string name="ops_remote">diğer cihazlarda</string>
+    <string name="ops_remote_cancel">iptal et</string>
+    <string name="ops_remote_take_over">burada çalıştır</string>
+    <string name="ops_remote_cancel_requested">iptal istendi</string>
+    <string name="ops_remote_cancel_sent">iptal isteği gönderildi</string>
+    <string name="ops_remote_taken_over">işlem bu cihaza alındı ve sıraya eklendi</string>
+    <string name="ops_remote_busy">diğer cihaz bu işlemi hâlâ çalıştırıyor</string>
+    <string name="ops_remote_failed">sunucuya ulaşılamadı, sonra tekrar deneyin</string>
+    <string name="ops_remote_queued">sırada</string>
+    <string name="ops_remote_running">çalışıyor</string>
     <string name="ops_none">yok</string>
     <string name="ops_open">işlem durumu</string>
     <string name="bulk_title">toplu işlemler</string>

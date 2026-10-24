@@ -19,7 +19,7 @@ class DateBulkPrefsTest {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     @Test fun `a fresh install carries the extension's defaults`() {
-        // config.js:58-66.
+        // config.js:74-82.
         val prefs = DateBulkPrefs()
         assertThat(prefs.source).isEqualTo(DateBulkSource.MUTED_USERS)
         assertThat(prefs.criteria).isEqualTo(DateCriteria.OLDER_THAN)

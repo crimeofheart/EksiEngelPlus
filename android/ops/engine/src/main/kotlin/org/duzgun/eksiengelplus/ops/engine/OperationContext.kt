@@ -97,6 +97,16 @@ data class OperationProgress(
 enum class OperationOutcome { COMPLETED, PAUSED, STOPPED, PAUSED_AUTH, PAUSED_BUDGET }
 
 /**
+ * How one relation on one target settled, for the history ledger.
+ *
+ * SKIPPED is the site saying the relation was already in the requested state,
+ * which is as good as OK for what the user now holds. A rate-limited attempt is
+ * not settled and is never reported; neither is a lost session, since the run
+ * parks and the target is attempted again.
+ */
+enum class RelationOutcome { OK, SKIPPED, FAIL }
+
+/**
  * Everything a task is allowed to touch.
  *
  * Narrow on purpose. A task can pace, checkpoint, report progress and record a
@@ -161,6 +171,16 @@ interface OperationContext {
      * engine stays ignorant of what reporting is.
      */
     suspend fun recordTarget(nick: String, id: Long) {}
+
+    /**
+     * One settled relation on one target, for the history ledger.
+     *
+     * Called by TargetRunner for every relation it applies -- including the
+     * unblock or unmute a follow does first, since those really change what the
+     * user holds. A no-op by default, so a context with history off, or none at
+     * all, is unaffected.
+     */
+    suspend fun recordOutcome(mode: BanMode, targetType: TargetType, id: Long, outcome: RelationOutcome) {}
 
     /** Waits for a pacer permit before a mutation. */
     suspend fun awaitActionPermit()

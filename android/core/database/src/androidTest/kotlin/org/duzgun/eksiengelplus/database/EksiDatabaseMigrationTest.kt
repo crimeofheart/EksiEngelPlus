@@ -51,6 +51,47 @@ class EksiDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun twoToThreeAddsTheLedgerTablesAndKeepsQueueAndHistory() {
+        helper.createDatabase(NAME, 2).use { db ->
+            db.execSQL(
+                """
+                INSERT INTO queued_task
+                  (id, seq, banSourcePk, banModePk, targetTypePk, clickSourcePk, payloadJson, status, enqueuedAt)
+                VALUES (3, 1, 4, 1, 1, NULL, '{}', 'QUEUED', 50)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO completed_operation
+                  (id, banSourcePk, banModePk, processed, successful, failed,
+                   startedAt, finishedAt, summaryJson, requestJson)
+                VALUES (7, 1, 1, 3, 2, 1, 100, 200, '{}', NULL)
+                """.trimIndent(),
+            )
+        }
+
+        helper.runMigrationsAndValidate(NAME, 3, true, *EksiDatabase.MIGRATIONS).use { db ->
+            db.query("SELECT id, taskId FROM queued_task").use { row ->
+                assertThat(row.moveToFirst()).isTrue()
+                assertThat(row.getLong(0)).isEqualTo(3)
+                assertThat(row.isNull(1)).isTrue()
+            }
+            db.query("SELECT id, taskId, stopped FROM completed_operation").use { row ->
+                assertThat(row.moveToFirst()).isTrue()
+                assertThat(row.getLong(0)).isEqualTo(7)
+                assertThat(row.isNull(1)).isTrue()
+                assertThat(row.getInt(2)).isEqualTo(0)
+            }
+            for (table in listOf("history_outbox", "history_task", "remote_task", "history_sync_state")) {
+                db.query("SELECT COUNT(*) FROM $table").use { row ->
+                    assertThat(row.moveToFirst()).isTrue()
+                    assertThat(row.getInt(0)).isEqualTo(0)
+                }
+            }
+        }
+    }
+
     private companion object {
         const val NAME = "migration-test.db"
     }

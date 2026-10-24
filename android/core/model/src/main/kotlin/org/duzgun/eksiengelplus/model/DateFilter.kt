@@ -24,7 +24,7 @@ data class DateFilterRule(
 ) {
     companion object {
         /**
-         * The default rule, ported from config.js:43-55.
+         * The default rule, ported from config.js:59-71.
          *
          * Same id, same criteria, same 5475 days, and the same sentence, so a
          * user who has seen the extension's settings recognises this one.

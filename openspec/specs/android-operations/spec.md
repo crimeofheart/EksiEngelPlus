@@ -368,7 +368,7 @@ started from a different screen.
 It SHALL apply whatever direction the run takes. A criterion is a target
 selector the user has just typed, not protection, so the requirement above does
 not reach it — and the extension's own default composition is an unmute (muted
-users, older than 3650 days, sessizden çıkar; `config.js:58-66`), which a
+users, older than 3650 days, sessizden çıkar; `config.js:74-82`), which a
 criterion that worked only on blocking could not express at all.
 
 Every other source SHALL keep using the saved rules, subject to the requirement
@@ -407,7 +407,7 @@ and carrying a unit alongside it would be a second representation of one number.
 ### Requirement: The bulk chooser remembers the last composition
 
 The four choices SHALL be persisted and restored, matching
-`createDefaultDateBulkConfig` (`config.js:58-66`). A fresh install SHALL default
+`createDefaultDateBulkConfig` (`config.js:74-82`). A fresh install SHALL default
 to muted users, OLDER_THAN, 3650 days, sessizden çıkar — the extension's values,
 so someone arriving from it recognises the dialog.
 

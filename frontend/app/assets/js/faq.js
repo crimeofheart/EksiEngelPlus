@@ -216,7 +216,7 @@ function setupHistorySync() {
   });
 
   document.getElementById("historyDeleteBtn").addEventListener("click", async () => {
-    if (!confirm("Bu cihazların sunucudaki işlem geçmişi ve kuyruğu kalıcı olarak silinecek, eşitleme kapanacak. Emin misiniz?")) {
+    if (!confirm("Bu cihazların sunucudaki işlemleri ve işlem geçmişi kalıcı olarak silinecek, eşitleme kapanacak. Emin misiniz?")) {
       return;
     }
     const response = await historyRequest("historyDeleteAccount");

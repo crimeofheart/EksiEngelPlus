@@ -43,7 +43,7 @@
     <string name="settings_history_failed">sunucuya ulaşılamadı, sonra tekrar deneyin</string>
     <string name="settings_history_delete">sunucudaki verilerimi sil</string>
     <string name="settings_history_delete_title">sunucudaki veriler silinsin mi?</string>
-    <string name="settings_history_delete_body">bu cihazların eşitlediği işlem geçmişi ve kuyruk sunucudan kalıcı olarak silinir, ardından eşitleme kapanır. "kullanım verisi gönder" açıkken gönderilen işlem raporları bu kapsamda değildir; onlar için bizimle iletişime geçin.</string>
+    <string name="settings_history_delete_body">bu cihazların eşitlediği işlemler ve işlem geçmişi sunucudan kalıcı olarak silinir, ardından eşitleme kapanır. "kullanım verisi gönder" açıkken gönderilen işlem raporları bu kapsamda değildir; onlar için bizimle iletişime geçin.</string>
     <string name="settings_history_delete_confirm">sil</string>
     <string name="settings_history_deleted">sunucudaki verileriniz silindi ve eşitleme kapatıldı</string>
     <string name="settings_cancel">vazgeç</string>

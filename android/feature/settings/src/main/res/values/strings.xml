@@ -27,7 +27,7 @@
     <string name="settings_group_telemetry">veri</string>
     <string name="settings_send_data">kullanım verisi gönder</string>
     <string name="settings_sync_history">işlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle</string>
-    <string name="settings_sync_history_hint">her engelleme, sessize alma ve takip işleminin sonucu saklanır; kuyruğunuz eklentinin kurulumları ve bu uygulama arasında eşitlenir. kapatırsanız hiçbir şey gönderilmez.</string>
+    <string name="settings_sync_history_hint">her engelleme, sessize alma ve takip işleminin sonucu saklanır; işlemleriniz eklentinin kurulumları ve bu uygulama arasında eşitlenir. kapatırsanız hiçbir şey gönderilmez.</string>
     <string name="settings_history_off">eşitleme kapalı: hiçbir işlem sonucu gönderilmiyor</string>
     <string name="settings_history_waiting">eşitleme açık · bu cihaz ilk işlemde kaydedilecek</string>
     <string name="settings_history_status">eşitleme açık · son eşitleme: %1$s · bekleyen: %2$d</string>

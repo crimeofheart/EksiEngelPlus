@@ -336,16 +336,39 @@ class PairingTests(LedgerTestCase):
         self.assertEqual(self.approve(request_id).json()["status"], "APPROVED")
         self.assertEqual(self.phone.device.account_id, self.laptop.device.account_id)
         self.assertFalse(Account.objects.filter(pk=old_account).exists())
-        first = self.status(request_id)
-        self.assertEqual(first["status"], "APPROVED")
-        self.assertTrue(first["join_key"])
-        # The key is handed over once.
-        self.assertIsNone(self.status(request_id)["join_key"])
+        # The key its profile holds already moved with it: nothing to hand over.
+        self.assertEqual(self.status(request_id), {"status": "APPROVED", "join_key": None})
         self.assertEqual([x["id"] for x in self.phone.pull().json()["tasks"]], [t["id"]])
         self.assertEqual(Event.objects.get().account_id, self.laptop.device.account_id)
         with connection.cursor() as cursor:
             diff = differences(cursor)
         self.assertEqual(diff, {k: (0, 0) for k in diff})
+
+    def test_every_profiles_key_survives_a_pairing(self):
+        desktop = Client(self, label="desktop")
+        request_id = self.claim(who=desktop).json()["request_id"]
+        self.approve(request_id)
+        self.assertIsNone(desktop.http.get(f"/api/sync/pair/claim/{request_id}/").json()["join_key"])
+        # New installs on either browser profile land in the shared account.
+        for key in (self.laptop.join_key, desktop.join_key):
+            self.assertEqual(
+                Client(self, join_key=key, label="new install").device.account_id,
+                self.laptop.device.account_id,
+            )
+
+    def test_a_claimer_whose_key_was_revoked_gets_one_once(self):
+        desktop = Client(self, label="desktop")
+        Device.objects.filter(pk=desktop.device.pk).update(join_key=None)
+        request_id = self.claim(who=desktop).json()["request_id"]
+        self.approve(request_id)
+        status = lambda: desktop.http.get(f"/api/sync/pair/claim/{request_id}/").json()  # noqa: E731
+        key = status()["join_key"]
+        self.assertTrue(key)
+        self.assertIsNone(status()["join_key"])
+        self.assertEqual(
+            Client(self, join_key=key, label="new install").device.account_id,
+            self.laptop.device.account_id,
+        )
 
     def test_refused_request_moves_nothing(self):
         old_account = self.phone.device.account_id
@@ -420,6 +443,31 @@ class DeviceListTests(LedgerTestCase):
         self.assertNotEqual(again.device.account_id, laptop.device.account_id)
         rejoined = Client(self, join_key=removed.json()["join_key"], label="with new key")
         self.assertEqual(rejoined.device.account_id, laptop.device.account_id)
+
+    def test_removing_another_profiles_device_leaves_this_key(self):
+        laptop, desktop = Client(self), Client(self, label="desktop")
+        code = laptop.post("/api/sync/pair/start/").json()["code"]
+        request_id = desktop.post("/api/sync/pair/claim/", {"code": code}).json()["request_id"]
+        laptop.post(f"/api/sync/pair/requests/{request_id}/approve/")
+        removed = laptop.http.delete(f"/api/sync/devices/{desktop.device.pk}/")
+        self.assertEqual(removed.json(), {"join_key": None})
+        self.assertEqual(
+            Client(self, join_key=laptop.join_key, label="laptop again").device.account_id,
+            laptop.device.account_id,
+        )
+        self.assertNotEqual(
+            Client(self, join_key=desktop.join_key, label="desktop again").device.account_id,
+            laptop.device.account_id,
+        )
+
+    def test_removing_this_device_revokes_its_key(self):
+        laptop = Client(self)
+        removed = laptop.http.delete(f"/api/sync/devices/{laptop.device.pk}/")
+        self.assertEqual(removed.json(), {"join_key": None})
+        self.assertNotEqual(
+            Client(self, join_key=laptop.join_key, label="again").device.account_id,
+            Device.objects.get(token_hash=sync.hash_secret(laptop.token)).account_id,
+        )
 
     def test_other_accounts_devices_cannot_be_removed(self):
         laptop, stranger = Client(self), Client(self, label="stranger")

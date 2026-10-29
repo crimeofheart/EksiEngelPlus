@@ -15,15 +15,18 @@ from django.db import connection, transaction
 from django.db.models import F
 from django.utils import timezone
 
+from api.models import CLIENT_EXTENSION
+
 from . import constants as c
 from .ingest import DAY_SQL, RELATION_COLUMNS, RELATION_UPSERT_TAIL, refresh_actor_relations
 from .models import (
-    PairingRequest,
     Account,
     DailyActor,
     Device,
     Event,
+    JoinKey,
     PairingCode,
+    PairingRequest,
     RelationState,
     Task,
 )
@@ -50,6 +53,12 @@ def normalise_code(code):
     return code.translate(str.maketrans({"O": "0", "I": "1", "L": "1"}))
 
 
+def issue_join_key(account_id):
+    """(row, key): a new join key for one browser profile. Only the hash is kept."""
+    key = new_secret()
+    return JoinKey.objects.create(account_id=account_id, key_hash=hash_secret(key)), key
+
+
 def enroll(client, label="", version="", join_key=None):
     """Create a device, in the join key's account if one is given and valid.
 
@@ -57,18 +66,20 @@ def enroll(client, label="", version="", join_key=None):
     is kept. join_key is returned only when a new account was made, since the
     caller already holds it otherwise.
     """
-    account = None
+    key_row = None
     if join_key:
-        account = Account.objects.filter(
-            join_key_hash=hash_secret(join_key), kind=c.ACCOUNT_DEVICE
-        ).first()
+        key_row = (
+            JoinKey.objects.select_related("account")
+            .filter(key_hash=hash_secret(join_key), account__kind=c.ACCOUNT_DEVICE)
+            .first()
+        )
     new_join_key = None
-    if account is None:
-        new_join_key = new_secret()
-        account = Account.objects.create(join_key_hash=hash_secret(new_join_key))
+    if key_row is None:
+        key_row, new_join_key = issue_join_key(Account.objects.create().pk)
     token = new_secret()
     device = Device.objects.create(
-        account=account,
+        account=key_row.account,
+        join_key=key_row,
         token_hash=hash_secret(token),
         client=client,
         label=label[:64],
@@ -358,9 +369,10 @@ def pending_pairings(device, now=None):
 def decide_pairing(device, request_id, approve, now=None):
     """Approve or refuse a request for this device's account.
 
-    Approving moves the claimer's account into this one -- its devices, tasks and
-    history -- and rotates the join key, which the claimer collects with its next
-    status poll. Returns the request, or None when it is not this account's.
+    Approving moves the claimer's account into this one -- its devices, tasks,
+    history and join keys, so the key the claimer's browser profile already holds
+    now enrols into this account. Returns the request, or None when it is not
+    this account's.
     """
     now = now or timezone.now()
     with transaction.atomic():
@@ -379,16 +391,16 @@ def decide_pairing(device, request_id, approve, now=None):
             request.decided_at = now
             request.save(update_fields=["status", "decided_at"])
             return request
-        source_id = request.claimer.account_id
-        if source_id != device.account_id:
-            merge_accounts(source_id=source_id, target_id=device.account_id)
-        target = Account.objects.get(pk=device.account_id)
-        join_key = new_secret()
-        target.join_key_hash = hash_secret(join_key)
-        target.save(update_fields=["join_key_hash"])
+        claimer = request.claimer
+        if claimer.account_id != device.account_id:
+            merge_accounts(source_id=claimer.account_id, target_id=device.account_id)
+        claimer.refresh_from_db()
+        if claimer.join_key_id is None and claimer.client == CLIENT_EXTENSION:
+            # Its profile's key was revoked with a removed device: it needs a new one.
+            key_row, request.join_key = issue_join_key(device.account_id)
+            Device.objects.filter(pk=claimer.pk).update(join_key=key_row)
         request.status = PairingRequest.APPROVED
         request.decided_at = now
-        request.join_key = join_key
         request.save(update_fields=["status", "decided_at", "join_key"])
         return request
 
@@ -421,23 +433,32 @@ def account_devices(device):
 
 
 def remove_device(device, device_id, now=None):
-    """Revoke one of this account's devices. Returns the new join key, or None if not found.
+    """Revoke one of this account's devices. Returns (removed, new join key or None).
 
-    The join key rotates too: a removed extension's synced browser storage still
-    holds the old one, and would otherwise enrol straight back in.
+    The removed device's join key is revoked too: its profile's synced storage
+    still holds it, and would otherwise enrol straight back in. When that is also
+    the profile the removing device sits on, the remover gets a new key, which is
+    the one returned.
     """
     now = now or timezone.now()
     with transaction.atomic():
         account = _lock_account(device.account_id)
-        updated = Device.objects.filter(
-            pk=device_id, account=account, revoked_at__isnull=True
-        ).update(revoked_at=now)
-        if not updated:
-            return None
-        join_key = new_secret()
-        account.join_key_hash = hash_secret(join_key)
-        account.save(update_fields=["join_key_hash"])
-        return join_key
+        removed = (
+            Device.objects.select_for_update()
+            .filter(pk=device_id, account=account, revoked_at__isnull=True)
+            .first()
+        )
+        if removed is None:
+            return False, None
+        Device.objects.filter(pk=removed.pk).update(revoked_at=now)
+        if removed.join_key_id is None:
+            return True, None
+        JoinKey.objects.filter(pk=removed.join_key_id).delete()
+        if removed.pk == device.pk or device.join_key_id != removed.join_key_id:
+            return True, None
+        key_row, join_key = issue_join_key(account.pk)
+        Device.objects.filter(pk=device.pk).update(join_key=key_row)
+        return True, join_key
 
 
 # A device cannot settle more than this many targets a day: Ekşi allows about
@@ -473,6 +494,8 @@ def merge_accounts(source_id, target_id):
     )
     target = Account.objects.get(pk=target_id)
     Device.objects.filter(account_id=source_id).update(account_id=target_id)
+    # Every profile that could enrol into the old account now enrols into this one.
+    JoinKey.objects.filter(account_id=source_id).update(account_id=target_id)
     Event.objects.filter(account_id=source_id).update(account_id=target_id)
     for task in Task.objects.filter(account_id=source_id).order_by("change_seq"):
         _stamp(target, task)

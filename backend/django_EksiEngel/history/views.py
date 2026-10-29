@@ -250,9 +250,10 @@ class DevicesView(DeviceView):
 
 class DeviceRemoveView(DeviceView):
     def delete(self, request, device_id):
-        join_key = sync.remove_device(self.device, device_id)
-        if join_key is None:
+        removed, join_key = sync.remove_device(self.device, device_id)
+        if not removed:
             return Response(status=status.HTTP_404_NOT_FOUND)
+        # Set only when this device's profile needs a new key; keep the old one otherwise.
         return Response({"join_key": join_key})
 
 

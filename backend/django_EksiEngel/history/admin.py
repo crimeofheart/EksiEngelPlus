@@ -82,7 +82,6 @@ class AccountAdmin(ReadOnlyAdmin):
     search_fields = ("=legacy_actor_eksi_id",)
     actions = ("erase",)
     readonly_fields = ("id", "kind", "legacy_actor_eksi_id", "created_at", "change_seq")
-    exclude = ("join_key_hash",)
 
     @admin.action(description="Erase selected accounts and everything they sent")
     def erase(self, request, queryset):

@@ -290,13 +290,17 @@ await check('a refused request changes nothing', async () => {
   assert.equal(sync.data.historyJoinKey, 'join-1');
 });
 
-await check('removing a device stores the rotated join key; removing this one signs out', async () => {
-  const server = acceptingServer().on('DELETE', 'devices/5/', () => [200, { join_key: 'join-3' }])
-    .on('DELETE', 'devices/6/', () => [200, { join_key: 'join-4' }]);
+await check('removing a device keeps this key unless a new one comes; removing this one signs out', async () => {
+  const server = acceptingServer().on('DELETE', 'devices/4/', () => [200, { join_key: null }])
+    .on('DELETE', 'devices/5/', () => [200, { join_key: 'join-3' }])
+    .on('DELETE', 'devices/6/', () => [200, { join_key: null }]);
   const h = fresh(server);
   await h.flush();
+  const kept = sync.data.historyJoinKey;
+  await h.removeDevice(4, false);
+  assert.equal(sync.data.historyJoinKey, kept, 'another profile\'s device: this key stands');
   await h.removeDevice(5, false);
-  assert.equal(sync.data.historyJoinKey, 'join-3');
+  assert.equal(sync.data.historyJoinKey, 'join-3', 'it shared this key, so a new one replaces it');
   await h.removeDevice(6, true);
   assert.equal(sync.data.historyJoinKey, undefined);
   assert.equal((await h.status()).enrolled, false);

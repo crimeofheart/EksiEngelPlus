@@ -613,7 +613,8 @@ export class HistorySync {
       this.#state = emptyState();
       this.#outbox = emptyOutbox();
       await this.#saveJoinKey(null);
-    } else {
+    } else if (body.join_key) {
+      // The removed device shared this profile's key, so the server issued a new one.
       await this.#saveJoinKey(body.join_key);
     }
     await this.#persistNow();

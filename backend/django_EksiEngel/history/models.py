@@ -29,9 +29,6 @@ class Account(models.Model):
     )
     # Run reports carry no device, so their events hang off one account per actor.
     legacy_actor_eksi_id = models.IntegerField(unique=True, null=True, blank=True)
-    # SHA-256 of the key a browser profile's synced storage carries, letting a
-    # second install of the extension join without a pairing code.
-    join_key_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
     # Bumped under this row's lock on every task write; the pull cursor.
     change_seq = models.BigIntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now)
@@ -42,9 +39,29 @@ class Account(models.Model):
         return f"account {self.id}"
 
 
+class JoinKey(models.Model):
+    """The key one browser profile's synced storage carries.
+
+    A second install of the extension on that profile joins with it, no pairing
+    code needed. One per profile rather than one per account: replacing a single
+    shared key on every pairing or removal would strand the copy every other
+    profile holds, and its next install would quietly start an account of its own.
+    """
+
+    key_hash = models.CharField(max_length=64, unique=True)
+    account = models.ForeignKey(
+        Account, on_delete=models.CASCADE, related_name="join_keys"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+
 class Device(models.Model):
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name="devices"
+    )
+    # The key this device's browser profile holds; removing the device revokes it.
+    join_key = models.ForeignKey(
+        JoinKey, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
     token_hash = models.CharField(max_length=64, unique=True)
     client = models.CharField(max_length=16, choices=CLIENT_CHOICES)
@@ -92,7 +109,8 @@ class PairingRequest(models.Model):
     )
     created_at = models.DateTimeField(default=timezone.now)
     decided_at = models.DateTimeField(null=True, blank=True)
-    # Handed to the claimer once, on the first poll after approval, then cleared.
+    # A key for a claimer that holds none, handed over once on its next poll after
+    # approval, then cleared.
     join_key = models.CharField(max_length=128, blank=True, default="")
 
 

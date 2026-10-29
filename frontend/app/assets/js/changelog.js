@@ -19,6 +19,19 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.6.1": {
+    app: [
+      "Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
+      "Ayarlara bağlı cihazlar listesi eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",
+      "Kullanım kılavuzuna cihazların nasıl bağlanacağını anlatan bir bölüm eklendi."
+    ],
+    extension: [
+      "Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
+      "Ayarlar sayfasına bağlı cihazlar bölümü eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",
+      "Ayarlar sayfasına cihazların nasıl bağlanacağını anlatan kısa bir rehber eklendi.",
+      "Bir cihaz bağlandıktan ya da kaldırıldıktan sonra, başka bir tarayıcı profiline kurulan eklenti artık ayrı bir hesap açmıyor; eskisi gibi kod gerekmeden mevcut hesaba bağlanıyor."
+    ]
+  },
   "0.6.0": {
     date: "2026-10-24",
     app: [

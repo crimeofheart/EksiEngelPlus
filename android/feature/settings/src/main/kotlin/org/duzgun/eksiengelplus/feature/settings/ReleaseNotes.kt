@@ -45,6 +45,19 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.6.1" to VersionNotes(
+            app = listOf(
+                "Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
+                "Ayarlara bağlı cihazlar listesi eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",
+                "Kullanım kılavuzuna cihazların nasıl bağlanacağını anlatan bir bölüm eklendi.",
+            ),
+            extension = listOf(
+                "Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
+                "Ayarlar sayfasına bağlı cihazlar bölümü eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",
+                "Ayarlar sayfasına cihazların nasıl bağlanacağını anlatan kısa bir rehber eklendi.",
+                "Bir cihaz bağlandıktan ya da kaldırıldıktan sonra, başka bir tarayıcı profiline kurulan eklenti artık ayrı bir hesap açmıyor; eskisi gibi kod gerekmeden mevcut hesaba bağlanıyor.",
+            ),
+        ),
         "0.6.0" to VersionNotes(
             app = listOf(
                 "Yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor; kuyruğunuz da eklentinin kurulumlarıyla ve diğer Android cihazlarınızla eşitleniyor. İşlem durumunda diğer cihazlarınızdaki işlemler de görünüyor: oradan iptal edebilir, başka bir Android cihazda başlatılanları bu cihaza alıp burada çalıştırabilirsiniz.",

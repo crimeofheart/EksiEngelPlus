@@ -16,8 +16,10 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.duzgun.eksiengelplus.database.EksiDatabase
 import org.duzgun.eksiengelplus.database.HistoryOutboxEntity
+import org.duzgun.eksiengelplus.database.HistorySyncStateEntity
 import org.duzgun.eksiengelplus.database.OperationCheckpointEntity
 import org.duzgun.eksiengelplus.database.QueuedTaskEntity
+import org.duzgun.eksiengelplus.datastore.IdentityRepository
 import org.duzgun.eksiengelplus.datastore.Stores
 import org.duzgun.eksiengelplus.model.BanMode
 import org.duzgun.eksiengelplus.model.BanSource
@@ -134,10 +136,12 @@ class HistoryRuntimeTest {
 
     // --- the sync pass ---------------------------------------------------------------
 
+    private lateinit var identity: IdentityRepository
+
     private suspend fun sync(syncHistory: Boolean = true): HistorySync {
         val config = Stores.configRepositoryAt(File(dir, "config.json"))
         config.update { it.copy(syncHistory = syncHistory) }
-        val identity = Stores.identityRepositoryAt(File(dir, "identity.json"))
+        identity = Stores.identityRepositoryAt(File(dir, "identity.json"))
         identity.rememberEksiUser("me", 7)
         return HistorySync(
             db = db,
@@ -262,5 +266,90 @@ class HistoryRuntimeTest {
         val before = server.requestCount
         s.syncOnce()
         assertThat(server.requestCount).isEqualTo(before)
+    }
+
+    /** A device enrolled earlier, so a test's first request is the one it is about. */
+    private suspend fun enrolled(): HistorySync = sync().also { identity.rememberHistoryToken("tok") }
+
+    @Test fun pairingWaitsForApprovalThenPullsFromTheTop() = runTest {
+        val s = enrolled()
+        db.historySyncState().upsert(HistorySyncStateEntity(cursor = 9))
+        server.enqueue(json(202, """{"request_id":5,"status":"PENDING"}"""))
+        s.pairClaim("abcd-efgh")
+        assertThat(identity.identity.first().historyPairRequest).isEqualTo(5)
+        // Nothing moved yet: still pulling from where it was.
+        assertThat(db.historySyncState().get()!!.cursor).isEqualTo(9)
+
+        server.enqueue(json(200, """{"status":"PENDING","join_key":null}"""))
+        assertThat(s.pairStatus()).isEqualTo(HistorySync.PAIR_PENDING)
+
+        server.enqueue(json(200, """{"status":"APPROVED","join_key":null}"""))
+        server.enqueue(json(200, """{"tasks":[],"next_cursor":3,"has_more":false}"""))
+        assertThat(s.pairStatus()).isEqualTo(HistorySync.PAIR_APPROVED)
+        server.takeRequest()
+        server.takeRequest()
+        assertThat(server.takeRequest().path).isEqualTo("/api/sync/pair/claim/5/")
+        assertThat(server.takeRequest().path).isEqualTo("/api/sync/pull/?cursor=0")
+        assertThat(identity.identity.first().historyPairRequest).isEqualTo(0)
+        assertThat(s.pairStatus()).isNull()
+    }
+
+    @Test fun aRefusedRequestChangesNothing() = runTest {
+        val s = enrolled()
+        db.historySyncState().upsert(HistorySyncStateEntity(cursor = 9))
+        server.enqueue(json(202, """{"request_id":5,"status":"PENDING"}"""))
+        s.pairClaim("abcd-efgh")
+        server.enqueue(json(200, """{"status":"DENIED","join_key":null}"""))
+        assertThat(s.pairStatus()).isEqualTo(HistorySync.PAIR_DENIED)
+        assertThat(server.requestCount).isEqualTo(2)
+        assertThat(db.historySyncState().get()!!.cursor).isEqualTo(9)
+        assertThat(identity.identity.first().historyPairRequest).isEqualTo(0)
+    }
+
+    @Test fun requestsAndDevicesAreRead() = runTest {
+        val s = enrolled()
+        server.enqueue(json(200, """[{"id":4,"label":"","client":"EXTENSION","created_at":"2026-10-29T10:00:00+00:00"}]"""))
+        assertThat(s.pairRequests()).containsExactly(HistorySync.PairRequest(4, "", "EXTENSION"))
+        server.enqueue(json(200, """{"status":"APPROVED"}"""))
+        server.enqueue(json(200, """{"tasks":[],"next_cursor":1,"has_more":false}"""))
+        s.pairDecide(4, approve = true)
+        assertThat(server.takeRequest().path).isEqualTo("/api/sync/pair/requests/")
+        val decide = server.takeRequest()
+        assertThat(decide.method).isEqualTo("POST")
+        assertThat(decide.path).isEqualTo("/api/sync/pair/requests/4/approve/")
+
+        server.enqueue(
+            json(
+                200,
+                """[{"id":3,"label":"Pixel","client":"ANDROID","created_at":"2026-10-01T10:00:00+00:00",
+                    "last_seen_at":"2026-10-29T10:00:00+00:00","is_current":true}]""",
+            ),
+        )
+        val device = s.devices().single()
+        assertThat(device.label).isEqualTo("Pixel")
+        assertThat(device.isCurrent).isTrue()
+        assertThat(device.lastSeenAt).isEqualTo(java.time.Instant.parse("2026-10-29T10:00:00Z").toEpochMilli())
+    }
+
+    @Test fun removingThisDeviceSignsItOut() = runTest {
+        val s = enrolled()
+        db.historyOutbox().addAll(listOf(outboxRow("e1")))
+        server.enqueue(json(200, """{"join_key":null}"""))
+        s.removeDevice(3, isCurrent = true)
+        assertThat(server.takeRequest().method).isEqualTo("DELETE")
+        assertThat(identity.identity.first().historyDeviceToken).isEmpty()
+        assertThat(db.historyOutbox().count()).isEqualTo(0)
+    }
+
+    @Test fun atTheDailyCapTheRestWaitsForTomorrow() = runTest {
+        val s = enrolled()
+        db.historyOutbox().addAll(listOf(outboxRow("e1"), outboxRow("e2"), outboxRow("e3")))
+        server.enqueue(json(200, """{"tasks":[],"events_accepted":["e1"],"capped":true,"cursor":1}"""))
+        server.enqueue(json(200, """{"tasks":[],"next_cursor":1,"has_more":false}"""))
+        assertThat(s.syncOnce(force = true)).isTrue()
+        assertThat(server.takeRequest().path).isEqualTo("/api/sync/push/")
+        // One push, then straight to the pull: no retrying against the cap.
+        assertThat(server.takeRequest().path).startsWith("/api/sync/pull/")
+        assertThat(db.historyOutbox().count()).isEqualTo(2)
     }
 }

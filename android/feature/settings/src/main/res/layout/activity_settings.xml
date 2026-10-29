@@ -244,6 +244,39 @@
                 android:text="@string/settings_pair_claim"/>
         </LinearLayout>
 
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="12sp" android:alpha="0.7" android:paddingBottom="4dp"
+            android:text="@string/settings_pair_hint"/>
+
+        <TextView
+            android:id="@+id/historyPairState"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="13sp" android:textStyle="bold" android:paddingBottom="4dp"
+            android:visibility="gone"/>
+
+        <LinearLayout
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingTop="6dp">
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp" android:textStyle="bold"
+                android:text="@string/settings_devices_title"/>
+            <Button
+                android:id="@+id/historyDevicesRefresh"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/settings_devices_refresh"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/historyDevices"
+            android:orientation="vertical"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:paddingBottom="4dp"/>
+
         <Button
             android:id="@+id/historyDelete"
             style="?attr/materialButtonOutlinedStyle"

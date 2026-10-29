@@ -11,7 +11,9 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.materialswitch.MaterialSwitch
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.duzgun.eksiengelplus.ops.runtime.HistorySync
 import org.duzgun.eksiengelplus.datastore.ConfigRepository
 import org.duzgun.eksiengelplus.model.DateCriteria
 import org.duzgun.eksiengelplus.model.DateFilterRule
@@ -94,8 +96,11 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<android.widget.Button>(R.id.clearCache).setOnClickListener { clearCache() }
         findViewById<android.widget.Button>(R.id.clearData).setOnClickListener { confirmClearData() }
         historyStatus = findViewById(R.id.historyStatus)
+        pairState = findViewById(R.id.historyPairState)
+        devicesBox = findViewById(R.id.historyDevices)
         findViewById<android.widget.Button>(R.id.historyPairStart).setOnClickListener { pairStart() }
         findViewById<android.widget.Button>(R.id.historyPairClaim).setOnClickListener { pairClaim() }
+        findViewById<android.widget.Button>(R.id.historyDevicesRefresh).setOnClickListener { renderDevices() }
         findViewById<android.widget.Button>(R.id.historyDelete).setOnClickListener { confirmHistoryDelete() }
         findViewById<android.widget.Button>(R.id.openReleaseNotes).setOnClickListener {
             startActivity(ReleaseNotesActivity.intent(this, appVersion()))
@@ -120,6 +125,9 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
         }
+        renderDevices()
+        // A code entered before this screen was last closed may still be waiting.
+        waitForApproval(quietIfNone = true)
     }
 
     // ------------------------------------------------------------- date rules
@@ -339,8 +347,11 @@ class SettingsActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------- history sync
 
-    @Inject lateinit var historySync: org.duzgun.eksiengelplus.ops.runtime.HistorySync
+    @Inject lateinit var historySync: HistorySync
     private lateinit var historyStatus: android.widget.TextView
+    private lateinit var pairState: android.widget.TextView
+    private lateinit var devicesBox: android.widget.LinearLayout
+    private var waitingForApproval: kotlinx.coroutines.Job? = null
 
     private fun refreshHistoryStatus() {
         lifecycleScope.launch {
@@ -364,6 +375,7 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    /** Shows a code, and the devices asking to join with it, until the code expires or the dialog closes. */
     private fun pairStart() {
         lifecycleScope.launch {
             val code = runCatching { historySync.pairStart() }.getOrNull()
@@ -371,10 +383,81 @@ class SettingsActivity : AppCompatActivity() {
                 toast(R.string.settings_history_failed)
                 return@launch
             }
-            androidx.appcompat.app.AlertDialog.Builder(this@SettingsActivity)
+            val requests = android.widget.LinearLayout(this@SettingsActivity).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                val pad = (24 * resources.displayMetrics.density).toInt()
+                setPadding(pad, 0, pad, 0)
+            }
+            val dialog = androidx.appcompat.app.AlertDialog.Builder(this@SettingsActivity)
                 .setMessage(getString(R.string.settings_pair_code, code))
-                .setPositiveButton(android.R.string.ok, null)
+                .setView(requests)
+                .setPositiveButton(R.string.settings_pair_close, null)
                 .show()
+            val watch = lifecycleScope.launch { watchPairRequests(requests) }
+            dialog.setOnDismissListener { watch.cancel() }
+        }
+    }
+
+    private suspend fun watchPairRequests(box: android.widget.LinearLayout) {
+        val until = System.currentTimeMillis() + PAIR_WINDOW_MS
+        var shown: List<Long>? = null
+        while (System.currentTimeMillis() < until) {
+            val requests = runCatching { historySync.pairRequests() }.getOrNull()
+            // Redrawn only on change, so a button is not replaced under a finger.
+            if (requests != null && requests.map { it.id } != shown) {
+                shown = requests.map { it.id }
+                box.removeAllViews()
+                requests.forEach { box.addView(pairRequestRow(it, box)) }
+            }
+            delay(PAIR_POLL_MS)
+        }
+    }
+
+    private fun pairRequestRow(request: HistorySync.PairRequest, box: android.widget.LinearLayout): View {
+        val who = request.label.ifBlank {
+            getString(
+                if (request.client == "ANDROID") R.string.settings_pair_request_android
+                else R.string.settings_pair_request_extension,
+            )
+        }
+        val row = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(0, (8 * resources.displayMetrics.density).toInt(), 0, 0)
+        }
+        row.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.settings_pair_request, who)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        val buttons = android.widget.LinearLayout(this)
+        for ((label, approve) in listOf(R.string.settings_pair_approve to true, R.string.settings_pair_deny to false)) {
+            buttons.addView(
+                com.google.android.material.button.MaterialButton(
+                    this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle,
+                ).apply {
+                    setText(label)
+                    setOnClickListener {
+                        box.removeView(row)
+                        decidePairing(request.id, approve)
+                    }
+                },
+            )
+        }
+        row.addView(buttons)
+        return row
+    }
+
+    private fun decidePairing(requestId: Long, approve: Boolean) {
+        lifecycleScope.launch {
+            val ok = runCatching { historySync.pairDecide(requestId, approve) }.isSuccess
+            toast(
+                when {
+                    !ok -> R.string.settings_pair_stale
+                    approve -> R.string.settings_pair_approved
+                    else -> R.string.settings_pair_denied_here
+                },
+            )
+            refreshHistoryStatus()
+            renderDevices()
         }
     }
 
@@ -386,14 +469,123 @@ class SettingsActivity : AppCompatActivity() {
         }
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(R.string.settings_pair_claim_title)
+            .setMessage(R.string.settings_pair_claim_body)
             .setView(input)
             .setPositiveButton(R.string.settings_pair_claim_ok) { _, _ ->
                 val code = input.text.toString().trim()
                 if (code.isEmpty()) return@setPositiveButton
                 lifecycleScope.launch {
-                    val ok = runCatching { historySync.pairClaim(code) }.isSuccess
-                    toast(if (ok) R.string.settings_pair_done else R.string.settings_pair_failed)
+                    if (runCatching { historySync.pairClaim(code) }.isFailure) {
+                        toast(R.string.settings_pair_failed)
+                        return@launch
+                    }
+                    waitForApproval()
+                }
+            }
+            .setNegativeButton(R.string.settings_cancel, null)
+            .show()
+    }
+
+    /** After a code was entered: waits for the code's device to approve or refuse. */
+    private fun waitForApproval(quietIfNone: Boolean = false) {
+        waitingForApproval?.cancel()
+        waitingForApproval = lifecycleScope.launch {
+            val until = System.currentTimeMillis() + PAIR_WINDOW_MS
+            while (System.currentTimeMillis() < until) {
+                val status = runCatching { historySync.pairStatus() }
+                if (status.getOrNull() == HistorySync.PAIR_PENDING) {
+                    showPairState(R.string.settings_pair_waiting)
+                    delay(PAIR_POLL_MS)
+                    continue
+                }
+                when (status.getOrNull()) {
+                    HistorySync.PAIR_APPROVED -> showPairState(R.string.settings_pair_done)
+                    HistorySync.PAIR_DENIED -> showPairState(R.string.settings_pair_refused)
+                    HistorySync.PAIR_EXPIRED -> showPairState(R.string.settings_pair_expired)
+                    else -> if (quietIfNone) showPairState(null) else showPairState(R.string.settings_history_failed)
+                }
+                refreshHistoryStatus()
+                renderDevices()
+                return@launch
+            }
+        }
+    }
+
+    private fun showPairState(res: Int?) {
+        pairState.visibility = if (res == null) View.GONE else View.VISIBLE
+        if (res != null) pairState.setText(res)
+    }
+
+    private fun renderDevices() {
+        lifecycleScope.launch {
+            val devices = runCatching { historySync.devices() }
+            devicesBox.removeAllViews()
+            val list = devices.getOrNull()
+            when {
+                list == null -> devicesBox.addView(note(R.string.settings_devices_failed))
+                list.isEmpty() -> devicesBox.addView(note(R.string.settings_devices_none))
+                else -> list.forEach { devicesBox.addView(deviceRow(it)) }
+            }
+        }
+    }
+
+    private fun note(res: Int) = android.widget.TextView(this).apply {
+        setText(res)
+        textSize = 13f
+    }
+
+    private fun deviceName(device: HistorySync.LinkedDevice) = device.label.ifBlank {
+        getString(if (device.client == "ANDROID") R.string.settings_device_android else R.string.settings_device_extension)
+    }
+
+    private fun deviceRow(device: HistorySync.LinkedDevice): View {
+        val row = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        val name = deviceName(device).let {
+            if (device.isCurrent) getString(R.string.settings_device_current, it) else it
+        }
+        val seen = if (device.lastSeenAt > 0) {
+            java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                .format(java.util.Date(device.lastSeenAt))
+        } else {
+            getString(R.string.settings_history_never)
+        }
+        row.addView(
+            android.widget.TextView(this).apply {
+                text = getString(R.string.settings_device_row, name, seen)
+                textSize = 13f
+                layoutParams = android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            },
+        )
+        row.addView(
+            com.google.android.material.button.MaterialButton(
+                this, null, com.google.android.material.R.attr.borderlessButtonStyle,
+            ).apply {
+                setText(if (device.isCurrent) R.string.settings_device_remove_self else R.string.settings_device_remove)
+                setOnClickListener { confirmRemoveDevice(device) }
+            },
+        )
+        return row
+    }
+
+    private fun confirmRemoveDevice(device: HistorySync.LinkedDevice) {
+        val body = if (device.isCurrent) {
+            getString(R.string.settings_device_remove_self_body)
+        } else {
+            getString(R.string.settings_device_remove_body, deviceName(device))
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setMessage(body)
+            .setPositiveButton(
+                if (device.isCurrent) R.string.settings_device_remove_self else R.string.settings_device_remove,
+            ) { _, _ ->
+                lifecycleScope.launch {
+                    val ok = runCatching { historySync.removeDevice(device.id, device.isCurrent) }.isSuccess
+                    toast(if (ok) R.string.settings_device_removed else R.string.settings_history_failed)
                     refreshHistoryStatus()
+                    renderDevices()
                 }
             }
             .setNegativeButton(R.string.settings_cancel, null)
@@ -413,6 +605,11 @@ class SettingsActivity : AppCompatActivity() {
             }
             .setNegativeButton(R.string.settings_cancel, null)
             .show()
+    }
+
+    private companion object {
+        const val PAIR_WINDOW_MS = 10L * 60 * 1000
+        const val PAIR_POLL_MS = 3000L
     }
 
     private fun toast(res: Int) =

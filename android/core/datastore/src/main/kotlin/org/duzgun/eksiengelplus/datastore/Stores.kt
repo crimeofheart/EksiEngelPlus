@@ -162,6 +162,11 @@ class IdentityRepository(private val store: DataStore<Identity>) {
     suspend fun rememberHistoryToken(token: String) {
         store.updateData { it.copy(historyDeviceToken = token) }
     }
+
+    /** The pairing request waiting for approval, or 0 once it is settled. */
+    suspend fun rememberPairRequest(requestId: Long) {
+        store.updateData { it.copy(historyPairRequest = requestId) }
+    }
 }
 
 object Stores {

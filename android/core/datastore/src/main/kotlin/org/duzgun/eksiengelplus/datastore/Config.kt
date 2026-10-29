@@ -222,4 +222,9 @@ data class Identity(
      * account sent, and the server keeps nothing but its hash.
      */
     val historyDeviceToken: String = "",
+    /**
+     * The pairing request this device made by entering a code, while it waits for
+     * the code's device to approve. 0 when none is waiting.
+     */
+    val historyPairRequest: Long = 0,
 )

@@ -45,6 +45,7 @@ class HelpActivity : AppCompatActivity() {
             R.string.help_date_filter_body,
             R.string.help_date_filter_note,
         ),
+        Section(R.string.help_pairing_title, R.string.help_pairing_body, R.string.help_pairing_note),
         Section(R.string.help_storage_title, R.string.help_storage_body),
     )
 

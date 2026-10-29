@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -279,6 +280,13 @@ class HistoryClient(
     }
 
     suspend fun call(method: String, path: String, body: JsonObject? = null, token: String?): JsonObject? =
+        send(method, path, body, token) as? JsonObject
+
+    /** For the routes that answer with a list. */
+    suspend fun callList(method: String, path: String, token: String?): JsonArray =
+        send(method, path, null, token) as? JsonArray ?: JsonArray(emptyList())
+
+    private suspend fun send(method: String, path: String, body: JsonObject?, token: String?): JsonElement? =
         withContext(Dispatchers.IO) {
             val builder = Request.Builder().url(base + path).addHeader("Accept", "application/json")
             if (token == null) builder.addHeader("X-API-Key", apiKey)
@@ -292,8 +300,8 @@ class HistoryClient(
             http.newCall(builder.build()).execute().use { response ->
                 val text = response.body?.string().orEmpty()
                 val json = text.takeIf { it.isNotBlank() }
-                    ?.let { runCatching { HistoryJson.parseToJsonElement(it) as? JsonObject }.getOrNull() }
-                if (!response.isSuccessful) throw HttpError(response.code, json)
+                    ?.let { runCatching { HistoryJson.parseToJsonElement(it) }.getOrNull() }
+                if (!response.isSuccessful) throw HttpError(response.code, json as? JsonObject)
                 json
             }
         }
@@ -328,6 +336,11 @@ class HistorySync(
 
         /** A request this large is a pasted list; the other devices get the description only. */
         const val MAX_SHARED_REQUEST = 16 * 1024
+
+        const val PAIR_PENDING = "PENDING"
+        const val PAIR_APPROVED = "APPROVED"
+        const val PAIR_DENIED = "DENIED"
+        const val PAIR_EXPIRED = "EXPIRED"
     }
 
     suspend fun enabled(): Boolean = config.config.first().syncHistory
@@ -422,6 +435,8 @@ class HistorySync(
                 }
             }
         }
+        // At the daily cap: what is left waits in the outbox for tomorrow.
+        if (response["capped"]?.jsonPrimitive?.booleanOrNull == true) return false
         // Nothing accepted and nothing settled means the server refused the batch
         // in a way retrying cannot fix this pass; leave it for the next one.
         return accepted.isNotEmpty() || tasks.isNotEmpty()
@@ -593,17 +608,103 @@ class HistorySync(
         client.call("POST", "pair/start/", token = token())?.get("code")?.jsonPrimitive?.contentOrNull
             ?: throw HistoryClient.HttpError(0, null)
 
+    /**
+     * Asks to join the code's account. Nothing moves until a device of that account
+     * approves; [pairStatus] then says how it went.
+     */
     suspend fun pairClaim(code: String) {
-        client.call(
+        val body = client.call(
             "POST",
             "pair/claim/",
             buildJsonObject { put("code", JsonPrimitive(code)) },
             token = token(),
         )
-        // A new account: everything it holds is news to this device.
-        db.historySyncState().upsert(state().copy(cursor = 0))
-        db.remoteTasks().clear()
-        syncOnce(force = true)
+        val requestId = body?.get("request_id")?.jsonPrimitive?.longOrNull ?: throw HistoryClient.HttpError(0, body)
+        identity.rememberPairRequest(requestId)
+    }
+
+    /**
+     * The waiting request's status -- [PAIR_PENDING], [PAIR_APPROVED], [PAIR_DENIED]
+     * or [PAIR_EXPIRED] -- or null when this device is waiting on none.
+     */
+    suspend fun pairStatus(): String? {
+        val requestId = identity.identity.first().historyPairRequest.takeIf { it > 0 } ?: return null
+        val status = try {
+            client.call("GET", "pair/claim/$requestId/", token = token())
+                ?.get("status")?.jsonPrimitive?.contentOrNull
+        } catch (e: HistoryClient.HttpError) {
+            // Not this device's any more: it enrolled afresh since asking.
+            if (e.code != 404) throw e
+            null
+        }
+        if (status == PAIR_PENDING) return status
+        identity.rememberPairRequest(0)
+        if (status == PAIR_APPROVED) {
+            // A new account: everything it holds is news to this device.
+            db.historySyncState().upsert(state().copy(cursor = 0))
+            db.remoteTasks().clear()
+            syncOnce(force = true)
+        }
+        return status
+    }
+
+    data class PairRequest(val id: Long, val label: String, val client: String)
+
+    /** Devices asking to join this account, for this one to approve or refuse. */
+    suspend fun pairRequests(): List<PairRequest> =
+        client.callList("GET", "pair/requests/", token = token()).mapNotNull { item ->
+            val obj = item as? JsonObject ?: return@mapNotNull null
+            PairRequest(
+                id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null,
+                label = obj["label"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                client = obj["client"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            )
+        }
+
+    /** Throws HttpError 409 when the request was already settled or has expired. */
+    suspend fun pairDecide(requestId: Long, approve: Boolean) {
+        client.call("POST", "pair/requests/$requestId/${if (approve) "approve" else "deny"}/", token = token())
+        // Its tasks are this account's now.
+        if (approve) syncOnce(force = true)
+    }
+
+    data class LinkedDevice(
+        val id: Long,
+        val label: String,
+        val client: String,
+        val lastSeenAt: Long,
+        val isCurrent: Boolean,
+    )
+
+    /** The devices sharing this account. Empty before this one has enrolled. */
+    suspend fun devices(): List<LinkedDevice> {
+        val stored = identity.identity.first().historyDeviceToken
+        if (stored.isBlank()) return emptyList()
+        return client.callList("GET", "devices/", token = stored).mapNotNull { item ->
+            val obj = item as? JsonObject ?: return@mapNotNull null
+            LinkedDevice(
+                id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null,
+                label = obj["label"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                client = obj["client"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                lastSeenAt = obj["last_seen_at"]?.jsonPrimitive?.contentOrNull
+                    ?.let { runCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
+                    ?: 0,
+                isCurrent = obj["is_current"]?.jsonPrimitive?.booleanOrNull == true,
+            )
+        }
+    }
+
+    /**
+     * Removes a device from the account. Removing this one signs it out: the next
+     * sync enrols afresh, into an account of its own.
+     */
+    suspend fun removeDevice(deviceId: Long, isCurrent: Boolean) {
+        client.call("DELETE", "devices/$deviceId/", token = token())
+        if (!isCurrent) return
+        identity.rememberHistoryToken("")
+        identity.rememberPairRequest(0)
+        dropPending()
+        db.historySyncState().upsert(HistorySyncStateEntity())
     }
 
     /** Erases this account on the server, then forgets it here and turns sync off. */
@@ -611,6 +712,7 @@ class HistorySync(
         val stored = identity.identity.first().historyDeviceToken
         if (stored.isNotBlank()) client.call("DELETE", "account/", token = stored)
         identity.rememberHistoryToken("")
+        identity.rememberPairRequest(0)
         dropPending()
         db.historySyncState().upsert(HistorySyncStateEntity())
         config.update { it.copy(syncHistory = false) }

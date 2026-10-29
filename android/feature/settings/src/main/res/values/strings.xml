@@ -34,12 +34,39 @@
     <string name="settings_history_never">henüz yok</string>
     <string name="settings_pair_start">kod oluştur</string>
     <string name="settings_pair_claim">kodla bağla</string>
-    <string name="settings_pair_code">diğer cihazda bu kodu girin (10 dakika geçerli):\n\n%1$s</string>
+    <string name="settings_pair_hint">bir cihazda kod oluşturun, diğerinde kodu girin, sonra kodu oluşturduğunuz cihazda isteği onaylayın. ayrıntılar kullanım kılavuzunda.</string>
+    <string name="settings_pair_code">diğer cihazda bu kodu girin (10 dakika geçerli):\n\n%1$s\n\nkod girildiğinde onay isteği burada çıkar. tanımadığınız bir isteği onaylamayın.</string>
+    <string name="settings_pair_close">kapat</string>
+    <string name="settings_pair_request">%1$s bağlanmak istiyor</string>
+    <string name="settings_pair_request_android">bir android cihaz</string>
+    <string name="settings_pair_request_extension">bir eklenti kurulumu</string>
+    <string name="settings_pair_approve">onayla</string>
+    <string name="settings_pair_deny">reddet</string>
+    <string name="settings_pair_approved">cihaz bağlandı</string>
+    <string name="settings_pair_denied_here">istek reddedildi</string>
+    <string name="settings_pair_stale">istek artık geçerli değil</string>
     <string name="settings_pair_claim_title">cihaz bağla</string>
+    <string name="settings_pair_claim_body">bu cihaz, kodu oluşturan cihazın hesabına bağlanır ve bu cihazdaki işlem geçmişi o hesaba taşınır. bağlantı, kodu oluşturan cihazda onaylanınca gerçekleşir.</string>
     <string name="settings_pair_claim_hint">XXXX-XXXX</string>
     <string name="settings_pair_claim_ok">bağla</string>
-    <string name="settings_pair_done">bu cihaz bağlandı</string>
+    <string name="settings_pair_waiting">onay bekleniyor: kodu oluşturduğunuz cihazda isteği onaylayın</string>
+    <string name="settings_pair_done">bu cihaz bağlandı; diğer cihazlardaki işlemler artık burada da görünecek</string>
+    <string name="settings_pair_refused">istek diğer cihazda reddedildi</string>
+    <string name="settings_pair_expired">istek onaylanmadan süresi doldu; yeni bir kodla tekrar deneyin</string>
     <string name="settings_pair_failed">kod geçersiz ya da süresi dolmuş</string>
+    <string name="settings_devices_title">bağlı cihazlar</string>
+    <string name="settings_devices_refresh">yenile</string>
+    <string name="settings_devices_none">bu cihaz henüz eşitlenmedi</string>
+    <string name="settings_devices_failed">cihaz listesi alınamadı</string>
+    <string name="settings_device_row">%1$s · son görülme: %2$s</string>
+    <string name="settings_device_current">%1$s (bu cihaz)</string>
+    <string name="settings_device_android">android</string>
+    <string name="settings_device_extension">eklenti</string>
+    <string name="settings_device_remove">kaldır</string>
+    <string name="settings_device_remove_self">bu cihazı çıkar</string>
+    <string name="settings_device_remove_body">\"%1$s\" hesaptan çıkarılacak ve artık işlem geçmişinizi göremeyecek.</string>
+    <string name="settings_device_remove_self_body">bu cihaz hesaptan çıkarılacak; bir sonraki eşitlemede yeni bir hesapla başlar.</string>
+    <string name="settings_device_removed">cihaz kaldırıldı</string>
     <string name="settings_history_failed">sunucuya ulaşılamadı, sonra tekrar deneyin</string>
     <string name="settings_history_delete">sunucudaki verilerimi sil</string>
     <string name="settings_history_delete_title">sunucudaki veriler silinsin mi?</string>
@@ -134,6 +161,19 @@ Tarih bazlı toplu işlemde seçtiğiniz ölçüt bundan ayrıdır: orada tarihi
 ]]></string>
     <string name="help_date_filter_note"><![CDATA[
 <b>Tarayıcı eklentisinden farklı çalışır.</b> Burada tarih filtresi varsayılan olarak açıktır ve <i>açık olan her kural</i> geçilmelidir; bir kurala bile uymayan yazar işleme alınmaz. Eklentide ise hiçbir kurala uymayan yazar yine de işleme girer. Aynı kural listesi iki tarafta farklı sonuç verir; eklentideki alışkanlığınıza göre değil, buradaki davranışa göre kurun.
+]]></string>
+
+    <string name="help_pairing_title">Cihaz bağlama</string>
+    <string name="help_pairing_body"><![CDATA[
+<b>Ayarlar → işlem geçmişimi sunucuda sakla</b> açıkken işlemleriniz ve işlem geçmişiniz bağlı cihazlar arasında eşitlenir: uygulama ile tarayıcı eklentisi aynı işlemleri görür, biri diğerinin işlemini iptal edebilir ya da devralabilir.<br><br>
+1. Zaten kullandığınız cihazda <b>kod oluştur</b>\'a basın. 8 haneli kod 10 dakika geçerlidir.<br>
+2. Bağlamak istediğiniz cihazda kodu girin: bu uygulamada <b>kodla bağla</b>\'ya, eklentide Ayarlar sayfasındaki kod kutusuna.<br>
+3. Kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkar. Kendi cihazınızsa <b>onayla</b>\'ya basın.<br>
+4. Onaydan sonra iki cihaz aynı işlemleri ve işlem geçmişini görür. Kodu giren cihazın geçmişi diğer cihazın hesabına taşınır.<br><br>
+Bağlı cihazlar Ayarlar\'da listelenir; tanımadığınızı oradan kaldırabilirsiniz.
+]]></string>
+    <string name="help_pairing_note"><![CDATA[
+<b>Kodu kimseyle paylaşmayın</b> ve tanımadığınız bir isteği onaylamayın: onaylanan cihaz işlem geçmişinizin tamamını görür.
 ]]></string>
 
     <string name="help_storage_title">Depolama</string>

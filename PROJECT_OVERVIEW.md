@@ -256,6 +256,15 @@ python manage.py collectstatic --noinput
 systemctl restart gunicorn-eksiengel
 ```
 
+The account check (`history_check_accounts`, which asks Ekşi Sözlük whether reporting ids are
+real) runs hourly from a systemd timer kept in `backend/setupProductionServer/systemd/`. Install
+it once per host:
+
+```bash
+cp backend/setupProductionServer/systemd/eksiengel-history-check.* /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now eksiengel-history-check.timer
+```
+
 Nothing upstream serves `/static/` — requests for it reach gunicorn — which is why
 WhiteNoise is in `MIDDLEWARE`. Note gunicorn runs `/usr/local/bin/gunicorn` on **system**
 Python, not the project venv, so runtime deps must be installed for both.

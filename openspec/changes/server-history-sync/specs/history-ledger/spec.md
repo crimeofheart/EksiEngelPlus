@@ -94,6 +94,22 @@ while every event that touched the row is `LEGACY`, and `false` from the first n
 - **WHEN** an actor with an active block receives `(BLOCK, REMOVE, FAIL)`
 - **THEN** the row stays `active = true`
 
+### Requirement: Current state is also kept per person
+
+Binds: **backend**.
+
+One Ekşi id can report through several accounts: a run-report account and a device account, or
+two device accounts that were never paired. The server SHALL keep one row per `(actor_eksi_id,
+target_eksi_id, kind)` over all accounts, refreshed in the same transaction whenever a relation
+row changes (ingest, pairing merge, deletion). Its `active` SHALL be the `active` of the row whose
+`last_changed_at` is latest; `first_added_at`, `last_added_at` and `add_count` SHALL span all
+accounts, `legacy_only` SHALL hold only while every account's row is legacy-only, and `accounts`
+SHALL count the rows behind it. The rebuild SHALL recompute it.
+
+#### Scenario: Unblocked on another device
+- **WHEN** an actor's run reports say id 123 is blocked and a later sync event from a device account says it was unblocked
+- **THEN** the per-person row is `active = false` and the actor no longer counts for id 123 in `scope=current`
+
 ### Requirement: Targets are identified by Ekşi numeric id
 
 Binds: **backend**.

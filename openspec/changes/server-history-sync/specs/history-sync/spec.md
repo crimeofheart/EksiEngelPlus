@@ -43,22 +43,37 @@ SHALL require a valid, unrevoked device token and SHALL act only on that device'
 Binds: **backend**, **extension**, **Android**.
 
 An enrolled device SHALL be able to request a pairing code: 8 characters of Crockford base32,
-single use, valid 10 minutes, stored hashed. Another device presenting the code SHALL be moved
-into the code's account; any tasks and events of its previous account SHALL be re-parented into
-the new account and the previous account deleted.
+single use, valid 10 minutes, stored hashed. Another device presenting the code SHALL create a
+pending request and spend the code; nothing SHALL move until a device of the code's account
+approves the request. Approving SHALL move the claimer into the code's account, re-parent the
+tasks, events and join keys of its previous account and delete that account. Refusing, or 10
+minutes without a decision, SHALL leave both accounts unchanged. The claimer SHALL learn the
+outcome by polling its request.
 
-The extension SHALL also write an account join key to `chrome.storage.sync`, so another install of
-the extension on the same synced browser profile enrols straight into that account with its own
-device token. Two installs SHALL never share one device token.
+Before claiming, both clients SHALL warn that this device's history moves to the code's account.
+While a code is shown, the code's device SHALL list the pending requests with approve and refuse.
+Both clients SHALL carry a short pairing guide.
 
-A claim SHALL rotate the target account's join key and return it, so the claiming extension
-replaces the key in its synced storage; the old key named an account that no longer exists.
+The extension SHALL also write a join key to `chrome.storage.sync`, so another install of the
+extension on the same synced browser profile enrols straight into that account with its own
+device token. Two installs SHALL never share one device token. Each browser profile SHALL hold its
+own key, and the account SHALL accept every one of them: pairing and device removal SHALL never
+replace the key another profile holds. A claimer whose key was revoked SHALL receive a new one
+once, on its first poll after approval.
 
 Code claims SHALL be throttled per IP so the 40-bit code space cannot be searched.
 
 #### Scenario: Phone joins laptop
-- **WHEN** the laptop shows code `7K3M-QX9A` and the phone enters it within 10 minutes
+- **WHEN** the laptop shows code `7K3M-QX9A`, the phone enters it within 10 minutes, and the laptop approves the request
 - **THEN** the phone sees the laptop's tasks on its next pull
+
+#### Scenario: A code read off the screen
+- **WHEN** someone else enters the code first
+- **THEN** the laptop shows their request, nothing moves unless it is approved, and the code cannot be entered again
+
+#### Scenario: Other profiles keep their key
+- **WHEN** an account holds Chrome profiles A and B and a phone pairs into it
+- **THEN** a new install on either profile still enrols into the account without a code
 
 #### Scenario: Expired code
 - **WHEN** the code is entered after 10 minutes
@@ -67,6 +82,34 @@ Code claims SHALL be throttled per IP so the 40-bit code space cannot be searche
 #### Scenario: Second Chrome install on a synced profile
 - **WHEN** a user installs the extension on a second computer signed into the same Chrome profile
 - **THEN** it enrols into the existing account without a code, as a separate device
+
+### Requirement: Linked devices can be listed and removed
+
+Binds: **backend**, **extension**, **Android**.
+
+A device SHALL be able to list the account's active devices (label, client, last seen, which one is
+itself) and remove any of them. A removed device's token SHALL stop working and the join key its
+profile holds SHALL be revoked. When that key is also the remover's, the remover SHALL receive a
+new one; otherwise its key SHALL stand. Removing itself SHALL sign the device out, so its next sync
+enrols into a new account.
+
+#### Scenario: Unknown device
+- **WHEN** the user removes a device they do not recognise
+- **THEN** its next request is refused with 401 and new installs on its browser profile no longer join the account
+
+### Requirement: Uploads are bounded per device
+
+Binds: **backend**, **extension**, **Android**.
+
+The server SHALL accept at most 20,000 new events per device per Istanbul day, more than Ekşi's
+action rate allows, and SHALL report `capped` when it stops. Events already stored SHALL still be
+acknowledged, so a resend is never stuck. A capped client SHALL stop pushing until its next pass
+and keep the rest in its outbox. Task `params` over 20 kB SHALL be replaced by a marker. A takeover
+SHALL only follow links on the Ekşi Sözlük host.
+
+#### Scenario: Flood
+- **WHEN** one device pushes 30,000 events in a day
+- **THEN** 20,000 are stored and the rest wait in its outbox for the next day
 
 ### Requirement: Push and pull use a server cursor
 

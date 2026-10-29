@@ -83,3 +83,16 @@
 - [x] 8.3 `changelog.js` entry (app and extension) and the `ReleaseNotes.kt` mirror; run `npm run changelog`
 - [x] 8.4 (Deployed 2026-10-24: 4,698 reports backfilled to 19,911 events, rebuild verified; the only ranking differences come from one title report with no settings snapshot, left unmapped.) Before deploy, save the `most_banned_unique/` response. Deploy the backend (pull, `migrate`, restart `gunicorn-eksiengel`), then run `history_backfill_legacy` and `history_rebuild --verify`, and diff against the saved response
 - [x] 8.5 Re-verify the extension still builds: `cd frontend/app && npm run check && npm run package`
+
+## 9. Trust and per-person state
+
+- [x] 9.1 Pairing approval: `PairingRequest`, claim returns 202 pending, `pair/claim/<id>/` status poll, `pair/requests/` with approve and deny for the code's account; 409 once settled or expired, 404 for other accounts
+- [x] 9.2 One `JoinKey` per browser profile (migrations 0003 data step, 0004 drop `Account.join_key_hash`); a merge moves keys, removal revokes only the removed device's key
+- [x] 9.3 `devices/` list and `devices/<id>/` remove; removing itself signs the client out
+- [x] 9.4 Per-device daily event cap with `capped` in the push response; `params` size cap; extension takeover follows Ekşi links only
+- [x] 9.5 `ActorRelation` per person, refreshed at ingest, merge and deletion; rankings, per-user relations and legacy routes read it; `history_rebuild` covers it
+- [x] 9.6 `AccountCheck` and `history_check_accounts`, the hourly systemd timer, rejected ids out of rankings, account kind and age in the per-user summary
+- [x] 9.7 Shared throttle counters across gunicorn workers (file-based cache)
+- [x] 9.8 Extension: approval UI, claim warning, device list, pairing guide, cap; tests
+- [x] 9.9 Android: the same, plus resuming the wait when settings reopen and a help section; JVM and instrumented tests
+- [ ] 9.10 Deploy: pull, `migrate`, restart `gunicorn-eksiengel`, install and enable `eksiengel-history-check.timer`, run `history_check_accounts` once and `history_rebuild --verify`

@@ -53,10 +53,14 @@ and mixing them makes deletion and backfill harder.
 
 ```
 Account        id uuid, kind {DEVICE|LEGACY}, legacy_actor_eksi_id int UNIQUE NULL,
-               change_seq bigint, created_at, join_key_hash
-Device         id, account→, token_hash UNIQUE, client {EXTENSION|ANDROID}, label,
-               version, created_at, last_seen_at, revoked_at
+               change_seq bigint, created_at
+JoinKey        key_hash UNIQUE, account→, created_at          (one per browser profile, D8)
+Device         id, account→, join_key→ NULL, token_hash UNIQUE, client {EXTENSION|ANDROID},
+               label, version, created_at, last_seen_at, revoked_at,
+               events_day date, events_today int              (daily cap, D12)
 PairingCode    code_hash, account→, expires_at, used_at
+PairingRequest code→, claimer→ Device, status {PENDING|APPROVED|DENIED}, created_at,
+               decided_at, join_key (handed over once, then cleared)
 Task           id uuid (client task_id), account→, owner_device→, epoch int,
                actor_eksi_id int, ban_source, ban_mode, params jsonb,
                status smallint, planned/performed/successful int,
@@ -70,6 +74,11 @@ RelationState  account→, actor_eksi_id, target_eksi_id, kind,
                UNIQUE (account, actor_eksi_id, target_eksi_id, kind)
 DailyTally     day date, kind, direction, result, n bigint   UNIQUE (day, kind, direction, result)
 DailyActor     day date, kind, account→, actor_eksi_id       UNIQUE (day, kind, account, actor_eksi_id)
+ActorRelation  actor_eksi_id, target_eksi_id, kind, active, last_changed_at,
+               first_added_at, last_added_at, add_count, legacy_only, accounts
+               UNIQUE (actor_eksi_id, target_eksi_id, kind)   (per person, D13)
+AccountCheck   eksi_id PK, nick, status {OK|EXISTS|MISMATCH|MISSING|ERROR}, found_id,
+               checked_at                                     (D12)
 NickSeen       eksi_id, nick, first_seen_at, last_seen_at    UNIQUE (eksi_id, nick)
 AdminAccess    admin_user→, eksi_id, path, at
 api.Action     + task_id uuid NULL (indexed)
@@ -226,9 +235,20 @@ attacker claiming someone's nick can pollute rankings, which is already possible
 - **Tokens:** 256-bit random values, stored as SHA-256. That is enough for high-entropy secrets,
   and a slow hash buys nothing here.
 - **Pairing codes:** 40 bits, 10-minute TTL, single use, and code claims throttled per IP.
-- **Synced join key:** `chrome.storage.sync` carries an **account join key**, never a device token.
-  A second install on the same browser profile links with no code, yet still gets its own device
-  identity, which ownership requires (D7).
+- **Pairing needs approval.** A claim only creates a pending request; a device of the code's
+  account approves or refuses it, and nothing moves before that. The first design merged on
+  claim, so anyone who saw the code on a screen or in a screenshot within 10 minutes got the
+  whole history. The claimer is warned that its history moves, and polls for the outcome.
+- **Synced join key:** `chrome.storage.sync` carries a **join key**, never a device token. A second
+  install on the same browser profile links with no code, yet still gets its own device identity,
+  which ownership requires (D7). Keys are **one per profile** (`JoinKey`), not one per account. The
+  first design kept a single key per account and replaced it on every claim and removal; each
+  replacement stranded the copy every other profile held, and that profile's next install quietly
+  started an account of its own. Now a merge moves the claimer's keys into the account, so the key
+  its profile already holds keeps working; removing a device revokes only its own profile's key,
+  and the remover gets a new key only when it shared that one.
+- **Device list.** Each device can list the account's devices and remove one, which revokes its
+  token and its profile's key. A stray approval is therefore recoverable.
 - **`X-API-Key`** (`authentication.py:5-12`) ships inside the client, so it is not a secret.
   **Carried forward** as a cheap filter for drive-by traffic only; nothing in this design relies on
   it.
@@ -308,6 +328,44 @@ serializers' field names, but their querysets come from `history/stats.py`:
 so ids that had duplicate rows merge. That is the only expected difference after backfill, and the
 "same answer after migration" scenario tests for it.
 
+### D12. Bounding what one device can send, and checking who it claims to be
+
+Nothing stops a client from inventing events: the API key ships inside it, and the server cannot
+see an Ekşi session. Two cheap limits bound the damage:
+
+- **A daily cap per device**, 20,000 new events per Istanbul day, above the roughly 17,300 that
+  Ekşi's action rate allows. Counted on the `Device` row in the push transaction. Events already
+  stored are acknowledged regardless, or a resend at the cap would retry forever. The response
+  says `capped`, and clients stop pushing for that pass instead of retrying.
+- **Task `params` over 20 kB** are replaced by `{"dropped": "too_large"}`; a takeover in the
+  extension only follows links on the Ekşi Sözlük host.
+
+And one check against Ekşi itself: `manage.py history_check_accounts`, hourly from
+`eksiengel-history-check.timer`, reads `/biri/<nick>` (a made-up nick is a 404) and
+`/son-entryleri?nick=` (each entry carries `data-author-id`) for every reporting actor and the top
+200 block and mute targets. At most 100 ids a run, 2 s apart, logged out. `MISMATCH` and `MISSING`
+ids drop out of every ranking; `ERROR` counts until a retry an hour later, since an Ekşi outage
+must not empty the rankings. It cannot prove that the reporter *owns* the nick, only that the nick
+is real and matches the id. The admin's per-user page shows the result next to the user's accounts
+(kind, age, devices), which is what judging a suspicious account needs.
+
+*Alternative:* verify ownership by asking the client to prove an Ekşi session (a signed page, a
+posted token). Rejected: it means handling Ekşi credentials or scraping logged-in pages server
+side, both worse than the fake rankings it prevents.
+
+### D13. Current state per person, not per account
+
+`RelationState` is per account, which is right for what a device reads. But one Ekşi id often
+reports through several accounts — its run-report (`LEGACY`) account and a device account, or two
+devices never paired — and "is 123 blocked by this actor now" was being answered per account: a
+block in run reports and a later unblock on a device counted the actor as still blocking.
+`ActorRelation` holds one row per `(actor, target, kind)`. It is refreshed from `RelationState`
+for exactly the keys a statement touched, in the same transaction (ingest, merge, deletion):
+`active` from the row changed last, add times and counts spanning all rows, `legacy_only` only
+while all rows are, `accounts` the number of rows. Rankings, per-user relations and the legacy
+routes read it; the rebuild recomputes it. The refresh joins on `(actor, kind, target)`, which an
+index on `RelationState` covers — with `(actor, kind)` alone a 10 k report took 3.8 s.
+
 ## Risks / Trade-offs
 
 - **[Table growth]** About 350 bytes per event including indexes, so 5 M events is about 1.7 GB.
@@ -318,9 +376,13 @@ so ids that had duplicate rows merge. That is the only expected difference after
   (D3) makes that one statement per table. The test suite times a 10 k report and fails above 2 s.
 - **[Hot tally rows serialise concurrent ingests for a day]** → They are written last and sorted,
   and the locks are held for milliseconds. A 10 k report holds them for its final statement only.
-- **[Fake events inflate rankings]** Unchanged from today. → Rankings also return the
-  distinct-account count, and the admin can revoke an account, which removes its events, state and
-  tally contribution.
+- **[Fake events inflate rankings]** Still possible for a real nick. → Ids that Ekşi says do not
+  exist or do not match are left out (D12), one device cannot send more than a day's worth of
+  actions, rankings return the distinct-account count, and the admin can revoke an account, which
+  removes its events, state and tally contribution.
+- **[Clients older than the approval flow]** A 0.6.0 client claiming a code gets `202` with no
+  merge and reports success, and a 0.6.0 device cannot approve. → 0.6.0 was never in a store; the
+  release that adds approval ships both clients at once.
 - **[Admin can read one person's full history]** This is the feature, and the most sensitive
   capability added. → An `AdminAccess` row is written on every per-user read, and the privacy page
   says so.

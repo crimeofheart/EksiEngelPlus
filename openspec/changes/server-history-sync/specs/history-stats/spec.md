@@ -27,7 +27,8 @@ distinct relations and days, not with the number of events.
 ### Requirement: Rankings count distinct actors
 
 `GET /api/stats/top` SHALL rank targets for a `kind` (`BLOCK`, `MUTE`, `TITLE_BLOCK`, `FOLLOW`) by
-the number of **distinct actor ids** over relation-state rows, in one of three scopes:
+the number of **distinct actor ids** over the per-person relation rows, leaving out every actor or
+target id whose last account check found it missing or mismatched, in one of three scopes:
 
 - `current`: rows with `active = true`;
 - `all`: rows with `first_added_at` set (blocked at least once, ever);
@@ -48,6 +49,26 @@ number of distinct accounts behind it.
 #### Scenario: Window
 - **WHEN** an actor blocked id 123 forty days ago and again five days ago
 - **THEN** that actor counts for id 123 in `scope=window&days=30`
+
+### Requirement: Claimed accounts are checked against Ekşi Sözlük
+
+Binds: **backend**.
+
+The server cannot see an Ekşi session, so a nick on an event is a claim. A scheduled job SHALL
+check, from logged-out public pages and at most 100 ids an hour with a pause between them, every
+reporting actor id and the 200 most-counted block and mute targets: `/biri/<nick>` SHALL exist, and when
+the account has entries, `/son-entryleri` SHALL tag them with the claimed id. It SHALL record `OK`,
+`EXISTS` (real, id unconfirmed), `MISMATCH`, `MISSING` or `ERROR`; settled answers SHALL be
+rechecked after 30 days and errors after an hour. The per-user summary SHALL show the result,
+the user's accounts with their kind and age, and their devices.
+
+#### Scenario: Made-up actor
+- **WHEN** events claim actor id 999 under a nick Ekşi answers 404 for
+- **THEN** after the next check, id 999 contributes to no ranking
+
+#### Scenario: Ekşi unreachable
+- **WHEN** the check cannot reach Ekşi
+- **THEN** the id is marked `ERROR`, still counts, and is asked again an hour later
 
 ### Requirement: Daily aggregates are maintained at ingest
 

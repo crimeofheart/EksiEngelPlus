@@ -12,7 +12,7 @@ import * as enums from './enums.js';
 import {commHandler} from './commHandler.js';
 import {config, handleConfig, saveConfig} from './config.js';
 import { storageHandler } from './storageHandler.js';
-import { h } from './dom.js';
+import { h, setContent } from './dom.js';
 
 let currentRules = [];
 let editingRuleId = null;
@@ -197,23 +197,35 @@ function setupHistorySync() {
   document.getElementById("historyPairStartBtn").addEventListener("click", async () => {
     const response = await historyRequest("historyPairStart");
     const out = document.getElementById("historyPairCode");
-    out.textContent = response.success
-      ? `Kod: ${response.code} (10 dakika geçerli)`
-      : "Kod oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin.";
+    if (!response.success) {
+      out.textContent = "Kod oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin.";
+      return;
+    }
+    out.textContent = `Kod: ${response.code} (10 dakika geçerli). Diğer cihazda girildiğinde onay isteği burada çıkacak.`;
+    watchPairRequests(Date.now() + PAIR_WINDOW_MS);
   });
 
   document.getElementById("historyPairClaimBtn").addEventListener("click", async () => {
     const input = document.getElementById("historyPairCodeInput");
     const code = input.value.trim();
     if (!code) return;
-    const response = await historyRequest("historyPairClaim", { code });
+    if (!confirm("Bu cihaz, kodu oluşturan cihazın hesabına bağlanacak ve bu cihazdaki işlem geçmişi o hesaba taşınacak. Devam edilsin mi?")) {
+      return;
+    }
     const out = document.getElementById("historyPairCode");
-    out.textContent = response.success
-      ? "Bu cihaz bağlandı. Diğer cihazlardaki işlemler artık burada da görünecek."
-      : "Kod geçersiz ya da süresi dolmuş.";
-    if (response.success) input.value = "";
-    refreshHistoryStatus();
+    const response = await historyRequest("historyPairClaim", { code });
+    if (!response.success) {
+      out.textContent = "Kod geçersiz ya da süresi dolmuş.";
+      return;
+    }
+    input.value = "";
+    waitForApproval(Date.now() + PAIR_WINDOW_MS);
   });
+
+  document.getElementById("historyDevicesRefreshBtn").addEventListener("click", renderDevices);
+  renderDevices();
+  // A claim made before the page was reopened may still be waiting.
+  waitForApproval(Date.now() + PAIR_WINDOW_MS, { quietIfNone: true });
 
   document.getElementById("historyDeleteBtn").addEventListener("click", async () => {
     if (!confirm("Bu cihazların sunucudaki işlemleri ve işlem geçmişi kalıcı olarak silinecek, eşitleme kapanacak. Emin misiniz?")) {
@@ -230,6 +242,100 @@ function setupHistorySync() {
     }
     refreshHistoryStatus();
   });
+}
+
+const PAIR_WINDOW_MS = 10 * 60 * 1000;
+const PAIR_POLL_MS = 3000;
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+let watchingRequests = false;
+
+/** Shows devices asking to join this account, with approve and refuse, until the code expires. */
+async function watchPairRequests(until) {
+  if (watchingRequests) return;
+  watchingRequests = true;
+  const list = document.getElementById("historyPairRequests");
+  try {
+    while (Date.now() < until) {
+      const response = await historyRequest("historyPairRequests");
+      const requests = response.success ? response.requests : [];
+      setContent(list, requests.map(request => h("p", { className: "sub-section-description" },
+        h("b", {}, `${request.label || (request.client === "ANDROID" ? "Android" : "Bir cihaz")} bağlanmak istiyor. `),
+        h("button", { className: "btn btn-success btn-tiny", onclick: () => decidePairing(request.id, true) }, "Onayla"),
+        " ",
+        h("button", { className: "btn btn-danger btn-tiny", onclick: () => decidePairing(request.id, false) }, "Reddet"),
+      )));
+      await sleep(PAIR_POLL_MS);
+    }
+  } finally {
+    watchingRequests = false;
+    setContent(list);
+  }
+}
+
+async function decidePairing(requestId, approve) {
+  const response = await historyRequest("historyPairDecide", { requestId, approve });
+  const out = document.getElementById("historyPairCode");
+  if (!response.success) {
+    out.textContent = "İstek artık geçerli değil.";
+  } else {
+    out.textContent = approve ? "Cihaz bağlandı." : "İstek reddedildi.";
+  }
+  setContent(document.getElementById("historyPairRequests"));
+  renderDevices();
+}
+
+/** After entering a code: waits for the other device to approve or refuse. */
+async function waitForApproval(until, { quietIfNone = false } = {}) {
+  const out = document.getElementById("historyPairCode");
+  while (Date.now() < until) {
+    const response = await historyRequest("historyPairStatus");
+    const status = response.success ? response.status : null;
+    if (status === "PENDING") {
+      out.textContent = "Onay bekleniyor: kodu oluşturduğunuz cihazda isteği onaylayın.";
+      await sleep(PAIR_POLL_MS);
+      continue;
+    }
+    if (status === "APPROVED") out.textContent = "Bu cihaz bağlandı. Diğer cihazlardaki işlemler artık burada da görünecek.";
+    else if (status === "DENIED") out.textContent = "İstek diğer cihazda reddedildi.";
+    else if (status === "EXPIRED") out.textContent = "İstek onaylanmadan süresi doldu. Yeni bir kodla tekrar deneyin.";
+    else if (!quietIfNone) out.textContent = "Onay durumu alınamadı.";
+    refreshHistoryStatus();
+    renderDevices();
+    return;
+  }
+}
+
+async function renderDevices() {
+  const box = document.getElementById("historyDevices");
+  const response = await historyRequest("historyDevices");
+  if (!response.success) {
+    setContent(box, "Cihaz listesi alınamadı.");
+    return;
+  }
+  if (!response.devices.length) {
+    setContent(box, "Bu cihaz henüz eşitlenmedi.");
+    return;
+  }
+  setContent(box, response.devices.map(device => h("p", {},
+    h("b", {}, device.label || device.client),
+    device.is_current ? " (bu cihaz)" : "",
+    ` · son görülme: ${new Date(device.last_seen_at).toLocaleString("tr-TR")} `,
+    h("button", {
+      className: "btn btn-danger btn-tiny",
+      onclick: () => removeDevice(device),
+    }, device.is_current ? "Bu cihazı çıkar" : "Kaldır"),
+  )));
+}
+
+async function removeDevice(device) {
+  const question = device.is_current
+    ? "Bu cihaz hesaptan çıkarılacak; bir sonraki eşitlemede yeni bir hesapla başlar. Emin misiniz?"
+    : `"${device.label || device.client}" hesaptan çıkarılacak ve artık işlem geçmişinizi göremeyecek. Emin misiniz?`;
+  if (!confirm(question)) return;
+  const response = await historyRequest("historyRemoveDevice", { deviceId: device.id, isCurrent: device.is_current });
+  if (!response.success) alert("Cihaz kaldırılamadı. Bağlantınızı kontrol edip tekrar deneyin.");
+  renderDevices();
+  refreshHistoryStatus();
 }
 
 function muteSwitchOnClick()

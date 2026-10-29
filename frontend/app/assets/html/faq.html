@@ -465,12 +465,30 @@ margin-bottom: 8px;
         <h3>📱 Cihaz bağla</h3>
         <button id="historyPairStartBtn" class="btn btn-primary btn-tiny">Kod oluştur</button>
       </div>
-      <p class="sub-section-description">Bir cihazda kod oluşturun, 10 dakika içinde diğer cihazda girin. Aynı tarayıcı hesabıyla eşitlenen kurulumlar kendiliğinden bağlanır.</p>
+      <details class="sub-section-description">
+        <summary><b>Cihazları nasıl bağlarım?</b></summary>
+        <ol>
+          <li>Zaten kullandığınız cihazda <b>Kod oluştur</b>'a basın. 8 haneli bir kod çıkar, 10 dakika geçerlidir.</li>
+          <li>Bağlamak istediğiniz cihazda kodu girin: eklentide aşağıdaki kutuya, Android uygulamasında <b>Ayarlar → kodla bağla</b>'ya.</li>
+          <li>Kodu oluşturduğunuz cihazda "… bağlanmak istiyor" isteği çıkar. Kendi cihazınızsa <b>Onayla</b>'ya basın.</li>
+          <li>Onaydan sonra iki cihaz aynı işlemleri ve işlem geçmişini görür. Kodu giren cihazın geçmişi diğer cihazın hesabına taşınır.</li>
+        </ol>
+        <p>Aynı tarayıcı hesabıyla eşitlenen eklenti kurulumları kod gerekmeden kendiliğinden bağlanır. Kodu kimseyle paylaşmayın ve tanımadığınız bir isteği onaylamayın: onaylanan cihaz işlem geçmişinizin tamamını görür. Bağlı cihazları aşağıda görüp tanımadığınızı kaldırabilirsiniz.</p>
+      </details>
       <p class="sub-section-description"><b id="historyPairCode"></b></p>
+      <div id="historyPairRequests"></div>
       <div class="cache-stats-inline">
         <input id="historyPairCodeInput" type="text" maxlength="9" placeholder="XXXX-XXXX" style="text-transform: uppercase; width: 120px;">
         <button id="historyPairClaimBtn" class="btn btn-success btn-tiny">Bağla</button>
       </div>
+    </div>
+
+    <div class="sub-section" id="historyDevicesSection">
+      <div class="sub-section-header">
+        <h3>💻 Bağlı cihazlar</h3>
+        <button id="historyDevicesRefreshBtn" class="btn btn-secondary btn-tiny">Yenile</button>
+      </div>
+      <div id="historyDevices" class="sub-section-description">Yükleniyor...</div>
     </div>
 
     <div class="sub-section" id="historyDeleteSection">

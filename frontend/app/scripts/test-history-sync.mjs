@@ -257,14 +257,66 @@ await check('erasing the account forgets everything here and turns sync off', as
   assert.deepEqual([status.enabled, status.enrolled, status.pendingEvents], [false, false, 0]);
 });
 
-await check('pairing replaces the join key and starts the pull from the top', async () => {
-  const server = acceptingServer().on('POST', 'pair/claim/', () => [200, { join_key: 'join-2' }]);
+await check('pairing waits for approval, then takes the new join key and pulls from the top', async () => {
+  let state = 'PENDING';
+  const server = acceptingServer()
+    .on('POST', 'pair/claim/', () => [202, { request_id: 7, status: 'PENDING' }])
+    .on('GET', 'pair/claim/7/', () => [200, { status: state, join_key: state === 'APPROVED' ? 'join-2' : null }]);
   const h = fresh(server);
   await h.flush();
+  sync.data.historyJoinKey = 'join-1';
   await h.pairClaim('7k3m-qx9a');
   assert.equal(server.last('POST pair/claim/').body.code, '7k3m-qx9a');
+  assert.equal((await h.pairStatus()).status, 'PENDING');
+  assert.equal(sync.data.historyJoinKey, 'join-1', 'nothing changes before approval');
+  state = 'APPROVED';
+  const pullsBefore = server.count('GET pull/');
+  assert.equal((await h.pairStatus()).status, 'APPROVED');
   assert.equal(sync.data.historyJoinKey, 'join-2');
   assert.equal(server.last('GET pull/').path, 'pull/');
+  assert.ok(server.count('GET pull/') > pullsBefore);
+  assert.equal((await h.pairStatus()).status, null, 'the request is forgotten once answered');
+});
+
+await check('a refused request changes nothing', async () => {
+  const server = acceptingServer()
+    .on('POST', 'pair/claim/', () => [202, { request_id: 8, status: 'PENDING' }])
+    .on('GET', 'pair/claim/8/', () => [200, { status: 'DENIED', join_key: null }]);
+  const h = fresh(server);
+  await h.flush();
+  sync.data.historyJoinKey = 'join-1';
+  await h.pairClaim('AAAA-AAAA');
+  assert.equal((await h.pairStatus()).status, 'DENIED');
+  assert.equal(sync.data.historyJoinKey, 'join-1');
+});
+
+await check('removing a device stores the rotated join key; removing this one signs out', async () => {
+  const server = acceptingServer().on('DELETE', 'devices/5/', () => [200, { join_key: 'join-3' }])
+    .on('DELETE', 'devices/6/', () => [200, { join_key: 'join-4' }]);
+  const h = fresh(server);
+  await h.flush();
+  await h.removeDevice(5, false);
+  assert.equal(sync.data.historyJoinKey, 'join-3');
+  await h.removeDevice(6, true);
+  assert.equal(sync.data.historyJoinKey, undefined);
+  assert.equal((await h.status()).enrolled, false);
+});
+
+await check('at the daily cap the rest wait in the outbox and pushing stops', async () => {
+  // Closed while recording, so all five are waiting when the capped push comes.
+  let open = false;
+  const server = acceptingServer().on('POST', 'push/', body => open ? [200, {
+    tasks: [], events_accepted: body.events.slice(0, 2).map(e => e.id), capped: true, cursor: 1,
+  }] : [503, {}]);
+  const h = fresh(server);
+  for (let i = 0; i < 5; i++) await h.recordOutcome({ ...outcome, id: 100 + i });
+  await h.flush();
+  assert.equal((await h.status()).pendingEvents, 5);
+  open = true;
+  const before = server.count('POST push/');
+  await h.flush({ force: true });
+  assert.equal(server.count('POST push/') - before, 1, 'one push, not ten');
+  assert.equal((await h.status()).pendingEvents, 3);
 });
 
 await check('nicks name the events they belong to, and only those', async () => {

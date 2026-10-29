@@ -371,4 +371,16 @@ await check('the content script enums match enums.js', async () => {
     assert.ok(copy[name] && key in copy[name], `script.js uses enums.${name}.${key}, missing from contentEnums.js`);
   }
 });
+await check('a task from another device runs only with Ekşi Sözlük links', async () => {
+  const scope = vm.createContext({ config: { EksiSozlukURL: 'https://eksisozluk.com' }, URL });
+  vm.runInContext(declaration('background.js', 'function isEksiRetry'), scope);
+  const ok = scope.isEksiRetry;
+  assert.equal(ok({ banSource: '2', entryUrl: 'https://eksisozluk.com/entry/123' }), true);
+  assert.equal(ok({ banSource: '1', authorName: 'ssg', authorId: '8097' }), true);
+  assert.equal(ok({ banSource: '2', entryUrl: 'https://evil.example/entry/1' }), false);
+  assert.equal(ok({ banSource: '2', entryUrl: 'http://eksisozluk.com/entry/1' }), false);
+  assert.equal(ok({ banSource: '1', authorName: '../../ayarlar' }), false);
+  assert.equal(ok({ banSource: '1', authorId: '1; drop' }), false);
+  assert.equal(ok(null), false);
+});
 console.log(`${tests} relation action regression checks passed`);

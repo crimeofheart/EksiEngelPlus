@@ -382,7 +382,8 @@ export class HistorySync {
       if (!force && Date.now() < (this.#state.backoffUntil || 0)) return;
       await this.#ensureDevice();
       for (let round = 0; round < 10 && this.#hasPending(); round++) {
-        await this.#pushOnce();
+        // Stop at the daily cap: what is left waits for tomorrow.
+        if ((await this.#pushOnce()) === "capped") break;
       }
       if (pull) await this.#pull();
       this.#state.failures = 0;
@@ -437,6 +438,7 @@ export class HistorySync {
         this.onCancelRequested?.(result.id);
       }
     }
+    return body.capped ? "capped" : "ok";
   }
 
   async #pull() {
@@ -547,16 +549,75 @@ export class HistorySync {
     return this.#call("POST", "pair/start/");
   }
 
+  /**
+   * Asks to join the account whose code was entered. Nothing moves until a
+   * device of that account approves; poll pairStatus for the answer.
+   */
   async pairClaim(code) {
     await this.#load();
     await this.#ensureDevice();
     const body = await this.#call("POST", "pair/claim/", { code });
-    await this.#saveJoinKey(body.join_key);
-    // A new account: everything it holds is news to this device.
-    this.#state.cursor = 0;
-    this.#state.remote = {};
+    this.#state.pairRequest = body.request_id;
     await this.#persistNow();
-    await this.flush({ force: true });
+    return body;
+  }
+
+  /** PENDING, APPROVED, DENIED or EXPIRED; on approval this device has joined. */
+  async pairStatus() {
+    await this.#load();
+    const requestId = this.#state.pairRequest;
+    if (!requestId) return { status: null };
+    const body = await this.#call("GET", `pair/claim/${requestId}/`);
+    if (body.status !== "PENDING") {
+      delete this.#state.pairRequest;
+      if (body.status === "APPROVED") {
+        if (body.join_key) await this.#saveJoinKey(body.join_key);
+        // A new account: everything it holds is news to this device.
+        this.#state.cursor = 0;
+        this.#state.remote = {};
+      }
+      await this.#persistNow();
+      if (body.status === "APPROVED") await this.flush({ force: true });
+    }
+    return { status: body.status };
+  }
+
+  /** Devices asking to join this account. */
+  async pairRequests() {
+    await this.#load();
+    if (!this.#state.deviceToken) return [];
+    return this.#call("GET", "pair/requests/");
+  }
+
+  async pairDecide(requestId, approve) {
+    await this.#load();
+    const body = await this.#call("POST", `pair/requests/${requestId}/${approve ? "approve" : "deny"}/`);
+    if (approve) await this.flush({ force: true });
+    return body;
+  }
+
+  async devices() {
+    await this.#load();
+    if (!this.#state.deviceToken) return [];
+    return this.#call("GET", "devices/");
+  }
+
+  /**
+   * Removes one of the account's devices. The join key rotates, so the new one
+   * replaces it in synced storage; removing this device signs it out.
+   */
+  async removeDevice(deviceId, isCurrent) {
+    await this.#load();
+    const body = await this.#call("DELETE", `devices/${deviceId}/`);
+    if (isCurrent) {
+      this.#state = emptyState();
+      this.#outbox = emptyOutbox();
+      await this.#saveJoinKey(null);
+    } else {
+      await this.#saveJoinKey(body.join_key);
+    }
+    await this.#persistNow();
+    this.onRemoteChanged?.();
     return body;
   }
 

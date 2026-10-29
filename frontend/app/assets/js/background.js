@@ -219,12 +219,19 @@ const HISTORY_ACTIONS = {
   historyStatus: () => historySync.status(),
   historyPairStart: () => historySync.pairStart(),
   historyPairClaim: (message) => historySync.pairClaim(message.code),
+  historyPairStatus: () => historySync.pairStatus(),
+  historyPairRequests: async () => ({ requests: await historySync.pairRequests() }),
+  historyPairDecide: (message) => historySync.pairDecide(message.requestId, message.approve),
+  historyDevices: async () => ({ devices: await historySync.devices() }),
+  historyRemoveDevice: (message) => historySync.removeDevice(message.deviceId, message.isCurrent),
   historyDeleteAccount: () => historySync.deleteAccount(),
   cancelRemoteTask: (message) => historySync.cancelRemote(message.taskId),
   takeOverRemoteTask: async (message) => {
     const task = await historySync.takeOver(message.taskId);
     const retry = task.params && task.params.retry;
     if (!retry) throw new Error("bu işlem bu cihazda çalıştırılamaz");
+    // Another device wrote these; run them only if every link is Ekşi Sözlük's.
+    if (!isEksiRetry(retry)) throw new Error("bu işlemin bağlantısı Ekşi Sözlük'e ait değil");
     // Rejoins the queue through the ordinary path, under the same task id so the
     // ledger sees one task change hands rather than a new one appear. Already
     // done targets come back as no-ops: the new owner skips what is in place.
@@ -232,6 +239,31 @@ const HISTORY_ACTIONS = {
     return { task };
   },
 };
+
+/**
+ * Whether a task's retry parameters, written by another device, are safe to run:
+ * the entry link, if any, is on the configured Ekşi Sözlük host, and the rest are
+ * plain names and ids.
+ */
+export function isEksiRetry(retry) {
+  if (!retry || typeof retry !== "object") return false;
+  if (retry.entryUrl) {
+    try {
+      const url = new URL(retry.entryUrl);
+      const eksi = new URL(config.EksiSozlukURL || "https://eksisozluk.com");
+      if (url.protocol !== "https:" || url.hostname !== eksi.hostname) return false;
+    } catch (e) {
+      return false;
+    }
+  }
+  for (const key of ["authorName", "titleName"]) {
+    if (retry[key] != null && (typeof retry[key] !== "string" || /[\/?#<>]/.test(retry[key]))) return false;
+  }
+  for (const key of ["authorId", "titleId"]) {
+    if (retry[key] != null && !/^\d+$/.test(String(retry[key]))) return false;
+  }
+  return true;
+}
 
 function messageListener_Popup(message, sender, sendResponse) {
   if (message && HISTORY_ACTIONS[message.action]) {

@@ -15,6 +15,8 @@ from django.utils import timezone
 
 from . import constants as c
 from .models import (
+    AccountCheck,
+    ActorRelation,
     Account,
     DailyActor,
     DailyTally,
@@ -67,31 +69,40 @@ def scope_filter(scope, days=30):
     raise ValueError(scope)
 
 
+def rejected_ids():
+    """Ekşi ids the account check found missing or mismatched (AccountCheck.REJECTED)."""
+    return AccountCheck.objects.filter(status__in=AccountCheck.REJECTED).values("eksi_id")
+
+
+def person_relations(kind):
+    """One row per person, target and kind, without ids the account check rejected.
+
+    Per person rather than per account: the latest change across all of someone's
+    accounts decides what they hold now (ActorRelation).
+    """
+    rejected = rejected_ids()
+    return (
+        ActorRelation.objects.filter(kind=kind)
+        .exclude(actor_eksi_id__in=rejected)
+        .exclude(target_eksi_id__in=rejected)
+    )
+
+
 def top(kind, scope="current", days=30, limit=50, include_legacy=True):
-    """Targets ranked by how many distinct actors hold `kind` against them."""
+    """Targets ranked by how many people hold `kind` against them."""
     limit = max(1, min(int(limit), MAX_LIMIT))
     key = f"history:top:{kind}:{scope}:{days if scope == 'window' else ''}:{limit}:{include_legacy}"
 
     def compute():
-        rows = RelationState.objects.filter(scope_filter(scope, days), kind=kind)
+        rows = person_relations(kind).filter(scope_filter(scope, days))
         if not include_legacy:
             rows = rows.filter(legacy_only=False)
-        ranked = rows
         rows = list(
             rows.values("target_eksi_id")
-            .annotate(actors=Count("actor_eksi_id", distinct=True))
+            # One row per person, so a plain count is the distinct-people count.
+            .annotate(actors=Count("id"), accounts=Sum("accounts"))
             .order_by("-actors", "target_eksi_id")[:limit]
         )
-        # Accounts only for the winners: counting them for every target would
-        # take the ranking off the covering index.
-        accounts = dict(
-            ranked.filter(target_eksi_id__in=[r["target_eksi_id"] for r in rows])
-            .values("target_eksi_id")
-            .annotate(n=Count("account", distinct=True))
-            .values_list("target_eksi_id", "n")
-        )
-        for r in rows:
-            r["accounts"] = accounts.get(r["target_eksi_id"], 0)
         nicks = latest_nicks(r["target_eksi_id"] for r in rows)
         return [
             {
@@ -154,7 +165,7 @@ def user_summary(eksi_id):
     as_actor = Event.objects.filter(actor_eksi_id=eksi_id)
     first = as_actor.order_by("id").values_list("occurred_at", flat=True).first()
     last = as_actor.order_by("-id").values_list("occurred_at", flat=True).first()
-    accounts = set(
+    account_ids = set(
         RelationState.objects.filter(actor_eksi_id=eksi_id)
         .values_list("account", flat=True)
         .distinct()
@@ -162,22 +173,38 @@ def user_summary(eksi_id):
         Task.objects.filter(actor_eksi_id=eksi_id).values_list("account", flat=True)
     )
     devices = list(
-        Device.objects.filter(account__in=accounts).values(
-            "client", "label", "last_seen_at"
+        Device.objects.filter(account__in=account_ids).values(
+            "account_id", "client", "label", "created_at", "last_seen_at", "revoked_at"
         )
     )
+    # What the admin needs to judge whether this history is real: how old each
+    # account is, whether it syncs from devices or only holds run reports, and how
+    # much of the person's history came from it.
+    events_by_account = dict(
+        as_actor.values("account").annotate(n=Count("id")).values_list("account", "n")
+    )
+    accounts = [
+        {
+            "id": a.pk,
+            "kind": "devices" if a.kind == c.ACCOUNT_DEVICE else "run reports",
+            "created_at": a.created_at,
+            "devices": sum(1 for d in devices if d["account_id"] == a.pk),
+            "events": events_by_account.get(a.pk, 0),
+        }
+        for a in Account.objects.filter(pk__in=account_ids).order_by("created_at")
+    ]
+    check = AccountCheck.objects.filter(eksi_id=eksi_id).values(
+        "nick", "status", "found_id", "checked_at"
+    ).first()
     kinds = {}
     for name, kind in c.KINDS.items():
         kinds[name] = {
-            "active_as_actor": RelationState.objects.filter(
+            "active_as_actor": ActorRelation.objects.filter(
                 actor_eksi_id=eksi_id, kind=kind, active=True
             ).count(),
-            "actors_targeting_now": RelationState.objects.filter(
+            "actors_targeting_now": ActorRelation.objects.filter(
                 target_eksi_id=eksi_id, kind=kind, active=True
-            )
-            .values("actor_eksi_id")
-            .distinct()
-            .count(),
+            ).count(),
         }
     totals = {}
     for role in ("actor", "target"):
@@ -195,9 +222,10 @@ def user_summary(eksi_id):
     return {
         "eksi_id": eksi_id,
         "nicks": nicks,
+        "account_check": check,
         "first_activity": first,
         "last_activity": last,
-        "accounts": len(accounts),
+        "accounts": accounts,
         "devices": devices,
         "clients": sorted({d["client"] for d in devices}),
         "kinds": kinds,
@@ -255,7 +283,7 @@ def user_relations(
     limit = max(1, min(int(limit), MAX_LIMIT))
     field = _role_field(role)
     other = "target_eksi_id" if role == "actor" else "actor_eksi_id"
-    rows = RelationState.objects.filter(**{field: eksi_id})
+    rows = ActorRelation.objects.filter(**{field: eksi_id})
     if kind:
         rows = rows.filter(kind=kind)
     if active is not None:
@@ -273,6 +301,7 @@ def user_relations(
             "last_changed_at",
             "add_count",
             "legacy_only",
+            "accounts",
         )[:limit]
     )
     nicks = latest_nicks(r[other] for r in rows)
@@ -334,11 +363,9 @@ def legacy_ranking(unique, limit=500):
     key = f"history:legacy_ranking:{unique}:{limit}"
 
     def compute():
-        rows = RelationState.objects.filter(kind=c.BLOCK, first_added_at__isnull=False)
+        rows = person_relations(c.BLOCK).filter(first_added_at__isnull=False)
         if unique:
-            rows = rows.values("target_eksi_id").annotate(
-                n=Count("actor_eksi_id", distinct=True)
-            )
+            rows = rows.values("target_eksi_id").annotate(n=Count("id"))
         else:
             rows = rows.values("target_eksi_id").annotate(n=Sum("add_count"))
         rows = list(rows.order_by("-n", "target_eksi_id")[:limit])
@@ -355,7 +382,7 @@ def user_stat_fields(eksi_ids):
     from api.models import Action
 
     ids = list(set(eksi_ids))
-    blocks = RelationState.objects.filter(kind=c.BLOCK, first_added_at__isnull=False)
+    blocks = person_relations(c.BLOCK).filter(first_added_at__isnull=False)
 
     def grouped(qs, field, **annotation):
         return {r[field]: r["n"] for r in qs.values(field).annotate(**annotation)}
@@ -374,7 +401,7 @@ def user_stat_fields(eksi_ids):
         "ban_unique_count": grouped(
             blocks.filter(actor_eksi_id__in=ids),
             "actor_eksi_id",
-            n=Count("target_eksi_id", distinct=True),
+            n=Count("id"),
         ),
         "banned_by_count": grouped(
             blocks.filter(target_eksi_id__in=ids), "target_eksi_id", n=Sum("add_count")
@@ -382,7 +409,7 @@ def user_stat_fields(eksi_ids):
         "banned_by_unique_count": grouped(
             blocks.filter(target_eksi_id__in=ids),
             "target_eksi_id",
-            n=Count("actor_eksi_id", distinct=True),
+            n=Count("id"),
         ),
     }
 
@@ -392,7 +419,7 @@ def account_summary():
     return {
         "accounts": Account.objects.filter(kind=c.ACCOUNT_DEVICE).count(),
         "devices": Device.objects.filter(revoked_at__isnull=True).count(),
-        "relations_active": RelationState.objects.filter(active=True).count(),
+        "relations_active": ActorRelation.objects.filter(active=True).count(),
         "events_last_day": DailyTally.objects.filter(day=_istanbul_today()).aggregate(
             n=Sum("n")
         )["n"]

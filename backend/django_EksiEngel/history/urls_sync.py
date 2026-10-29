@@ -14,6 +14,24 @@ urlpatterns = [
     ),
     path("pair/start/", views.PairStartView.as_view(), name="sync_pair_start"),
     path("pair/claim/", views.PairClaimView.as_view(), name="sync_pair_claim"),
+    path(
+        "pair/claim/<int:request_id>/",
+        views.PairStatusView.as_view(),
+        name="sync_pair_status",
+    ),
+    path("pair/requests/", views.PairRequestsView.as_view(), name="sync_pair_requests"),
+    path(
+        "pair/requests/<int:request_id>/approve/",
+        views.PairDecideView.as_view(),
+        name="sync_pair_approve",
+    ),
+    path(
+        "pair/requests/<int:request_id>/deny/",
+        views.PairDenyView.as_view(),
+        name="sync_pair_deny",
+    ),
+    path("devices/", views.DevicesView.as_view(), name="sync_devices"),
+    path("devices/<int:device_id>/", views.DeviceRemoveView.as_view(), name="sync_device"),
     path("history/", views.OwnHistoryView.as_view(), name="sync_history"),
     path("account/", views.AccountView.as_view(), name="sync_account"),
 ]

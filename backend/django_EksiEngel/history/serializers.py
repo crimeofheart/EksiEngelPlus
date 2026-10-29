@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone as dt_timezone
 
 from django.utils import timezone
@@ -90,6 +91,18 @@ class TaskUpsertSerializer(serializers.Serializer):
     performed = serializers.IntegerField(min_value=0, default=0)
     successful = serializers.IntegerField(min_value=0, default=0)
     created_at = EpochMillis(required=False)
+
+    def validate_params(self, value):
+        if len(json.dumps(value, ensure_ascii=False).encode()) > MAX_PARAMS_BYTES:
+            # Dropped, not refused: refusing would fail the whole push on every retry.
+            return {"dropped": "too_large"}
+        return value
+
+
+# A task's parameters are what another device needs to run it: a few ids for
+# the extension, an OperationRequest of up to 16 KB from the app. Anything larger
+# is a pasted list nobody else can use, and is not stored.
+MAX_PARAMS_BYTES = 20_000
 
 
 class EventSerializer(serializers.Serializer):

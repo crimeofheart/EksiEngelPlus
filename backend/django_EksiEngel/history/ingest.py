@@ -184,6 +184,75 @@ def _upsert_relations(cursor, collapsed):
         )
 
 
+# What one person holds against one target, from every account's row: the latest
+# state-changing row decides `active` (ties to the later event, as in the rebuild),
+# the rest aggregate. `{rows}` is the RelationState rows to fold -- every one for
+# the rebuild, only the touched keys' otherwise.
+ACTOR_RELATION_SELECT = """
+WITH rows AS ({rows}),
+latest AS (
+    SELECT DISTINCT ON (actor_eksi_id, target_eksi_id, kind)
+        actor_eksi_id, target_eksi_id, kind, active, last_changed_at
+    FROM rows
+    ORDER BY actor_eksi_id, target_eksi_id, kind,
+             last_changed_at DESC NULLS LAST, last_event_id DESC NULLS LAST
+),
+agg AS (
+    SELECT actor_eksi_id, target_eksi_id, kind,
+        MIN(first_added_at) AS first_added_at, MAX(last_added_at) AS last_added_at,
+        SUM(add_count) AS add_count, bool_and(legacy_only) AS legacy_only,
+        COUNT(*) AS accounts
+    FROM rows GROUP BY 1, 2, 3
+)
+SELECT l.actor_eksi_id, l.target_eksi_id, l.kind, l.active, l.last_changed_at,
+    a.first_added_at, a.last_added_at, a.add_count, a.legacy_only, a.accounts
+FROM latest l JOIN agg a USING (actor_eksi_id, target_eksi_id, kind)
+"""
+
+ACTOR_RELATION_COLUMNS = (
+    "actor_eksi_id, target_eksi_id, kind, active, last_changed_at, first_added_at,"
+    " last_added_at, add_count, legacy_only, accounts"
+)
+
+
+def refresh_actor_relations(cursor, keys):
+    """Recompute the per-person rows for (actor, target, kind) keys from RelationState.
+
+    Called by every path that changes RelationState -- ingest, account merges and
+    deletion -- with the keys it touched. A key with no account rows left is
+    removed. Sorted, like every multi-row write here, so concurrent callers lock
+    in the same order.
+    """
+    keys = sorted(set(keys))
+    for chunk in _chunks(keys):
+        values, params = _values(chunk)
+        key_filter = (
+            "SELECT rs.* FROM history_relationstate rs"
+            f" JOIN (VALUES {values}) AS k(actor_eksi_id, target_eksi_id, kind)"
+            " ON rs.actor_eksi_id = k.actor_eksi_id AND rs.target_eksi_id = k.target_eksi_id"
+            " AND rs.kind = k.kind"
+        )
+        cursor.execute(
+            f"INSERT INTO history_actorrelation AS ar ({ACTOR_RELATION_COLUMNS})"
+            f" {ACTOR_RELATION_SELECT.format(rows=key_filter)} ORDER BY 1, 2, 3"
+            " ON CONFLICT (actor_eksi_id, target_eksi_id, kind) DO UPDATE SET"
+            " active = EXCLUDED.active, last_changed_at = EXCLUDED.last_changed_at,"
+            " first_added_at = EXCLUDED.first_added_at, last_added_at = EXCLUDED.last_added_at,"
+            " add_count = EXCLUDED.add_count, legacy_only = EXCLUDED.legacy_only,"
+            " accounts = EXCLUDED.accounts",
+            params,
+        )
+        cursor.execute(
+            "DELETE FROM history_actorrelation ar"
+            f" USING (VALUES {values}) AS k(actor_eksi_id, target_eksi_id, kind)"
+            " WHERE ar.actor_eksi_id = k.actor_eksi_id AND ar.target_eksi_id = k.target_eksi_id"
+            " AND ar.kind = k.kind AND NOT EXISTS (SELECT 1 FROM history_relationstate rs"
+            " WHERE rs.actor_eksi_id = ar.actor_eksi_id AND rs.target_eksi_id = ar.target_eksi_id"
+            " AND rs.kind = ar.kind)",
+            params,
+        )
+
+
 # Istanbul days in SQL, never in Python, so ingest, deletion and the rebuild all
 # draw the day boundary with the same time zone database.
 DAY_SQL = f"(occurred_at AT TIME ZONE '{c.STATS_TIME_ZONE}')::date"
@@ -252,5 +321,6 @@ def ingest(events, nicks=()):
         collapsed = collapse(fresh)
         if collapsed:
             _upsert_relations(cursor, collapsed)
+            refresh_actor_relations(cursor, [(k[1], k[2], k[3]) for k in collapsed])
         _upsert_daily(cursor, sorted(inserted.values()))
     return result

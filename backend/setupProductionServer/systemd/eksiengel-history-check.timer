@@ -1,0 +1,12 @@
+# Install: copy both units to /etc/systemd/system, then
+#   systemctl daemon-reload && systemctl enable --now eksiengel-history-check.timer
+[Unit]
+Description=Hourly EksiEngelPlus history account check
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import connection, transaction
 
 from ... import constants as c
-from ...ingest import DAY_SQL
+from ...ingest import ACTOR_RELATION_COLUMNS, ACTOR_RELATION_SELECT, DAY_SQL
 
 STATE = ", ".join(str(r) for r in c.STATE_RESULTS)
 
@@ -36,6 +36,12 @@ REBUILT = {
             a.add_count, a.legacy_only
         FROM latest l JOIN agg a USING (account_id, actor_eksi_id, target_eksi_id, kind)
         """,
+    ),
+    # Per person, from the per-account rows -- after them, so a full rebuild
+    # derives it from the freshly rebuilt RelationState.
+    "history_actorrelation": (
+        ACTOR_RELATION_COLUMNS,
+        ACTOR_RELATION_SELECT.format(rows="SELECT * FROM history_relationstate"),
     ),
     "history_dailytally": (
         "day, kind, direction, result, n",

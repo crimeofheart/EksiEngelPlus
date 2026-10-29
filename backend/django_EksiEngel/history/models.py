@@ -55,6 +55,9 @@ class Device(models.Model):
     revoked_at = models.DateTimeField(null=True, blank=True)
     # Events the device's outbox had to drop on overflow, as reported by it.
     dropped_events = models.BigIntegerField(default=0)
+    # Events accepted today (Istanbul), against the per-device daily cap.
+    events_day = models.DateField(null=True, blank=True)
+    events_today = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.label or self.client} ({self.account_id})"
@@ -67,6 +70,30 @@ class PairingCode(models.Model):
     )
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
+
+
+class PairingRequest(models.Model):
+    """A device asking to join the account whose code it entered.
+
+    Nothing moves until a device of that account approves: a code read off a
+    screen or a screenshot would otherwise hand over the whole history.
+    """
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+
+    code = models.ForeignKey(PairingCode, on_delete=models.CASCADE, related_name="requests")
+    claimer = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="+")
+    status = models.CharField(
+        max_length=8,
+        choices=[(PENDING, "pending"), (APPROVED, "approved"), (DENIED, "denied")],
+        default=PENDING,
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    # Handed to the claimer once, on the first poll after approval, then cleared.
+    join_key = models.CharField(max_length=128, blank=True, default="")
 
 
 class Task(models.Model):
@@ -207,7 +234,13 @@ class RelationState(models.Model):
             models.Index(
                 fields=["kind", "last_added_at"], name="history_rel_last_added"
             ),
-            models.Index(fields=["actor_eksi_id", "kind"], name="history_rel_actor"),
+            # All three key columns: refresh_actor_relations looks rows up by
+            # (actor, target, kind) across accounts, and (actor, kind) alone made
+            # it read the person's whole history once per batch.
+            models.Index(
+                fields=["actor_eksi_id", "kind", "target_eksi_id"],
+                name="history_rel_actor_key",
+            ),
             models.Index(fields=["target_eksi_id", "kind"], name="history_rel_target"),
         ]
 
@@ -282,3 +315,75 @@ class AdminAccess(models.Model):
         verbose_name = "admin access"
         verbose_name_plural = "admin access log"
         ordering = ("-at",)
+
+
+class ActorRelation(models.Model):
+    """What one Ekşi user holds against one target, across all of their accounts.
+
+    RelationState is per account, so a block made from the app and lifted from an
+    unlinked extension left the app's row active and the person counted as still
+    blocking. This is the per-person answer: the latest state-changing row across
+    every account decides `active`. Derived from RelationState only, by
+    history.ingest.refresh_actor_relations, which every write path calls for the
+    keys it touched; history_rebuild checks it.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    actor_eksi_id = models.IntegerField()
+    target_eksi_id = models.IntegerField()
+    kind = models.SmallIntegerField(choices=KIND_CHOICES)
+    active = models.BooleanField(default=False)
+    last_changed_at = models.DateTimeField(null=True, blank=True)
+    first_added_at = models.DateTimeField(null=True, blank=True)
+    last_added_at = models.DateTimeField(null=True, blank=True)
+    add_count = models.IntegerField(default=0)
+    legacy_only = models.BooleanField(default=True)
+    accounts = models.IntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["actor_eksi_id", "target_eksi_id", "kind"],
+                name="history_actor_relation_key",
+            ),
+        ]
+        indexes = [
+            # One row per person, so a ranking is a COUNT(*) per target off this
+            # index alone; the actor rides along for the account-check exclusion.
+            models.Index(
+                fields=["kind", "target_eksi_id"],
+                include=["active", "legacy_only", "add_count", "first_added_at", "actor_eksi_id"],
+                name="history_actor_rel_rank",
+            ),
+            models.Index(fields=["kind", "last_added_at"], name="history_actor_rel_last_added"),
+            models.Index(fields=["target_eksi_id", "kind"], name="history_actor_rel_target"),
+        ]
+
+
+class AccountCheck(models.Model):
+    """Whether an Ekşi id is a real account whose nick matches, as Ekşi's public pages say.
+
+    Filled by `manage.py history_check_accounts`. Proves the account exists and the
+    nick and id belong together -- not that whoever reported under it is its owner.
+    """
+
+    OK = "OK"  # profile exists, and its entries carry this id
+    EXISTS = "EXISTS"  # profile exists; no entries to read the id from
+    MISMATCH = "MISMATCH"  # its entries carry a different id
+    MISSING = "MISSING"  # no such profile
+    ERROR = "ERROR"  # could not ask; tried again later
+    STATUSES = [OK, EXISTS, MISMATCH, MISSING, ERROR]
+    # Left out of rankings and flagged in the admin.
+    REJECTED = (MISMATCH, MISSING)
+
+    eksi_id = models.IntegerField(primary_key=True)
+    nick = models.CharField(max_length=96)
+    status = models.CharField(max_length=8, choices=[(s, s.lower()) for s in STATUSES])
+    found_id = models.IntegerField(null=True, blank=True)
+    checked_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [models.Index(fields=["status"], name="history_check_status")]
+
+    def __str__(self):
+        return f"{self.eksi_id} {self.nick} {self.status}"

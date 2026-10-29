@@ -11,6 +11,8 @@ from history import constants as c
 from history import sync
 from history.management.commands.history_rebuild import differences
 from history.models import (
+    ActorRelation,
+    PairingRequest,
     Account,
     DailyActor,
     DailyTally,
@@ -302,53 +304,94 @@ class PairingTests(LedgerTestCase):
         self.assertEqual(response.status_code, 201)
         return response.json()["code"]
 
-    def test_phone_joins_laptop(self):
+    def claim(self, code=None, who=None):
+        return (who or self.phone).post("/api/sync/pair/claim/", {"code": code or self.code()})
+
+    def pending(self):
+        return self.laptop.http.get("/api/sync/pair/requests/").json()
+
+    def approve(self, request_id, who=None, verb="approve"):
+        return (who or self.laptop).post(f"/api/sync/pair/requests/{request_id}/{verb}/")
+
+    def status(self, request_id):
+        return self.phone.http.get(f"/api/sync/pair/claim/{request_id}/").json()
+
+    def test_nothing_moves_until_approved(self):
+        self.phone.push([], [wire_event(77)])
+        old_account = self.phone.device.account_id
+        response = self.claim()
+        self.assertEqual(response.status_code, 202, response.content)
+        self.assertEqual(response.json()["status"], "PENDING")
+        self.assertEqual(self.phone.device.account_id, old_account)
+        self.assertEqual(self.status(response.json()["request_id"]), {"status": "PENDING", "join_key": None})
+
+    def test_phone_joins_laptop_once_approved(self):
         t = task()
         self.laptop.push([t])
         self.phone.push([], [wire_event(77)])
         old_account = self.phone.device.account_id
-        response = self.phone.post("/api/sync/pair/claim/", {"code": self.code()})
-        self.assertEqual(response.status_code, 200, response.content)
+        request_id = self.claim().json()["request_id"]
+        waiting = self.pending()
+        self.assertEqual([(r["label"], r["client"]) for r in waiting], [("phone", "ANDROID")])
+        self.assertEqual(self.approve(request_id).json()["status"], "APPROVED")
         self.assertEqual(self.phone.device.account_id, self.laptop.device.account_id)
         self.assertFalse(Account.objects.filter(pk=old_account).exists())
-        self.assertEqual(
-            [x["id"] for x in self.phone.pull().json()["tasks"]], [t["id"]]
-        )
-        # The phone's earlier history moved with it.
+        first = self.status(request_id)
+        self.assertEqual(first["status"], "APPROVED")
+        self.assertTrue(first["join_key"])
+        # The key is handed over once.
+        self.assertIsNone(self.status(request_id)["join_key"])
+        self.assertEqual([x["id"] for x in self.phone.pull().json()["tasks"]], [t["id"]])
         self.assertEqual(Event.objects.get().account_id, self.laptop.device.account_id)
         with connection.cursor() as cursor:
-            self.assertEqual(
-                differences(cursor), {k: (0, 0) for k in differences(cursor)}
-            )
+            diff = differences(cursor)
+        self.assertEqual(diff, {k: (0, 0) for k in diff})
+
+    def test_refused_request_moves_nothing(self):
+        old_account = self.phone.device.account_id
+        request_id = self.claim().json()["request_id"]
+        self.assertEqual(self.approve(request_id, verb="deny").json()["status"], "DENIED")
+        self.assertEqual(self.phone.device.account_id, old_account)
+        self.assertEqual(self.status(request_id)["status"], "DENIED")
+        self.assertEqual(self.approve(request_id).status_code, 409)
+
+    def test_only_the_codes_account_can_approve(self):
+        request_id = self.claim().json()["request_id"]
+        stranger = Client(self, label="stranger")
+        self.assertEqual(self.approve(request_id, who=stranger).status_code, 404)
+        # Not the claimer either: it is asking, not deciding.
+        self.assertEqual(self.approve(request_id, who=self.phone).status_code, 404)
+
+    def test_request_expires(self):
+        request_id = self.claim().json()["request_id"]
+        PairingRequest.objects.update(created_at=timezone.now() - timedelta(minutes=11))
+        self.assertEqual(self.pending(), [])
+        self.assertEqual(self.status(request_id)["status"], "EXPIRED")
+        self.assertEqual(self.approve(request_id).status_code, 409)
 
     def test_code_is_case_and_dash_insensitive(self):
         code = self.code().lower().replace("-", "")
-        self.assertEqual(
-            self.phone.post("/api/sync/pair/claim/", {"code": code}).status_code, 200
-        )
+        self.assertEqual(self.claim(code).status_code, 202)
 
     def test_expired_code(self):
         code = self.code()
         PairingCode.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
-        response = self.phone.post("/api/sync/pair/claim/", {"code": code})
-        self.assertEqual(response.status_code, 400)
-        self.assertNotEqual(self.phone.device.account_id, self.laptop.device.account_id)
+        self.assertEqual(self.claim(code).status_code, 400)
 
     def test_code_is_single_use(self):
         code = self.code()
-        self.phone.post("/api/sync/pair/claim/", {"code": code})
+        self.claim(code)
         third = Client(self, label="third")
-        self.assertEqual(
-            third.post("/api/sync/pair/claim/", {"code": code}).status_code, 400
-        )
+        self.assertEqual(self.claim(code, who=third).status_code, 400)
 
     def test_relation_rows_merge(self):
         self.laptop.push([], [wire_event(5, occurred_at=NOW_MS() - 1000)])
         self.phone.push([], [wire_event(5)])
-        self.phone.post("/api/sync/pair/claim/", {"code": self.code()})
+        self.approve(self.claim().json()["request_id"])
         row = RelationState.objects.get()
         self.assertEqual(row.add_count, 2)
         self.assertEqual(DailyActor.objects.count(), 1)
+        self.assertEqual(ActorRelation.objects.get().accounts, 1)
 
     def test_claims_are_throttled_per_address(self):
         guessers = [Client(self, label=f"guesser{i}") for i in range(3)]
@@ -360,6 +403,57 @@ class PairingTests(LedgerTestCase):
                 for g in guessers
             ]
         self.assertEqual(statuses, [400, 400, 429])
+
+
+class DeviceListTests(LedgerTestCase):
+    def test_list_and_remove(self):
+        laptop = Client(self)
+        desktop = Client(self, join_key=laptop.join_key, label="desktop")
+        listed = laptop.http.get("/api/sync/devices/").json()
+        self.assertEqual(sorted(d["label"] for d in listed), ["desktop", "laptop"])
+        self.assertEqual([d["is_current"] for d in listed if d["label"] == "laptop"], [True])
+        removed = laptop.http.delete(f"/api/sync/devices/{desktop.device.pk}/")
+        self.assertEqual(removed.status_code, 200)
+        self.assertEqual(desktop.pull().status_code, 401)
+        # The old join key no longer enrols into the account.
+        again = Client(self, join_key=laptop.join_key, label="desktop again")
+        self.assertNotEqual(again.device.account_id, laptop.device.account_id)
+        rejoined = Client(self, join_key=removed.json()["join_key"], label="with new key")
+        self.assertEqual(rejoined.device.account_id, laptop.device.account_id)
+
+    def test_other_accounts_devices_cannot_be_removed(self):
+        laptop, stranger = Client(self), Client(self, label="stranger")
+        self.assertEqual(
+            stranger.http.delete(f"/api/sync/devices/{laptop.device.pk}/").status_code, 404
+        )
+
+
+class LimitTests(LedgerTestCase):
+    def test_daily_cap_holds_the_rest_for_tomorrow(self):
+        laptop = Client(self)
+        with mock.patch("history.sync.DAILY_EVENT_CAP", 3):
+            body = laptop.push([], [wire_event(i) for i in range(1, 6)]).json()
+            self.assertTrue(body["capped"])
+            self.assertEqual(len(body["events_accepted"]), 3)
+            again = laptop.push([], [wire_event(9)]).json()
+            self.assertEqual(again["events_accepted"], [])
+            # A new day starts the count again.
+            Device.objects.update(events_day=timezone.now().date() - timedelta(days=2))
+            self.assertEqual(len(laptop.push([], [wire_event(9)]).json()["events_accepted"]), 1)
+        self.assertEqual(Event.objects.count(), 4)
+
+    def test_resent_events_do_not_spend_the_cap(self):
+        laptop = Client(self)
+        batch = [wire_event(i) for i in range(1, 4)]
+        with mock.patch("history.sync.DAILY_EVENT_CAP", 3):
+            laptop.push([], batch)
+            self.assertEqual(len(laptop.push([], batch).json()["events_accepted"]), 3)
+
+    def test_oversized_params_are_dropped_not_refused(self):
+        laptop = Client(self)
+        big = task(params={"retry": {"x": "y" * 30_000}})
+        self.assertEqual(laptop.push([big]).status_code, 200)
+        self.assertEqual(Task.objects.get().params, {"dropped": "too_large"})
 
 
 class DeletionTests(LedgerTestCase):

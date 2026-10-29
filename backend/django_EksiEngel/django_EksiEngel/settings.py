@@ -192,12 +192,21 @@ REST_FRAMEWORK = {
     },
 }
 
-# Throttle counters live in the default cache, which is LocMemCache: per process,
-# and cleared on restart. With N gunicorn workers the real ceiling is up to N
-# times the rate above. Making it exact needs a shared cache (Redis, memcached,
-# or Django's database backend via createcachetable) -- worth doing if abuse ever
-# materialises, but a per-worker bound is still a bound, and this endpoint had
-# none at all.
+# Throttle counters and the stats cache live in a file cache shared by every
+# gunicorn worker. It was the per-process LocMemCache, so with three workers each
+# rate above was really three times itself and each worker cached its own copy of
+# the rankings. A directory under the system temp dir is enough: losing it on a
+# reboot only resets the counters.
+import tempfile
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": env(
+            "CACHE_DIR", default=os.path.join(tempfile.gettempdir(), "eksiengel-cache")
+        ),
+    }
+}
 
 # Security settings
 SECURE_BROWSER_XSS_FILTER = True

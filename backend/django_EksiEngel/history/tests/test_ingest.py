@@ -7,7 +7,7 @@ from history import constants as c
 from history import stats
 from history.ingest import ingest
 from history.management.commands.history_rebuild import differences
-from history.models import DailyActor, DailyTally, Event, NickSeen, RelationState
+from history.models import ActorRelation, DailyActor, DailyTally, Event, NickSeen, RelationState
 
 from .helpers import T0, LedgerTestCase, account, at, block, event, unblock
 
@@ -148,6 +148,7 @@ class RebuildEquivalenceTests(LedgerTestCase):
         for seed in range(6):
             with self.subTest(seed=seed):
                 RelationState.objects.all().delete()
+                ActorRelation.objects.all().delete()
                 DailyTally.objects.all().delete()
                 DailyActor.objects.all().delete()
                 Event.objects.all().delete()

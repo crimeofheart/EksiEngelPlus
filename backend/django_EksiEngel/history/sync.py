@@ -16,8 +16,9 @@ from django.db.models import F
 from django.utils import timezone
 
 from . import constants as c
-from .ingest import DAY_SQL, RELATION_COLUMNS, RELATION_UPSERT_TAIL
+from .ingest import DAY_SQL, RELATION_COLUMNS, RELATION_UPSERT_TAIL, refresh_actor_relations
 from .models import (
+    PairingRequest,
     Account,
     DailyActor,
     Device,
@@ -316,10 +317,11 @@ class PairingFailed(Exception):
 
 
 def claim_pairing(device, code, now=None):
-    """Move `device`, and everything its account holds, into the code's account.
+    """Ask to join the code's account. Returns the pending PairingRequest.
 
-    Returns the target account's new join key: the old one's account no longer
-    exists, so the extension must replace the key its synced storage carries.
+    Nothing moves yet: a device of that account has to approve (decide_pairing).
+    The code is spent on the first claim, so a code read off a screen by someone
+    else can be refused, but cannot be tried again.
     """
     now = now or timezone.now()
     with transaction.atomic():
@@ -334,12 +336,131 @@ def claim_pairing(device, code, now=None):
             raise PairingFailed("same_account")
         pairing.used_at = now
         pairing.save(update_fields=["used_at"])
-        merge_accounts(source_id=device.account_id, target_id=pairing.account_id)
-        target = Account.objects.get(pk=pairing.account_id)
+        return PairingRequest.objects.create(code=pairing, claimer=device, created_at=now)
+
+
+def _request_expired(request, now):
+    return request.status == PairingRequest.PENDING and now - request.created_at >= PAIRING_TTL
+
+
+def pending_pairings(device, now=None):
+    """Requests waiting for a device of this account to approve or refuse."""
+    now = now or timezone.now()
+    return [
+        r
+        for r in PairingRequest.objects.select_related("claimer")
+        .filter(code__account_id=device.account_id, status=PairingRequest.PENDING)
+        .order_by("created_at")
+        if not _request_expired(r, now)
+    ]
+
+
+def decide_pairing(device, request_id, approve, now=None):
+    """Approve or refuse a request for this device's account.
+
+    Approving moves the claimer's account into this one -- its devices, tasks and
+    history -- and rotates the join key, which the claimer collects with its next
+    status poll. Returns the request, or None when it is not this account's.
+    """
+    now = now or timezone.now()
+    with transaction.atomic():
+        request = (
+            PairingRequest.objects.select_for_update()
+            .select_related("code", "claimer")
+            .filter(pk=request_id, code__account_id=device.account_id)
+            .first()
+        )
+        if request is None:
+            return None
+        if request.status != PairingRequest.PENDING or _request_expired(request, now):
+            raise PairingFailed("not_pending")
+        if not approve:
+            request.status = PairingRequest.DENIED
+            request.decided_at = now
+            request.save(update_fields=["status", "decided_at"])
+            return request
+        source_id = request.claimer.account_id
+        if source_id != device.account_id:
+            merge_accounts(source_id=source_id, target_id=device.account_id)
+        target = Account.objects.get(pk=device.account_id)
         join_key = new_secret()
         target.join_key_hash = hash_secret(join_key)
         target.save(update_fields=["join_key_hash"])
-        return target, join_key
+        request.status = PairingRequest.APPROVED
+        request.decided_at = now
+        request.join_key = join_key
+        request.save(update_fields=["status", "decided_at", "join_key"])
+        return request
+
+
+def pairing_status(device, request_id, now=None):
+    """(status, join_key) of the claimer's own request; the key is handed over once."""
+    now = now or timezone.now()
+    with transaction.atomic():
+        request = (
+            PairingRequest.objects.select_for_update()
+            .filter(pk=request_id, claimer=device)
+            .first()
+        )
+        if request is None:
+            return None, None
+        if _request_expired(request, now):
+            return "EXPIRED", None
+        join_key = request.join_key or None
+        if join_key:
+            request.join_key = ""
+            request.save(update_fields=["join_key"])
+        return request.status, join_key
+
+
+def account_devices(device):
+    return list(
+        Device.objects.filter(account_id=device.account_id, revoked_at__isnull=True)
+        .order_by("created_at")
+    )
+
+
+def remove_device(device, device_id, now=None):
+    """Revoke one of this account's devices. Returns the new join key, or None if not found.
+
+    The join key rotates too: a removed extension's synced browser storage still
+    holds the old one, and would otherwise enrol straight back in.
+    """
+    now = now or timezone.now()
+    with transaction.atomic():
+        account = _lock_account(device.account_id)
+        updated = Device.objects.filter(
+            pk=device_id, account=account, revoked_at__isnull=True
+        ).update(revoked_at=now)
+        if not updated:
+            return None
+        join_key = new_secret()
+        account.join_key_hash = hash_secret(join_key)
+        account.save(update_fields=["join_key_hash"])
+        return join_key
+
+
+# A device cannot settle more than this many targets a day: Ekşi allows about
+# twelve actions a minute, which is under 17,300 a day. Past it, events wait in the
+# device's outbox for the next day instead of filling the database.
+DAILY_EVENT_CAP = 20_000
+
+
+def event_allowance(device, wanted, today):
+    """How many of `wanted` new events the device may still send today."""
+    fresh = Device.objects.values_list("events_day", "events_today").get(pk=device.pk)
+    used = fresh[1] if fresh[0] == today else 0
+    return max(0, min(wanted, DAILY_EVENT_CAP - used))
+
+
+def count_events(device, inserted, today):
+    if inserted <= 0:
+        return
+    updated = Device.objects.filter(pk=device.pk, events_day=today).update(
+        events_today=F("events_today") + inserted
+    )
+    if not updated:
+        Device.objects.filter(pk=device.pk).update(events_day=today, events_today=inserted)
 
 
 def merge_accounts(source_id, target_id):
@@ -360,6 +481,7 @@ def merge_accounts(source_id, target_id):
         )
     target.save(update_fields=["change_seq"])
     with connection.cursor() as cursor:
+        moved_keys = _relation_keys(cursor, source_id)
         # Same merge rules as ingest: a key both accounts hold combines the two rows.
         cursor.execute(
             f"INSERT INTO history_relationstate AS rs ({RELATION_COLUMNS})"
@@ -372,6 +494,8 @@ def merge_accounts(source_id, target_id):
         cursor.execute(
             "DELETE FROM history_relationstate WHERE account_id = %s", [source_id]
         )
+        # One row fewer per key the two accounts shared: the per-person count changes.
+        refresh_actor_relations(cursor, moved_keys)
         cursor.execute(
             "INSERT INTO history_dailyactor (day, kind, account_id, actor_eksi_id)"
             " SELECT day, kind, %s, actor_eksi_id FROM history_dailyactor"
@@ -408,13 +532,26 @@ def delete_account(account_id):
                 [account_id],
             )
             cursor.execute("DELETE FROM history_dailytally WHERE n <= 0")
+            dropped_keys = _relation_keys(cursor, account_id)
         # Explicit deletes, largest first, so none of them goes through the
         # collector's per-row path.
         Event.objects.filter(account_id=account_id)._raw_delete(using="default")
         DailyActor.objects.filter(account_id=account_id)._raw_delete(using="default")
         RelationState.objects.filter(account_id=account_id)._raw_delete(using="default")
+        # What the person holds now comes from their other accounts, if any.
+        with connection.cursor() as cursor:
+            refresh_actor_relations(cursor, dropped_keys)
         Task.objects.filter(account_id=account_id).delete()
         Account.objects.filter(pk=account_id).delete()
+
+
+def _relation_keys(cursor, account_id):
+    cursor.execute(
+        "SELECT actor_eksi_id, target_eksi_id, kind FROM history_relationstate"
+        " WHERE account_id = %s",
+        [account_id],
+    )
+    return [tuple(row) for row in cursor.fetchall()]
 
 
 def record_gap(device, dropped):

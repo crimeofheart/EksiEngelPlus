@@ -14,6 +14,7 @@ from .authentication import DeviceTokenAuthentication, IsDevice
 from .ingest import NewEvent, ingest
 from .models import Account, AdminAccess, Event
 from .serializers import EnrollSerializer, PairClaimSerializer, PushSerializer
+from .stats import _istanbul_today as istanbul_today
 from .throttling import IPScopedRateThrottle
 
 
@@ -79,12 +80,27 @@ class PushView(DeviceView):
                 nicks.append((e["actor_eksi_id"], e["actor_nick"], e["occurred_at"]))
             if e.get("target_nick"):
                 nicks.append((e["target_eksi_id"], e["target_nick"], e["occurred_at"]))
-        result = ingest(events, nicks)
+        # Past the daily cap the rest wait in the device's outbox for tomorrow:
+        # they are not accepted, so the device keeps them.
+        # Events already stored are always acknowledged -- a resend after a lost
+        # response would otherwise be retried forever -- and only new ones count.
+        today = istanbul_today()
+        stored = set(
+            Event.objects.filter(event_uuid__in=[e.event_uuid for e in events]).values_list(
+                "event_uuid", flat=True
+            )
+        )
+        fresh = [e for e in events if e.event_uuid not in stored]
+        allowed = sync.event_allowance(device, len(fresh), today)
+        capped = allowed < len(fresh)
+        result = ingest([e for e in events if e.event_uuid in stored] + fresh[:allowed], nicks)
+        sync.count_events(device, result.inserted, today)
         sync.record_gap(device, payload["gap"])
         return Response(
             {
                 "tasks": task_results,
                 "events_accepted": [str(u) for u in result.accepted],
+                "capped": capped,
                 "cursor": Account.objects.values_list("change_seq", flat=True).get(
                     pk=device.account_id
                 ),
@@ -159,9 +175,84 @@ class PairClaimView(DeviceView):
         data = PairClaimSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         try:
-            _, join_key = sync.claim_pairing(self.device, data.validated_data["code"])
+            request_ = sync.claim_pairing(self.device, data.validated_data["code"])
         except sync.PairingFailed as failed:
             return Response({"error": str(failed)}, status=status.HTTP_400_BAD_REQUEST)
+        # Accepted, not done: a device of that account has to approve it.
+        return Response(
+            {"request_id": request_.pk, "status": request_.status},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class PairStatusView(DeviceView):
+    """The claimer polls this; the join key comes once, on the first poll after approval."""
+
+    def get(self, request, request_id):
+        state, join_key = sync.pairing_status(self.device, request_id)
+        if state is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({"status": state, "join_key": join_key})
+
+
+class PairRequestsView(DeviceView):
+    """Devices waiting to join this account, for the code's owner to approve or refuse."""
+
+    def get(self, request):
+        return Response(
+            [
+                {
+                    "id": r.pk,
+                    "label": r.claimer.label,
+                    "client": r.claimer.client,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in sync.pending_pairings(self.device)
+            ]
+        )
+
+
+class PairDecideView(DeviceView):
+    approve = True
+
+    def post(self, request, request_id):
+        try:
+            decided = sync.decide_pairing(self.device, request_id, self.approve)
+        except sync.PairingFailed as failed:
+            return Response({"error": str(failed)}, status=status.HTTP_409_CONFLICT)
+        if decided is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({"status": decided.status})
+
+
+class PairDenyView(PairDecideView):
+    approve = False
+
+
+class DevicesView(DeviceView):
+    """The account's linked devices, so the user can see and remove them."""
+
+    def get(self, request):
+        return Response(
+            [
+                {
+                    "id": d.pk,
+                    "label": d.label,
+                    "client": d.client,
+                    "created_at": d.created_at.isoformat(),
+                    "last_seen_at": d.last_seen_at.isoformat(),
+                    "is_current": d.pk == self.device.pk,
+                }
+                for d in sync.account_devices(self.device)
+            ]
+        )
+
+
+class DeviceRemoveView(DeviceView):
+    def delete(self, request, device_id):
+        join_key = sync.remove_device(self.device, device_id)
+        if join_key is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response({"join_key": join_key})
 
 

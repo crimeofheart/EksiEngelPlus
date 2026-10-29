@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from . import sync
-from .models import Account, AdminAccess, Device, Event, Task
+from .models import Account, AccountCheck, AdminAccess, Device, Event, Task
 
 
 class LogsPersonalReads:
@@ -185,3 +185,10 @@ def history_links(eksi_id):
         " · ".join(['<a href="{}">{}</a>'] * len(links)),
         *[part for label, url in links for part in (url, label)],
     )
+
+
+@admin.register(AccountCheck)
+class AccountCheckAdmin(ReadOnlyAdmin):
+    list_display = ("eksi_id", "nick", "status", "found_id", "checked_at")
+    list_filter = ("status",)
+    search_fields = ("=eksi_id", "nick")

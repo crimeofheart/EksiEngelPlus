@@ -1,0 +1,11 @@
+# Checks reporting Ekşi ids against Ekşi Sözlük's public pages; see
+# history/management/commands/history_check_accounts.py. Started by the timer.
+[Unit]
+Description=EksiEngelPlus history account check
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/EksiEngelPlus/backend/django_EksiEngel
+ExecStart=/usr/bin/python3 manage.py history_check_accounts

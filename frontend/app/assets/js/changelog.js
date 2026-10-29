@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.6.1": {
+    date: "2026-10-29",
     app: [
       "Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
       "Ayarlara bağlı cihazlar listesi eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",

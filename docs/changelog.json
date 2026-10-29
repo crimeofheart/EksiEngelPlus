@@ -2,6 +2,20 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
+      "[Eklenti] Ayarlar sayfasına bağlı cihazlar bölümü eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",
+      "[Eklenti] Ayarlar sayfasına cihazların nasıl bağlanacağını anlatan kısa bir rehber eklendi.",
+      "[Eklenti] Bir cihaz bağlandıktan ya da kaldırıldıktan sonra, başka bir tarayıcı profiline kurulan eklenti artık ayrı bir hesap açmıyor; eskisi gibi kod gerekmeden mevcut hesaba bağlanıyor.",
+      "[Uygulama] Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
+      "[Uygulama] Ayarlara bağlı cihazlar listesi eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",
+      "[Uygulama] Kullanım kılavuzuna cihazların nasıl bağlanacağını anlatan bir bölüm eklendi."
+    ],
+    "pub_date": "2026-10-29",
+    "version": "0.6.1"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] Yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor; kuyruğunuz da eklentinin diğer kurulumları ve Android uygulamasıyla eşitleniyor. İşlem durumu sayfasında diğer cihazlarınızdaki işlemler de görünüyor: oradan iptal edebilir, tek hedefli olanları bu cihaza alıp burada çalıştırabilirsiniz.",
       "[Eklenti] Ayarlara \"İşlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle\" seçeneği eklendi. Varsayılan olarak açık; kapatırsanız hiçbir işlem sonucu gönderilmiyor. Cihazlarınızı bir kodla bağlayabilir, \"Sunucudaki verilerimi sil\" ile sunucudaki geçmişinizi tamamen silebilirsiniz. Aynı tarayıcı hesabıyla eşitlenen kurulumlar kendiliğinden bağlanıyor.",
       "[Eklenti] Eşitleme açıkken işlem raporu artık hedeflerin listesini değil yalnızca sayısını gönderiyor; aynı kişiler sunucuya iki kez gitmiyor.",

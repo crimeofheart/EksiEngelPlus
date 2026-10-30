@@ -45,6 +45,12 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.6.3" to VersionNotes(
+            app = emptyList(),
+            extension = listOf(
+                "Kullanılmayan bildirim (notifications) izni kaldırıldı.",
+            ),
+        ),
         "0.6.2" to VersionNotes(
             app = emptyList(),
             extension = listOf(

@@ -19,6 +19,12 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.6.3": {
+    app: [],
+    extension: [
+      "Kullanılmayan bildirim (notifications) izni kaldırıldı."
+    ]
+  },
   "0.6.2": {
     date: "2026-10-30",
     app: [],

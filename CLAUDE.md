@@ -274,9 +274,12 @@ So markup nested inside a `data-tr` element gets overwritten, and an element mis
 attribute **silently never translates** — add both or neither.
 
 **Never hardcode the version or release notes in the template.** `api/release_info.py`
-derives both — the version from `android/version.json`, the notes from the newest entry in
-`docs/changelog.json` — and `landing_page` passes them as context, so a release needs no
-template edit. `npm run check` already fails when either file is wrong or stale, so the page
+derives both — the version from `android/version.json`, the notes from `docs/changelog.json` —
+and `landing_page` passes them as context, so a release needs no template edit. The notes run
+from the newest entry back to the last *published* version before it, which is the newest
+file in `docs/eksisozluk/announcements/` older than the newest entry, so one store update
+across several tags (0.5.3 → 0.6.2) shows all of them. Writing the announcement file is what
+marks a version published here too. `npm run check` already fails when either file is wrong or stale, so the page
 is correct as soon as the host pulls and restarts. Every accessor degrades to `None` and the
 template drops that piece rather than raising; the notes are Turkish-only, so that one
 section stays Turkish under the English toggle.

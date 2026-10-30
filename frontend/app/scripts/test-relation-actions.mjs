@@ -25,7 +25,7 @@ async function check(name, fn) {
   console.log(`ok: ${name}`);
 }
 function relation(fetch) {
-  const scope = vm.createContext({ enums, config, log: quiet, fetch });
+  const scope = vm.createContext({ enums, config, log: quiet, eksiFetch: fetch });
   vm.runInContext(`${declaration('relationHandler.js', 'class RelationHandler')}\nthis.handler = new RelationHandler();`, scope);
   return scope.handler;
 }
@@ -126,7 +126,7 @@ function conversionHarness({ fetch, profile = async () => { throw new Error('pro
     finishErrorEarlyStop: (...data) => finished.push(['stopped', ...data]),
   };
   const handler = relation(fetch);
-  const scope = vm.createContext({ enums, config, utils, log: quiet, fetch,
+  const scope = vm.createContext({ enums, config, utils, log: quiet, eksiFetch: fetch,
     relationHandler: handler, storageHandler: storage, notificationHandler: notification,
     resumableOperationRegistry: registry, OperationState: { PAUSED: 'PAUSED', STOPPING: 'STOPPING' },
     processQueue: { currentItemMetadata: {} }, parseHTML() { throw new Error('must not parse profile'); } });

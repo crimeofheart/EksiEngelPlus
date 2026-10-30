@@ -1,3 +1,46 @@
+/*
+ * The background's way to Ekşi when Cloudflare challenges its own requests
+ * (eksiFetch.js): made from this page, a request passes like the page's own.
+ * Only for this extension, and only to this page's origin -- not a general proxy.
+ */
+function answerEksiFetch(request, sender, sendResponse)
+{
+  if (!request || request.action !== "eksiFetch") return false;
+  if (sender.id !== chrome.runtime.id) return false;
+  let target;
+  try {
+    target = new URL(request.url, location.origin);
+  } catch (err) {
+    sendResponse({ error: "invalid url" });
+    return false;
+  }
+  if (target.origin !== location.origin) {
+    sendResponse({ error: "not this page's origin" });
+    return false;
+  }
+  // Firefox makes a content script's own fetch as the extension; content.fetch
+  // makes it as the page. Chrome's content-script fetch already is the page's.
+  const pageFetch = typeof content !== "undefined" && content && content.fetch ? content.fetch.bind(content) : fetch;
+  pageFetch(target.href, {
+    method: request.method,
+    headers: request.headers,
+    body: request.body ?? undefined,
+    credentials: "same-origin",
+  }).then(async response => {
+    sendResponse({
+      status: response.status,
+      headers: Object.fromEntries(
+        ["retry-after", "cf-mitigated", "content-type"]
+          .filter(name => response.headers.has(name))
+          .map(name => [name, response.headers.get(name)])
+      ),
+      text: await response.text(),
+    });
+  }).catch(err => sendResponse({ error: String(err) }));
+  return true;
+}
+chrome.runtime.onMessage.addListener(answerEksiFetch);
+
 (async () => {
   let eksiEngelIconURL = chrome.runtime.getURL('assets/img/eksiengel16.png');
   // Loaded by contentEnums.js, listed before this file in the manifest.

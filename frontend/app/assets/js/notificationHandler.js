@@ -53,7 +53,7 @@ class NotificationHandler {
 
   finishErrorAccess = (banSource, banMode, operationMetadata = null) => this.#finish(banSource, banMode, "Ekşi Sözlük'e erişilemedi.", "Ekşi Sözlük'e erişilemedi.", 0, 0, 0, operationMetadata);
   finishErrorChallenge = (banSource, banMode, operationMetadata = null) => this.#finish(banSource, banMode,
-    "Ekşi Sözlük bu internet bağlantısından gelen istekleri şu an güvenlik doğrulamasına (Cloudflare) takıyor ve eklenti bu doğrulamayı geçemiyor. Bir süre sonra tekrar deneyin; aynı bağlantıdan kısa sürede çok sayıda işlem yapmak buna yol açabilir.",
+    "Ekşi Sözlük bu internet bağlantısından gelen istekleri güvenlik doğrulamasına (Cloudflare) takıyor ve doğrulama tamamlanamadı. Ekşi Sözlük'ü bir sekmede açıp doğrulamayı geçtikten sonra tekrar deneyin.",
     "Ekşi Sözlük doğrulama istiyor", 0, 0, 0, operationMetadata);
   finishErrorLogin = (banSource, banMode, operationMetadata = null) => this.#finish(banSource, banMode, "Ekşi Sözlük hesabınıza giriş yapmanız gerekiyor.", "Giriş yapılmadı", 0, 0, 0, operationMetadata);
   finishErrorNoAccount = (banSource, banMode, operationMetadata = null) => this.#finish(banSource, banMode, "Engellenecek yazar listesi boş.", "Yazar listesi boş", 0, 0, 0, operationMetadata);

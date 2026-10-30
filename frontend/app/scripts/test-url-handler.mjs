@@ -6,7 +6,8 @@ globalThis.chrome = { storage: { local: { get: async () => ({}), set: async () =
 const { config } = await import('../assets/js/config.js');
 const { log } = await import('../assets/js/log.js');
 log.logConsole = false;
-const { handleEksiSozlukURL, isCloudflareChallenge, EksiAccess } = await import('../assets/js/urlHandler.js');
+const { handleEksiSozlukURL, EksiAccess } = await import('../assets/js/urlHandler.js');
+const { isCloudflareChallenge, resetRoute } = await import('../assets/js/eksiFetch.js');
 
 const CHALLENGE_PAGE = '<html><title>Just a moment...</title><script src="/cdn-cgi/challenge-platform/h/g/orchestrate/chl/v1"></script></html>';
 
@@ -19,6 +20,7 @@ async function check(name, fn) {
 
 /** Answers each URL from the table; anything else is a network failure. */
 function serve(table) {
+  resetRoute();
   const asked = [];
   globalThis.fetch = async (url) => {
     asked.push(url);
@@ -36,7 +38,7 @@ await check('a challenge is recognised by its header, and by its page when the h
   assert.equal(await isCloudflareChallenge(new Response(CHALLENGE_PAGE, { status: 200 })), false);
 });
 
-await check('a challenged Ekşi is not called unreachable, and no new address is looked up', async () => {
+await check('a challenge no Ekşi tab gets past is not called unreachable, and no new address is looked up', async () => {
   const asked = serve({ [config.EksiSozlukURL]: [403, CHALLENGE_PAGE, { 'cf-mitigated': 'challenge' }] });
   assert.equal(await handleEksiSozlukURL(), EksiAccess.CHALLENGED);
   assert.deepEqual(asked, [config.EksiSozlukURL]);

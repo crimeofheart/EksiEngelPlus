@@ -22,7 +22,8 @@ export const releaseNotes = {
   "0.6.2": {
     app: [],
     extension: [
-      "Ekşi Sözlük internet bağlantınızı güvenlik doğrulamasına (Cloudflare) taktığında eklenti artık \"Ekşi Sözlük'e erişilemedi\" demiyor; doğrulamayı geçemediğini ve bir süre sonra tekrar denemeniz gerektiğini söylüyor."
+      "Ekşi Sözlük internet bağlantınızı güvenlik doğrulamasına (Cloudflare) taktığında eklenti artık durmuyor: isteklerini açık bir Ekşi Sözlük sekmesi üzerinden gönderiyor, açık sekme yoksa arka planda bir tane açıp iş bitince kapatıyor. Doğrulama bir tıklama isterse bunu söylüyor ve tamamlanınca kaldığı yerden devam ediyor.",
+      "Doğrulama yine de geçilemezse \"Ekşi Sözlük'e erişilemedi\" yerine ne olduğunu ve ne yapılması gerektiğini söylüyor."
     ]
   },
   "0.6.1": {

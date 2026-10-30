@@ -10,6 +10,7 @@ import {scrapingHandler} from './scrapingHandler.js';
 import {processQueue, generateUnifiedDescription, isCancelledTask, getTaskCategory} from './queue.js';
 import {programController} from './programController.js';
 import {handleEksiSozlukURL, EksiAccess} from './urlHandler.js';
+import {tabRoute} from './eksiFetch.js';
 import { notificationHandler } from './notificationHandler.js';
 import { storageHandler } from './storageHandler.js';
 import { resumableOperationRegistry, OperationState } from './resumableOperation.js';
@@ -99,6 +100,12 @@ historySync.onTaskLost = (taskId) => {
 historySync.onRemoteChanged = () => {
   notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
 };
+
+// Ekşi challenged the background's requests and the Ekşi tab they now go through
+// is still waiting at the check: only the user can get it past a click.
+tabRoute.onCheckWaiting = () => notificationHandler.notify(
+  "Ekşi Sözlük bir güvenlik doğrulaması istiyor: Ekşi Sözlük sekmesinde doğrulamayı tamamlayın, işlem ardından kendiliğinden devam edecek."
+);
 
 chrome.alarms.create(HISTORY_ALARM, { periodInMinutes: HISTORY_ALARM_MINUTES });
 // The account check follows a sync: it does nothing unless the admin marked this

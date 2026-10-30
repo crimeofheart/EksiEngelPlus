@@ -1,5 +1,6 @@
 import {config, saveConfig} from './config.js';
 import {log} from './log.js';
+import {eksiFetch, isCloudflareChallenge} from './eksiFetch.js';
 
 const isURLValid = url => {
     try { 
@@ -13,30 +14,19 @@ const isURLValid = url => {
 
 export const EksiAccess = Object.freeze({
   OK: "ok",
-  // Cloudflare is putting this connection through a challenge. A tab solves it;
-  // a request from the extension's background cannot.
+  // Cloudflare is putting this connection through a challenge that not even an
+  // Ekşi tab got past (see eksiFetch.js).
   CHALLENGED: "challenged",
   UNREACHABLE: "unreachable",
 });
 
-// The challenge answers 403 (or 503) with cf-mitigated: challenge. The body is
-// the fallback in case a browser hides the header from the extension.
-export async function isCloudflareChallenge(response)
-{
-  if (response.status !== 403 && response.status !== 503) return false;
-  if (response.headers.get("cf-mitigated") === "challenge") return true;
-  try {
-    return (await response.clone().text()).includes("/cdn-cgi/challenge-platform/");
-  } catch (err) {
-    return false;
-  }
-}
-
-async function accessOf(url)
+// `get` is eksiFetch for the configured Ekşi, which can go through an Ekşi tab;
+// a candidate new address has no tab yet and is asked directly.
+async function accessOf(url, get = eksiFetch)
 {
   try 
   {
-    let response = await fetch(url);
+    let response = await get(url);
     if (await isCloudflareChallenge(response)) return EksiAccess.CHALLENGED;
     // redirected response is not considered correct
     // TODO: redirected response probably means the user is using a VPN. So, redirected url could be used instead 
@@ -81,7 +71,7 @@ export async function handleEksiSozlukURL()
       if(!isURLValid(newEksiSozlukURL))
         throw "Obtained EksiSozluk URL is not valid";
 
-      let newAccess = await accessOf(newEksiSozlukURL);
+      let newAccess = await accessOf(newEksiSozlukURL, fetch);
 
       if(newAccess === EksiAccess.OK)
       {

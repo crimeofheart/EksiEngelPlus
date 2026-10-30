@@ -5,6 +5,7 @@ import * as utils from './utils.js';
 import { programController } from './programController.js';
 import { resumableOperationRegistry } from './resumableOperation.js';
 import { commHandler } from './commHandler.js';
+import { eksiFetch } from './eksiFetch.js';
 
 // Import JSDOM for Chrome (service worker doesn't have DOMParser)
 import {JSDOM} from './jsdom.js';
@@ -103,7 +104,7 @@ class ScrapingHandler
   #fetchEksiSozluk = async (url) => {
     let responseText = "";
     try {
-      let response = await fetch(url, {
+      let response = await eksiFetch(url, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -156,7 +157,7 @@ class ScrapingHandler
   scrapeMetaDataFromEntryPage = async (entryUrl) => {
     let responseText = "";
     try {
-      let response = await fetch(entryUrl, {
+      let response = await eksiFetch(entryUrl, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -194,7 +195,7 @@ class ScrapingHandler
     try {
       let entryId = entryUrl.match(/(\d+)(?!.*\d)/g).join("");
       let targetUrl = config.EksiSozlukURL + "/entry/favorileyenler?entryId=" + entryId;
-      let response = await fetch(targetUrl, {
+      let response = await eksiFetch(targetUrl, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -237,7 +238,7 @@ class ScrapingHandler
       try {
         let entryId = entryUrl.match(/(\d+)(?!.*\d)/g).join("");
         let targetUrl = config.EksiSozlukURL + "/entry/caylakfavorites?entryId=" + entryId;
-        let response = await fetch(targetUrl, {
+        let response = await eksiFetch(targetUrl, {
           method: 'GET',
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -283,7 +284,7 @@ class ScrapingHandler
     let responseJson = "";
     try {
       let targetUrl = `${config.EksiSozlukURL}/relation-list?relationType=${targetTypeTextInURL}&pageIndex=${index}`;
-      let response = await fetch(targetUrl, {
+      let response = await eksiFetch(targetUrl, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -898,7 +899,7 @@ class ScrapingHandler
     let responseJson = "";
     try {
       let targetUrl = `${config.EksiSozlukURL}/follower?nick=${authorName}&pageIndex=${index}`;
-      let response = await fetch(targetUrl, {
+      let response = await eksiFetch(targetUrl, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -972,7 +973,7 @@ class ScrapingHandler
     let responseJson = "";
     try {
       let targetUrl = `${config.EksiSozlukURL}/following?nick=${authorName}&pageIndex=${index}`;
-      let response = await fetch(targetUrl, {
+      let response = await eksiFetch(targetUrl, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -1194,7 +1195,7 @@ class ScrapingHandler
   scrapeAuthorIdFromAuthorProfilePage = async (authorName) => {
     try {
       let targetUrl = config.EksiSozlukURL + "/biri/" + authorName;
-      let response = await fetch(targetUrl, {
+      let response = await eksiFetch(targetUrl, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -1223,7 +1224,7 @@ class ScrapingHandler
   scrapeRegistrationDate = async (authorName) => {
     try {
       let targetUrl = config.EksiSozlukURL + "/biri/" + authorName;
-      let response = await fetch(targetUrl, {
+      let response = await eksiFetch(targetUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -1361,7 +1362,7 @@ class ScrapingHandler
         targetUrl = config.EksiSozlukURL + "/" + titleName + "--" + titleId + "?p=" + index;
       else if(timeSpecifier == enums.TimeSpecifier.LAST_24_H)
         targetUrl = config.EksiSozlukURL + "/" + titleName + "--" + titleId + "?a=dailynice&p=" + index;
-      let response = await fetch(targetUrl, {
+      let response = await eksiFetch(targetUrl, {
         method: 'GET',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',

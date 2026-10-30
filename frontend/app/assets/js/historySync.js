@@ -2,6 +2,7 @@ import {log} from './log.js';
 import {config, getConfig, saveConfig} from './config.js';
 import * as enums from './enums.js';
 import {commHandler} from './commHandler.js';
+import {eksiFetch} from './eksiFetch.js';
 
 /*
  * History sync: the outbox of per-target outcomes and task states, and the
@@ -137,11 +138,13 @@ async function eksiGet(path, headers = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(config.EksiSozlukURL + path, {
+    // Through an Ekşi tab when the direct route is challenged, but never one
+    // opened for the checker: without an open tab the batch stops as refused.
+    const response = await eksiFetch(config.EksiSozlukURL + path, {
       method: "GET",
       headers,
       signal: controller.signal,
-    });
+    }, { openTab: false });
     return { status: response.status, text: await response.text() };
   } catch (e) {
     return { status: 0, text: "" };

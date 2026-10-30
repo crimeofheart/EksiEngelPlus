@@ -3,6 +3,7 @@ import * as enums from './enums.js';
 import * as utils from './utils.js'
 import {programController} from './programController.js';
 import {config} from './config.js';
+import {eksiFetch} from './eksiFetch.js';
 
 // a class to manage relations (ban/undoban users/users' titles)
 class RelationHandler
@@ -156,7 +157,7 @@ class RelationHandler
     let result = { status: enums.ResultTypeHttpReq.FAIL };
     try
     {
-      let response = await fetch(url, {
+      let response = await eksiFetch(url, {
         method: 'POST',
            headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',

@@ -38,8 +38,8 @@ Binds: **extension**.
 
 When a direct request is challenged, the routing function SHALL send the same request to the content
 script of an open tab whose URL is under the configured Ekşi base URL, which SHALL make it from the
-page and return the answer. The run SHALL keep using the tab route for its remaining requests, and
-SHALL try the direct route again at the start of the next run.
+page and return the answer. Requests SHALL keep using the tab route for 10 minutes after the
+challenge, and SHALL then try the direct route again.
 
 #### Scenario: Run under a challenge with an Ekşi tab open
 - **WHEN** a run starts, the direct access check is challenged, and an Ekşi tab is open
@@ -54,17 +54,18 @@ SHALL try the direct route again at the start of the next run.
 
 Binds: **extension**.
 
-When a run needs the tab route and no Ekşi tab is open, the extension SHALL open
-`<base URL>/` in a background tab (not focused), wait until the page there is no longer the
-challenge page, and close the tab when the run ends if it opened it. When the challenge does not
-clear on its own within 30 seconds (an interactive check), the run SHALL tell the user to complete the
-check in that tab, and SHALL wait for it instead of failing. The account checker SHALL NOT open a tab:
-without an open Ekşi tab it SHALL stop as refused.
+When a request needs the tab route and no Ekşi tab is open, the extension SHALL open
+`<base URL>/` in a background tab (not focused), at most one at a time, wait until requests through
+it are no longer challenged, and close it once no request has gone through it for 3 minutes. When the
+challenge does not clear on its own within 30 seconds (an interactive check), the run SHALL tell the
+user to complete the check in that tab, and SHALL keep waiting for up to 5 minutes before ending as
+challenged. The account checker SHALL NOT open a tab and SHALL NOT wait: without an open Ekşi tab
+that answers, it SHALL stop as refused.
 
 #### Scenario: No Ekşi tab open
 - **WHEN** a run is challenged and no Ekşi tab is open
 - **THEN** the extension opens one in the background, the run continues through it, and the tab is
-  closed when the run ends
+  closed 3 minutes after its last request
 
 #### Scenario: Interactive check
 - **WHEN** the opened tab still shows the challenge after 30 seconds

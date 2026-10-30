@@ -43,11 +43,12 @@ response-shaped object keeps the call sites' `response.status`, `response.ok`,
 *Alternative:* patch the global `fetch`. Rejected: it would also reroute the sync server's requests
 and hide which requests can take the tab route.
 
-**D2. Direct first, then sticky per run.** `eksiFetch` makes the direct request. If it is a challenge
-(`isCloudflareChallenge`, already in `urlHandler.js`), the module switches to tab mode and repeats the
-request through a tab. Tab mode lasts until `resetRoute()`, which `processHandler` calls at the start
-of each run. A run under a challenge therefore pays one wasted direct request, and a lifted challenge
-is noticed at the next run.
+**D2. Direct first, then sticky for 10 minutes.** `eksiFetch` makes the direct request. If it is a
+challenge (`isCloudflareChallenge`, moved here from `urlHandler.js`), the module switches to tab mode
+and repeats the request through a tab. Tab mode lasts 10 minutes, then the direct route is tried
+again. Time rather than run boundaries, because the account checker and restored runs share the
+module and neither goes through one place where a run starts; a challenge costs one wasted direct
+request every 10 minutes.
 *Alternative:* always use a tab when one is open. Rejected: it changes behaviour for everyone who is
 not challenged, and ties runs to tab lifetimes for no reason.
 
@@ -67,10 +68,11 @@ receiver) moves on to the next tab, and after the last one to a new tab; it is n
 failed request. With no usable tab, a run opens `<base>/` with `active: false` and waits on
 `tabs.onUpdated` for `complete`, then sends a probe request through it. While the probe is still
 challenged it retries every 2 seconds. After 30 seconds the run posts a status line asking the user
-to complete the check in that tab, and keeps waiting. The module remembers that it opened the tab and
-closes it when `processHandler` finishes. The account checker calls `eksiFetch` with
-`{ openTab: false }`, so without an open tab it gets the challenge answer back and stops as refused,
-as today.
+to complete the check in that tab, and keeps waiting up to 5 minutes. The module remembers the tab it
+opened, prefers it, never opens a second, and closes it once no request has gone through it for 3
+minutes -- longer than the 65 s a rate-limited run waits, and independent of how a run ends. The
+account checker calls `eksiFetch` with `{ openTab: false }`, so without an open tab it gets the
+challenge answer back at once and stops as refused, as today.
 
 **D5. Bodies are text across the message boundary.** Pages are parsed in the background exactly as
 now (`parseHTML` in `scrapingHandler.js:19`). The largest answers are relation-list pages and entry
@@ -85,7 +87,9 @@ pages, a few hundred KB, which is far below the extension messaging limit.
 - [A user's own tab navigating mid-run] → A failed message moves on to another tab (D4), so a request
   is never lost to a navigation.
 - [A background tab appearing during a run] → It appears only while challenged, only when no Ekşi
-  tab is open, it is not focused, and it closes at the end of the run.
+  tab is open, it is not focused, and it closes 3 idle minutes later. If the service worker is
+  stopped in between, the close timer is lost and the tab stays open until the user closes it; the
+  next run simply uses it.
 - [Firefox for Android tab behaviour] → `tabs.create({ active: false })` and `tabs.query` work there,
   but whether a background tab runs its scripts is checked on a device (task 4.3).
 - Carried forward deliberately: the where-is-eksisozluk lookup in `urlHandler.js` still runs only for

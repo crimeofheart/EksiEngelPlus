@@ -37,6 +37,15 @@ export const ALARM_PERIOD_MINUTES = 5;
 const MAX_BACKOFF_MS = 30 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10 * 1000;
 
+// Account checks, run only in the browser the admin marked as checker. Mirrors the
+// server's history/accountcheck.py, which classifies what this reports.
+export const CHECK_ALARM_NAME = "historyCheck";
+export const CHECK_ALARM_PERIOD_MINUTES = 15;
+// Ekşi turning this browser away (a challenge, a rate limit), not an answer about one account.
+const EKSI_REFUSED = new Set([403, 429, 503]);
+const AUTHOR_ID = /data-author-id="(\d+)"/g;
+const MAX_AUTHOR_IDS = 100;
+
 export const KIND_OF_TARGET = {
   [enums.TargetType.USER]: "BLOCK",
   [enums.TargetType.TITLE]: "TITLE_BLOCK",
@@ -98,6 +107,8 @@ function emptyState() {
     failures: 0,
     backoffUntil: 0,
     lastFlushAt: 0,
+    // Whether the admin marked this browser as the account checker; every pull says.
+    checker: false,
   };
 }
 
@@ -118,6 +129,37 @@ function deviceLabel() {
   return platform ? `${browser} · ${platform}` : browser;
 }
 
+/** {status, text} for one Ekşi page; a network failure is status 0, as on the server. */
+async function eksiGet(path, headers = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(config.EksiSozlukURL + path, {
+      method: "GET",
+      headers,
+      signal: controller.signal,
+    });
+    return { status: response.status, text: await response.text() };
+  } catch (e) {
+    return { status: 0, text: "" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** What Ekşi answers this browser about one account, in the shape /api/sync/checks/ takes. */
+export async function askEksi({ eksi_id, nick }) {
+  const slug = encodeURIComponent(nick.trim().replace(/ /g, "-"));
+  const profile = await eksiGet(`/biri/${slug}`);
+  const result = { eksi_id, nick, profile: profile.status };
+  if (profile.status !== 200) return result;
+  const entries = await eksiGet(`/son-entryleri?nick=${slug}`, { "x-requested-with": "XMLHttpRequest" });
+  const ids = new Set([...entries.text.matchAll(AUTHOR_ID)].map(m => Number(m[1])));
+  result.entries = entries.status;
+  result.author_ids = [...ids].slice(0, MAX_AUTHOR_IDS);
+  return result;
+}
+
 class SyncError extends Error {
   constructor(status, body) {
     super(`history sync HTTP ${status}`);
@@ -134,6 +176,7 @@ export class HistorySync {
   #flushing = null;
   #sinceFlush = 0;
   #current = null;
+  #checking = null;
   // id -> nick, most recently resolved last. See rememberNicks.
   #nicks = new Map();
 
@@ -445,6 +488,7 @@ export class HistorySync {
     let changed = false;
     for (let page = 0; page < 20; page++) {
       const body = await this.#call("GET", `pull/?cursor=${this.#state.cursor || 0}`);
+      this.#state.checker = body.checker === true;
       for (const task of body.tasks || []) {
         changed = this.#absorb(task) || changed;
       }
@@ -529,6 +573,50 @@ export class HistorySync {
 
   epochOf(taskId) {
     return this.#state?.own[taskId]?.epoch || 0;
+  }
+
+  // --- account checks (the admin's browser only) ---------------------------------
+
+  /**
+   * Asks Ekşi about the accounts the server hands out, when the admin marked this
+   * browser as the checker: Ekşi's Cloudflare challenge turns the server's own
+   * hourly check away, but lets a real browser through. The server classifies the
+   * answers; this only reports them. Stops at the first refusal, since the rest
+   * would be refused too and stay due anyway. Never throws.
+   */
+  checkAccounts() {
+    if (!this.#checking) {
+      this.#checking = this.#checkAccounts().finally(() => { this.#checking = null; });
+    }
+    return this.#checking;
+  }
+
+  async #checkAccounts() {
+    try {
+      await this.#load();
+      if (!this.#state.checker || !this.#state.deviceToken || !(await this.isEnabled())) return;
+      const batch = await this.#call("GET", "checks/");
+      const results = [];
+      for (const [i, account] of (batch.accounts || []).entries()) {
+        if (i) await new Promise(resolve => setTimeout(resolve, batch.delay_ms || 0));
+        // Any extension API call resets the MV3 service worker's idle timer.
+        await chrome.runtime.getPlatformInfo?.();
+        const result = await askEksi(account);
+        if (EKSI_REFUSED.has(result.profile)) {
+          log.info("history", `account checks stopped: Ekşi refused with HTTP ${result.profile}`);
+          break;
+        }
+        results.push(result);
+      }
+      if (results.length) await this.#call("POST", "checks/", { results });
+    } catch (e) {
+      // 403: the admin unmarked this browser since the last pull.
+      if (e instanceof SyncError && e.status === 403) {
+        this.#state.checker = false;
+        this.#persist();
+      }
+      log.info("history", `account checks deferred: ${e.message || e}`);
+    }
   }
 
   async status() {

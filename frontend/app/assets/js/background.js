@@ -13,7 +13,13 @@ import {handleEksiSozlukURL} from './urlHandler.js';
 import { notificationHandler } from './notificationHandler.js';
 import { storageHandler } from './storageHandler.js';
 import { resumableOperationRegistry, OperationState } from './resumableOperation.js';
-import { historySync, ALARM_NAME as HISTORY_ALARM, ALARM_PERIOD_MINUTES as HISTORY_ALARM_MINUTES } from './historySync.js';
+import {
+  historySync,
+  ALARM_NAME as HISTORY_ALARM,
+  ALARM_PERIOD_MINUTES as HISTORY_ALARM_MINUTES,
+  CHECK_ALARM_NAME as HISTORY_CHECK_ALARM,
+  CHECK_ALARM_PERIOD_MINUTES as HISTORY_CHECK_ALARM_MINUTES,
+} from './historySync.js';
 
 log.info("bg", "initialized");
 
@@ -97,8 +103,11 @@ historySync.onRemoteChanged = () => {
 };
 
 chrome.alarms.create(HISTORY_ALARM, { periodInMinutes: HISTORY_ALARM_MINUTES });
+// Does nothing unless the admin marked this browser as the account checker.
+chrome.alarms.create(HISTORY_CHECK_ALARM, { periodInMinutes: HISTORY_CHECK_ALARM_MINUTES });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === HISTORY_ALARM) historySync.flush();
+  if (alarm.name === HISTORY_CHECK_ALARM) historySync.checkAccounts();
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local" || !changes.config) return;

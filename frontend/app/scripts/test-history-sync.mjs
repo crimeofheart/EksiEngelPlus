@@ -336,4 +336,53 @@ await check('nicks name the events they belong to, and only those', async () => 
   assert.deepEqual(push.nicks, [], 'a nick nobody acted on is never sent');
 });
 
+function checkerServer() {
+  return acceptingServer()
+    .on('GET', 'pull/', () => [200, { tasks: [], next_cursor: 0, has_more: false, checker: true }]);
+}
+
+await check('the checker reports what Ekşi answers and stops at the first refusal', async () => {
+  const server = checkerServer()
+    .on('GET', 'checks/', () => [200, { accounts: [
+      { eksi_id: 42, nick: 'ben' },
+      { eksi_id: 5, nick: 'iki kelime' },
+      { eksi_id: 6, nick: 'perde' },
+      { eksi_id: 7, nick: 'sonra' },
+    ], delay_ms: 0 }])
+    .on('POST', 'checks/', body => [200, { recorded: body.results.length }]);
+  const h = fresh(server);
+  const pages = {
+    '/biri/ben': [200, ''],
+    '/son-entryleri?nick=ben': [200, '<li data-author-id="42"></li><li data-author-id="42"></li>'],
+    '/biri/iki-kelime': [404, ''],
+    '/biri/perde': [403, 'Just a moment...'],
+  };
+  const asked = [];
+  globalThis.fetch = async (url, init) => {
+    if (!url.startsWith(config.EksiSozlukURL)) return server.fetch(url, init);
+    const path = url.slice(config.EksiSozlukURL.length);
+    asked.push(path);
+    const [status, text] = pages[path] || [500, ''];
+    return new Response(text, { status });
+  };
+  await h.checkAccounts();
+  assert.equal(server.count('GET checks/'), 0, 'not a checker until a pull says so');
+  await h.flush();
+  await h.checkAccounts();
+  assert.deepEqual(asked, ['/biri/ben', '/son-entryleri?nick=ben', '/biri/iki-kelime', '/biri/perde']);
+  assert.deepEqual(server.last('POST checks/').body.results, [
+    { eksi_id: 42, nick: 'ben', profile: 200, entries: 200, author_ids: [42] },
+    { eksi_id: 5, nick: 'iki kelime', profile: 404 },
+  ]);
+});
+
+await check('a browser the admin unmarked stops asking', async () => {
+  const server = checkerServer().on('GET', 'checks/', () => [403, { detail: 'not a checker' }]);
+  const h = fresh(server);
+  await h.flush();
+  await h.checkAccounts();
+  await h.checkAccounts();
+  assert.equal(server.count('GET checks/'), 1);
+});
+
 console.log(`${tests} history sync checks passed`);

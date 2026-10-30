@@ -29,6 +29,14 @@ Zip'leri yayınlamadan yerelde denemek için:
 cd frontend/app && npm run package     # -> frontend/publish/dist/*.zip
 ```
 
+## Chrome Web Store izin gerekçeleri
+
+Privacy practices sekmesine girilen metinler. Yeni bir izin eklenince buraya da ekle.
+
+- `alarms` (0.6.0'dan beri):
+
+  > Schedules a periodic background task (every 5 minutes) that syncs the user's queued and completed block/mute operations with the extension's own server (eksiengelplus.duzgun.org), so the queue stays the same on all of the user's devices and pending work resumes after the service worker has stopped. A Manifest V3 service worker cannot keep timers between wake-ups, so chrome.alarms is the only reliable way to run it. When the user turns history sync off in the settings, the task sends nothing.
+
 ## Ayrıca
 - Sürüm notlarını `frontend/app/assets/js/changelog.js` içine yaz; tek kaynak orası.
   Ardından `npm run changelog` ile `docs/changelog.json`'ı üret (`npm run check` bayat

@@ -111,4 +111,4 @@ challenge, so it does the checks instead.
 - [x] 10.6 Admin: `is_checker` editable on Device; `checked_by` shown on AccountCheck
 - [x] 10.7 Tests: backend views and `classify`; node test for the checker run (parsing ids, stopping on refusal)
 - [x] 10.8 Android: none. This is admin tooling and the checker is the admin's browser; the gap is deliberate
-- [ ] 10.9 Deploy: pull, migrate, restart; mark the admin's browser device as checker
+- [x] 10.9 Deploy: pull, migrate, restart; mark the admin's browser device as checker

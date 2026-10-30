@@ -24,6 +24,6 @@
 ## 4. Ship
 
 - [x] 4.1 Release note in the undated `0.6.2` entry of `changelog.js` (extension; `app: []`), regenerate with `npm run changelog`
-- [ ] 4.2 Manual, Chrome desktop while challenged: a block run with an Ekşi tab open, then with none open (tab opens and closes); the account checker posts results with a tab open
+- [x] 4.2 Manual, Chrome desktop while challenged: a block run with an Ekşi tab open, then with none open (tab opens and closes); the account checker posts results with a tab open
 - [ ] 4.3 Manual, Firefox desktop and Firefox for Android: the same block run
-- [ ] 4.4 Re-verify the extension still builds: `cd frontend/app && npm run check && npm run package`
+- [x] 4.4 Re-verify the extension still builds: `cd frontend/app && npm run check && npm run package`

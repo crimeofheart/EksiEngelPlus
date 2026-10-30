@@ -45,6 +45,13 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.6.2" to VersionNotes(
+            app = emptyList(),
+            extension = listOf(
+                "Ekşi Sözlük internet bağlantınızı güvenlik doğrulamasına (Cloudflare) taktığında eklenti artık durmuyor: isteklerini açık bir Ekşi Sözlük sekmesi üzerinden gönderiyor, açık sekme yoksa arka planda bir tane açıp iş bitince kapatıyor. Doğrulama bir tıklama isterse bunu söylüyor ve tamamlanınca kaldığı yerden devam ediyor.",
+                "Doğrulama yine de geçilemezse \"Ekşi Sözlük'e erişilemedi\" yerine ne olduğunu ve ne yapılması gerektiğini söylüyor.",
+            ),
+        ),
         "0.6.1" to VersionNotes(
             app = listOf(
                 "Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",

@@ -141,6 +141,15 @@ jobs:
       - name: Build Chrome and Firefox zips
         run: npm run package
 
+      # The pre-AMO check CLAUDE.md describes, run on every build so nobody has
+      # to: the packaged zip (jsdom already swapped for its stub), not the source
+      # tree. Lint errors fail the job; warnings are printed and pass.
+      - name: Lint the Firefox zip
+        run: |
+          mkdir -p "$RUNNER_TEMP/firefox-lint"
+          unzip -q ../publish/dist/*-firefox.zip -d "$RUNNER_TEMP/firefox-lint"
+          npx --yes web-ext@latest lint --source-dir "$RUNNER_TEMP/firefox-lint"
+
       # One artifact per browser, so each is a separate download.
       - name: Upload Chrome zip
         uses: actions/upload-artifact@v7

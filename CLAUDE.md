@@ -92,6 +92,16 @@ check worth running before a release: it is what catches a manifest key or API t
 `gecko_android` floor does not support. Lint the *packaged* zip, not `frontend/app` — the source
 tree still holds the 5.9 MB `jsdom.js` that packaging replaces with the stub.
 
+## Reaching Ekşi Sözlük
+
+Every extension request to Ekşi goes through `eksiFetch` (`assets/js/eksiFetch.js`), never a bare
+`fetch`. Ekşi's Cloudflare challenges background requests while an Ekşi tab in the same browser has
+already passed, so after a challenge `eksiFetch` sends requests through the content script of an open
+Ekşi tab (`answerEksiFetch` in `script.js`), opening a background tab if none is open. A new bare
+`fetch` to Ekşi works until the next challenge and then fails for every user at once. The sync server
+and the where-is-eksisozluk API are not Ekşi and stay on plain `fetch`. The app needs none of this:
+its WebView already makes requests from the page.
+
 ## Release notes
 
 `frontend/app/assets/js/changelog.js` is the source. One version ships the extension and the

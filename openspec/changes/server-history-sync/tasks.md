@@ -107,7 +107,7 @@ challenge, so it does the checks instead.
 - [x] 10.2 Backend: move `candidates`/`due` from the command into `accountcheck.py`; split `check()` into fetch + `classify(eksi_id, profile_status, entries_status, author_ids)` so both paths share one classification
 - [x] 10.3 Backend: `GET /api/sync/checks/` (checker devices only, else 403) → up to 20 due `{eksi_id, nick}` plus `delay_ms`; `POST /api/sync/checks/` with `{results: [{eksi_id, nick, profile, entries, author_ids (≤100)}]}`, classified server-side; refused statuses skipped; only candidate ids accepted
 - [x] 10.4 Backend: the pull response carries `checker: true|false`, so other installs never poll
-- [x] 10.5 Extension: when `checker`, an alarm every 15 min runs one batch: browser fetch `/biri/<nick>` and `/son-entryleri?nick=` (XHR header), 2 s apart, parse `data-author-id`, stop at the first 403/429/503, post the results; keep the service worker alive during the batch
+- [x] 10.5 Extension: when `checker`, one batch after a sync, at most every 15 min (not an alarm of its own: re-created on every service-worker wake, it would never fire): browser fetch `/biri/<nick>` and `/son-entryleri?nick=` (XHR header), 2 s apart, parse `data-author-id`, stop at the first 403/429/503, post the results; keep the service worker alive during the batch
 - [x] 10.6 Admin: `is_checker` editable on Device; `checked_by` shown on AccountCheck
 - [x] 10.7 Tests: backend views and `classify`; node test for the checker run (parsing ids, stopping on refusal)
 - [x] 10.8 Android: none. This is admin tooling and the checker is the admin's browser; the gap is deliberate

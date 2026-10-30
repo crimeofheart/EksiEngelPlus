@@ -39,8 +39,10 @@ const REQUEST_TIMEOUT_MS = 10 * 1000;
 
 // Account checks, run only in the browser the admin marked as checker. Mirrors the
 // server's history/accountcheck.py, which classifies what this reports.
-export const CHECK_ALARM_NAME = "historyCheck";
-export const CHECK_ALARM_PERIOD_MINUTES = 15;
+// Runs after a sync, at most this often. Not an alarm of its own: background.js
+// creates its alarms each time the service worker wakes, and a re-created alarm
+// starts its period over, so a 15-minute one woken every 5 minutes never fires.
+export const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 // Ekşi turning this browser away (a challenge, a rate limit), not an answer about one account.
 const EKSI_REFUSED = new Set([403, 429, 503]);
 const AUTHOR_ID = /data-author-id="(\d+)"/g;
@@ -109,6 +111,7 @@ function emptyState() {
     lastFlushAt: 0,
     // Whether the admin marked this browser as the account checker; every pull says.
     checker: false,
+    lastCheckAt: 0,
   };
 }
 
@@ -595,6 +598,9 @@ export class HistorySync {
     try {
       await this.#load();
       if (!this.#state.checker || !this.#state.deviceToken || !(await this.isEnabled())) return;
+      if (Date.now() - (this.#state.lastCheckAt || 0) < CHECK_INTERVAL_MS) return;
+      this.#state.lastCheckAt = Date.now();
+      this.#persist();
       const batch = await this.#call("GET", "checks/");
       const results = [];
       for (const [i, account] of (batch.accounts || []).entries()) {

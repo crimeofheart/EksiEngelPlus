@@ -46,7 +46,7 @@ class FakeServer {
 
 const { config } = await import('../assets/js/config.js');
 const enums = await import('../assets/js/enums.js');
-const { HistorySync, mergeStatus, eventsForOutcome, appendCapped, OUTBOX_CAP } =
+const { HistorySync, mergeStatus, eventsForOutcome, appendCapped, OUTBOX_CAP, CHECK_INTERVAL_MS } =
   await import('../assets/js/historySync.js');
 config.serverURL = 'https://fixture.invalid/api/action/';
 config.logConsole = false;
@@ -341,6 +341,13 @@ function checkerServer() {
     .on('GET', 'pull/', () => [200, { tasks: [], next_cursor: 0, has_more: false, checker: true }]);
 }
 
+/** Runs fn with the clock moved forward, for the check interval. */
+async function later(ms, fn) {
+  const realNow = Date.now;
+  Date.now = () => realNow() + ms;
+  try { await fn(); } finally { Date.now = realNow; }
+}
+
 await check('the checker reports what Ekşi answers and stops at the first refusal', async () => {
   const server = checkerServer()
     .on('GET', 'checks/', () => [200, { accounts: [
@@ -374,6 +381,10 @@ await check('the checker reports what Ekşi answers and stops at the first refus
     { eksi_id: 42, nick: 'ben', profile: 200, entries: 200, author_ids: [42] },
     { eksi_id: 5, nick: 'iki kelime', profile: 404 },
   ]);
+  await h.checkAccounts();
+  assert.equal(server.count('GET checks/'), 1, 'at most one batch per interval');
+  await later(CHECK_INTERVAL_MS, () => h.checkAccounts());
+  assert.equal(server.count('GET checks/'), 2);
 });
 
 await check('a browser the admin unmarked stops asking', async () => {
@@ -381,7 +392,7 @@ await check('a browser the admin unmarked stops asking', async () => {
   const h = fresh(server);
   await h.flush();
   await h.checkAccounts();
-  await h.checkAccounts();
+  await later(CHECK_INTERVAL_MS, () => h.checkAccounts());
   assert.equal(server.count('GET checks/'), 1);
 });
 

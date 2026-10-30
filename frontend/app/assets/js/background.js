@@ -17,8 +17,6 @@ import {
   historySync,
   ALARM_NAME as HISTORY_ALARM,
   ALARM_PERIOD_MINUTES as HISTORY_ALARM_MINUTES,
-  CHECK_ALARM_NAME as HISTORY_CHECK_ALARM,
-  CHECK_ALARM_PERIOD_MINUTES as HISTORY_CHECK_ALARM_MINUTES,
 } from './historySync.js';
 
 log.info("bg", "initialized");
@@ -103,11 +101,11 @@ historySync.onRemoteChanged = () => {
 };
 
 chrome.alarms.create(HISTORY_ALARM, { periodInMinutes: HISTORY_ALARM_MINUTES });
-// Does nothing unless the admin marked this browser as the account checker.
-chrome.alarms.create(HISTORY_CHECK_ALARM, { periodInMinutes: HISTORY_CHECK_ALARM_MINUTES });
+// The account check follows a sync: it does nothing unless the admin marked this
+// browser as the checker, and runs at most every CHECK_INTERVAL_MS.
+const syncAndCheck = () => historySync.flush().then(() => historySync.checkAccounts());
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === HISTORY_ALARM) historySync.flush();
-  if (alarm.name === HISTORY_CHECK_ALARM) historySync.checkAccounts();
+  if (alarm.name === HISTORY_ALARM) syncAndCheck();
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local" || !changes.config) return;
@@ -116,7 +114,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (after === false && before !== false) historySync.dropPending();
   if (after !== false && before === false) historySync.flush({ force: true });
 });
-historySync.flush();
+syncAndCheck();
 let g_notificationTabId = 0;
 let g_notificationTabCreationInProgress = null;
 

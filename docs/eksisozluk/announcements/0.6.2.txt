@@ -1,0 +1,18 @@
+0.6.2 çıktı. en büyük yenilik: işlemleriniz artık cihazlarınız arasında eşitleniyor. bir de ekşi sözlük'ün güvenlik doğrulaması eklentiyi artık durdurmuyor.
+
+eklenti:
+[https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh chrome]
+[https://addons.mozilla.org/firefox/addon/eksiengelplus firefox] (telefondaki firefox'a da bu linkten kuruluyor)
+android apk: [https://github.com/crimeofheart/EksiEngelPlus/releases releases sayfası]
+
+işlem geçmişi ve eşitleme: yaptığınız her engelleme, sessize alma, başlık engelleme ve takip işleminin sonucu artık sunucuda saklanıyor, sıradaki işlemleriniz de eklentinin kurulumları ve android uygulaması arasında eşitleniyor. işlem durumunda diğer cihazlarınızdaki işlemler de görünüyor; oradan iptal edebilir, bazılarını bulunduğunuz cihaza alıp orada çalıştırabilirsiniz. ayarlarda "işlem geçmişimi sunucuda sakla ve cihazlarım arasında eşitle" seçeneği var: varsayılan olarak açık, kapatırsanız hiçbir işlem sonucu gönderilmiyor. "sunucudaki verilerimi sil" ile sunucudaki geçmişinizin tamamını silebilirsiniz. eşitleme açıkken işlem raporu da artık hedeflerin listesini değil yalnızca sayısını gönderiyor. ayrıntılar [https://eksiengelplus.duzgun.org/privacy/ gizlilik sayfasında].
+
+cihaz bağlama: cihazları ayarlardaki bir kodla bağlıyorsunuz, ama kodu girmek tek başına yetmiyor. kodu oluşturduğunuz cihazda "… bağlanmak istiyor" isteği çıkıyor, bağlantı ancak orada onaylanınca gerçekleşiyor. kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da yazıyor. ayarlarda bağlı cihazların listesi var: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görüp tanımadığınız bir cihazı kaldırabilirsiniz. nasıl bağlanacağını anlatan kısa bir rehber de eklendi.
+
+engelleme ve sessize alma daha güvenilir. başarısız yanıtlar artık başarılı sayılmıyor: işlem sınırına takılan istekler beklenip yeniden deneniyor, diğer hatalar başarısız olarak kaydediliyor. sessize alınanları engellerken (ya da engellenenleri sessize alırken) önce yeni kısıtlama uygulanıyor, eskisi ancak o başarılı olursa kaldırılıyor; yeni işlem başarısız olursa hesabın mevcut durumu korunuyor. takipten önce engel ya da sessize alma kaldırılamazsa o hesap takip edilmiyor.
+
+eklentide ayrıca: ekşi sözlük bağlantınızı güvenlik doğrulamasına (cloudflare) taktığında eklenti artık durmuyor. isteklerini açık bir ekşi sözlük sekmesi üzerinden gönderiyor, açık sekme yoksa arka planda bir tane açıp iş bitince kapatıyor. doğrulama bir tıklama isterse bunu söylüyor, tamamlanınca kaldığı yerden devam ediyor. son günlerde "ekşi sözlük'e erişilemedi" hatası aldıysanız sebebi buydu. aynı tarayıcı hesabıyla eşitlenen kurulumlar kod gerekmeden kendiliğinden bağlanıyor. engellileri sessize taşımak gibi dönüştürme işlemleri başlamadan önce listenin tamamını topluyor; işlem sırasında liste küçüldüğü için sonraki sayfalardaki hesapların atlanması düzeldi. toplu sessizden çıkarmada bir hata olursa işlem başarısız olarak bitiyor, işlenmeyen hesaplar kaybolmuyor.
+
+android tarafında ayrıca: sıradaki işlemler, bir işlem bittiğinde uygulama arka plandayken ya da ekran kapalıyken de kendiliğinden başlıyor. günlük arka plan süresi dolduğu için ertesi güne kalan işlemler artık kaldıkları yerden devam ediyor; eskiden her gün hiçbir şey yapmadan yeniden duraklıyordu. uygulama açıkken geçen süre de artık bu süreden düşülmüyor. bir başlığa uzun basınca paylaşılan ya da kopyalanan bağlantı artık başlığı bugünün entry'leriyle açıyor.
+
+hata bildirimi: [https://github.com/crimeofheart/EksiEngelPlus/issues buradan] (bana mesajla da bildirebilirsiniz).

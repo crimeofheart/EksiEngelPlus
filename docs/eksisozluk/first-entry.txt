@@ -37,6 +37,8 @@ kullanım kolaylığı:
 - kuyruk sistemi ile birden fazla işlemi sırayla çalıştırabilirsiniz. sıradaki bir işlemi kuyruktan çıkarabilirsiniz.
 - işlem ilerlemesini gerçek zamanlı takip edebilir, biten ya da yarım kalan bir işlemi tek tuşla tekrarlayabilirsiniz. her işlemin ne yaptığı (takip, engelleme, sessize alma, engel kaldırma) ayrı ayrı yazıyor.
 - eklenti ekşi sözlük'ün apı işlem sınırlamasını otomatik olarak bekler ve sonra kaldığı yerden devam eder.
+- işlemleriniz eklentinin kurulumları ve android uygulaması arasında eşitleniyor: bir cihazda başlattığınız işlemi diğerinde görüp iptal edebilirsiniz. cihazları ayarlardaki kodla bağlıyor, bağlantıyı kodu oluşturduğunuz cihazda onaylıyorsunuz. işlem geçmişiniz sunucuda saklanıyor; istemezseniz ayarlardan kapatabilir, sunucudaki verilerinizi silebilirsiniz.
+- ekşi sözlük güvenlik doğrulaması (cloudflare) istediğinde eklenti isteklerini açık bir ekşi sözlük sekmesi üzerinden gönderiyor, durmuyor.
 
 github linki: https://github.com/crimeofheart/EksiEngelPlus
 web sitesi: https://eksiengelplus.duzgun.org

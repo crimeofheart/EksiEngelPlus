@@ -2,6 +2,16 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Ekşi Sözlük internet bağlantınızı güvenlik doğrulamasına (Cloudflare) taktığında eklenti artık durmuyor: isteklerini açık bir Ekşi Sözlük sekmesi üzerinden gönderiyor, açık sekme yoksa arka planda bir tane açıp iş bitince kapatıyor. Doğrulama bir tıklama isterse bunu söylüyor ve tamamlanınca kaldığı yerden devam ediyor.",
+      "[Eklenti] Doğrulama yine de geçilemezse \"Ekşi Sözlük'e erişilemedi\" yerine ne olduğunu ve ne yapılması gerektiğini söylüyor.",
+      "[Uygulama] Bu sürümde değişiklik yok."
+    ],
+    "pub_date": "2026-10-30",
+    "version": "0.6.2"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] Cihaz bağlamak artık onay istiyor: kodu girdiğinizde, kodu oluşturduğunuz cihazda \"… bağlanmak istiyor\" isteği çıkıyor ve bağlantı ancak orada onaylanınca gerçekleşiyor. Kod girilmeden önce bu cihazdaki işlem geçmişinin diğer cihazın hesabına taşınacağı da belirtiliyor.",
       "[Eklenti] Ayarlar sayfasına bağlı cihazlar bölümü eklendi: işlemlerinizi hangi cihazların gördüğünü ve en son ne zaman eşitlendiklerini görebilir, tanımadığınız bir cihazı kaldırabilirsiniz.",
       "[Eklenti] Ayarlar sayfasına cihazların nasıl bağlanacağını anlatan kısa bir rehber eklendi.",

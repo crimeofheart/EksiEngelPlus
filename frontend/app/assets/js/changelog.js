@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.6.2": {
+    date: "2026-10-30",
     app: [],
     extension: [
       "Ekşi Sözlük internet bağlantınızı güvenlik doğrulamasına (Cloudflare) taktığında eklenti artık durmuyor: isteklerini açık bir Ekşi Sözlük sekmesi üzerinden gönderiyor, açık sekme yoksa arka planda bir tane açıp iş bitince kapatıyor. Doğrulama bir tıklama isterse bunu söylüyor ve tamamlanınca kaldığı yerden devam ediyor.",

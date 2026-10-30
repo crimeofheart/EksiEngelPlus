@@ -251,7 +251,7 @@ function backgroundHarness(fetch, extra = {}) {
     chrome: { runtime: { getManifest: () => ({ version: 'test' }) } },
     utils, programController: { earlyStop: false }, processQueue: { currentItemMetadata: {}, itemAttributes: [] },
     setTimeout: fn => { sleeps.push(true); fn(); },
-    ensureNotificationTabExistsAndIsReady: async () => true, handleConfig: async () => {}, handleEksiSozlukURL: async () => true,
+    ensureNotificationTabExistsAndIsReady: async () => true, handleConfig: async () => {}, handleEksiSozlukURL: async () => 'ok', EksiAccess: { OK: 'ok', CHALLENGED: 'challenged' },
     scrapingHandler: { scrapeUserAgent: async () => 'test', scrapeClientNameAndId: async () => ({ clientName: 'me', clientId: 10 }),
       scrapeAuthorIdFromAuthorProfilePage: async name => Number(name.slice(1)),
       scrapeFollowRestrictions: async () => ({ isBlocked: () => true, isMuted: () => false }),

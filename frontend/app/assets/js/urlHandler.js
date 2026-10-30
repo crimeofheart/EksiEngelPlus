@@ -11,30 +11,57 @@ const isURLValid = url => {
     }
   }
 
-async function isURLAccessible(url)
+export const EksiAccess = Object.freeze({
+  OK: "ok",
+  // Cloudflare is putting this connection through a challenge. A tab solves it;
+  // a request from the extension's background cannot.
+  CHALLENGED: "challenged",
+  UNREACHABLE: "unreachable",
+});
+
+// The challenge answers 403 (or 503) with cf-mitigated: challenge. The body is
+// the fallback in case a browser hides the header from the extension.
+export async function isCloudflareChallenge(response)
+{
+  if (response.status !== 403 && response.status !== 503) return false;
+  if (response.headers.get("cf-mitigated") === "challenge") return true;
+  try {
+    return (await response.clone().text()).includes("/cdn-cgi/challenge-platform/");
+  } catch (err) {
+    return false;
+  }
+}
+
+async function accessOf(url)
 {
   try 
   {
     let response = await fetch(url);
+    if (await isCloudflareChallenge(response)) return EksiAccess.CHALLENGED;
     // redirected response is not considered correct
     // TODO: redirected response probably means the user is using a VPN. So, redirected url could be used instead 
-    return response.status === 200 && !response.redirected;
+    return response.status === 200 && !response.redirected ? EksiAccess.OK : EksiAccess.UNREACHABLE;
   } 
   catch (err) 
   {
-    return false;
+    return EksiAccess.UNREACHABLE;
   }
 }
 
 // eksisozluk.com is banned by government and cannot be accessible anymore
 // this function finds the latest URL and saves it to config
-// return: true if everthing works, false if not
+// return: an EksiAccess value
 export async function handleEksiSozlukURL()
 {
-  let isAccessible = await isURLAccessible(config.EksiSozlukURL);
-  log.info("url", "is EksiSozluk accessible: " + isAccessible + " at " + config.EksiSozlukURL);
+  let access = await accessOf(config.EksiSozlukURL);
+  log.info("url", "EksiSozluk access: " + access + " at " + config.EksiSozlukURL);
 
-  if(!isAccessible)
+  // Ekşi answered, only with a challenge: it has not moved, so looking for a new
+  // address would not help, and calling it unreachable would be wrong.
+  if(access === EksiAccess.CHALLENGED)
+    return access;
+
+  if(access !== EksiAccess.OK)
   {
     log.warn("url", "EksiSozluk is not accessible at: " + config.EksiSozlukURL);
 
@@ -54,14 +81,14 @@ export async function handleEksiSozlukURL()
       if(!isURLValid(newEksiSozlukURL))
         throw "Obtained EksiSozluk URL is not valid";
 
-      let isNewURLAccessible = await isURLAccessible(newEksiSozlukURL);
+      let newAccess = await accessOf(newEksiSozlukURL);
 
-      if(isNewURLAccessible)
+      if(newAccess === EksiAccess.OK)
       {
         log.info("url", "new EksiSozluk URL accessible, saved into config");
         config.EksiSozlukURL = newEksiSozlukURL;
         await saveConfig(config);
-        return true;
+        return EksiAccess.OK;
       }
       else 
       {
@@ -71,9 +98,9 @@ export async function handleEksiSozlukURL()
     catch (err) 
     {
       log.err("url", err);
-      return false;
+      return EksiAccess.UNREACHABLE;
     }
   } 
 
-  return true;
+  return EksiAccess.OK;
 }

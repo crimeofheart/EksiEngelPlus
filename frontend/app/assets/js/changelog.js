@@ -19,6 +19,12 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.6.2": {
+    app: [],
+    extension: [
+      "Ekşi Sözlük internet bağlantınızı güvenlik doğrulamasına (Cloudflare) taktığında eklenti artık \"Ekşi Sözlük'e erişilemedi\" demiyor; doğrulamayı geçemediğini ve bir süre sonra tekrar denemeniz gerektiğini söylüyor."
+    ]
+  },
   "0.6.1": {
     date: "2026-10-29",
     app: [

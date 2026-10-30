@@ -9,7 +9,7 @@ import {relationHandler} from './relationHandler.js';
 import {scrapingHandler} from './scrapingHandler.js';
 import {processQueue, generateUnifiedDescription, isCancelledTask, getTaskCategory} from './queue.js';
 import {programController} from './programController.js';
-import {handleEksiSozlukURL} from './urlHandler.js';
+import {handleEksiSozlukURL, EksiAccess} from './urlHandler.js';
 import { notificationHandler } from './notificationHandler.js';
 import { storageHandler } from './storageHandler.js';
 import { resumableOperationRegistry, OperationState } from './resumableOperation.js';
@@ -833,8 +833,13 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   relationHandler.reset();
 
   notificationHandler.notifyControlAccess();
-  const isEksiSozlukAccessible = await handleEksiSozlukURL();
-  if(!isEksiSozlukAccessible) {
+  const eksiAccess = await handleEksiSozlukURL();
+  if(eksiAccess === EksiAccess.CHALLENGED) {
+    log.err("bg", "Program finished (finishErrorChallenge)");
+    notificationHandler.finishErrorChallenge(banSource, banMode, processQueue.currentItemMetadata);
+    return;
+  }
+  if(eksiAccess !== EksiAccess.OK) {
     log.err("bg", "Program finished (finishErrorAccess)");
     notificationHandler.finishErrorAccess(banSource, banMode, processQueue.currentItemMetadata);
     return;

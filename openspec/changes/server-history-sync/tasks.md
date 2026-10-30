@@ -95,4 +95,4 @@
 - [x] 9.7 Shared throttle counters across gunicorn workers (file-based cache)
 - [x] 9.8 Extension: approval UI, claim warning, device list, pairing guide, cap; tests
 - [x] 9.9 Android: the same, plus resuming the wait when settings reopen and a help section; JVM and instrumented tests
-- [ ] 9.10 Deploy: pull, `migrate`, restart `gunicorn-eksiengel`, install and enable `eksiengel-history-check.timer`, run `history_check_accounts` once and `history_rebuild --verify`
+- [x] 9.10 Deploy: pull, `migrate`, restart `gunicorn-eksiengel`, install and enable `eksiengel-history-check.timer`, run `history_check_accounts` once and `history_rebuild --verify`

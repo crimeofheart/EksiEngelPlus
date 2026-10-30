@@ -6,7 +6,7 @@ from django.db.models import Count
 from django.utils import timezone
 
 from ... import constants as c
-from ...accountcheck import check
+from ...accountcheck import Refused, check
 from ...models import AccountCheck, ActorRelation, Task
 from ...stats import latest_nicks
 
@@ -73,13 +73,20 @@ class Command(BaseCommand):
         ids = due(candidates(), now)[:limit]
         nicks = latest_nicks(ids)
         counts = {}
+        refused = None
         for i, eksi_id in enumerate(ids):
             nick = nicks.get(eksi_id)
             if not nick:
                 continue
             if i:
                 time.sleep(delay)
-            status, found_id = check(nick, eksi_id)
+            try:
+                status, found_id = check(nick, eksi_id)
+            except Refused as error:
+                # Asking on would only be refused again. Nothing is recorded, so
+                # this id and the rest stay due for the next run.
+                refused = error
+                break
             AccountCheck.objects.update_or_create(
                 eksi_id=eksi_id,
                 defaults={
@@ -90,8 +97,9 @@ class Command(BaseCommand):
                 },
             )
             counts[status] = counts.get(status, 0) + 1
-        summary = (
-            ", ".join(f"{k.lower()} {v}" for k, v in sorted(counts.items()))
-            or "nothing due"
+        summary = ", ".join(f"{k.lower()} {v}" for k, v in sorted(counts.items())) or (
+            "none" if refused else "nothing due"
         )
+        if refused:
+            summary += f"; stopped, Ekşi refused with {refused}"
         self.stdout.write(f"checked {sum(counts.values())}: {summary}")

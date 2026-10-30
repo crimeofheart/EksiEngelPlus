@@ -18,6 +18,17 @@ BASE_URL = "https://eksisozluk.com"
 USER_AGENT = "Mozilla/5.0 (compatible; EksiEngelPlus account check; +https://eksiengelplus.duzgun.org)"
 AUTHOR_ID = re.compile(r'data-author-id="(\d+)"')
 TIMEOUT_SECONDS = 15
+# Answers that turn the server away rather than answer about one account: a
+# Cloudflare challenge is a 403, rate limits are a 429 or 503.
+REFUSED = (403, 429, 503)
+
+
+class Refused(Exception):
+    """Ekşi turned the request away; the next account would be turned away too."""
+
+    def __init__(self, status):
+        super().__init__(f"HTTP {status}")
+        self.status = status
 
 
 def fetch(url, headers):
@@ -37,11 +48,16 @@ def slug(nick):
 
 
 def check(nick, eksi_id, get=None):
-    """(status, found_id) for one claimed account; see AccountCheck for the statuses."""
+    """(status, found_id) for one claimed account; see AccountCheck for the statuses.
+
+    Raises Refused when Ekşi turns the profile request away.
+    """
     get = get or fetch
     status, _ = get(f"{BASE_URL}/biri/{slug(nick)}", {})
     if status == 404:
         return AccountCheck.MISSING, None
+    if status in REFUSED:
+        raise Refused(status)
     if status != 200:
         return AccountCheck.ERROR, None
     status, body = get(

@@ -345,7 +345,10 @@ And one check against Ekşi itself: `manage.py history_check_accounts`, hourly f
 `/son-entryleri?nick=` (each entry carries `data-author-id`) for every reporting actor and the top
 200 block and mute targets. At most 100 ids a run, 2 s apart, logged out. `MISMATCH` and `MISSING`
 ids drop out of every ranking; `ERROR` counts until a retry an hour later, since an Ekşi outage
-must not empty the rankings. It cannot prove that the reporter *owns* the nick, only that the nick
+must not empty the rankings. A 403, 429 or 503 on a profile request is Ekşi turning the server away
+(a Cloudflare challenge), not an answer about that id, so the run stops there and records nothing:
+one refused request an hour, and checking resumes on its own once Ekşi lets the server back in.
+It cannot prove that the reporter *owns* the nick, only that the nick
 is real and matches the id. The admin's per-user page shows the result next to the user's accounts
 (kind, age, devices), which is what judging a suspicious account needs.
 

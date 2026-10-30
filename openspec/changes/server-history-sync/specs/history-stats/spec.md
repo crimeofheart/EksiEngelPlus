@@ -70,6 +70,11 @@ the user's accounts with their kind and age, and their devices.
 - **WHEN** the check cannot reach Ekşi
 - **THEN** the id is marked `ERROR`, still counts, and is asked again an hour later
 
+#### Scenario: Ekşi refuses the server
+- **WHEN** Ekşi answers a profile request with 403, 429 or 503, as a Cloudflare challenge does
+- **THEN** the run stops at that request, records nothing for that id or the rest, and they are
+  all asked again on the next run
+
 ### Requirement: Daily aggregates are maintained at ingest
 
 The server SHALL maintain, in the same transaction as each event insert and counting only events

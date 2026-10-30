@@ -75,6 +75,9 @@ class Device(models.Model):
     # Events accepted today (Istanbul), against the per-device daily cap.
     events_day = models.DateField(null=True, blank=True)
     events_today = models.IntegerField(default=0)
+    # Set in the admin on the admin's own browser: Ekşi's challenge lets a real
+    # browser through, so this device checks claimed accounts for the server.
+    is_checker = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.label or self.client} ({self.account_id})"
@@ -381,8 +384,9 @@ class ActorRelation(models.Model):
 class AccountCheck(models.Model):
     """Whether an Ekşi id is a real account whose nick matches, as Ekşi's public pages say.
 
-    Filled by `manage.py history_check_accounts`. Proves the account exists and the
-    nick and id belong together -- not that whoever reported under it is its owner.
+    Filled by `manage.py history_check_accounts` or by a checker device. Proves the
+    account exists and the nick and id belong together -- not that whoever reported
+    under it is its owner.
     """
 
     OK = "OK"  # profile exists, and its entries carry this id
@@ -399,6 +403,10 @@ class AccountCheck(models.Model):
     status = models.CharField(max_length=8, choices=[(s, s.lower()) for s in STATUSES])
     found_id = models.IntegerField(null=True, blank=True)
     checked_at = models.DateTimeField()
+    # The checker device that asked Ekşi; empty when the server's own timer did.
+    checked_by = models.ForeignKey(
+        Device, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
 
     class Meta:
         indexes = [models.Index(fields=["status"], name="history_check_status")]

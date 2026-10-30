@@ -75,6 +75,28 @@ the user's accounts with their kind and age, and their devices.
 - **THEN** the run stops at that request, records nothing for that id or the rest, and they are
   all asked again on the next run
 
+### Requirement: The admin's browser can check accounts for the server
+
+Binds: **backend**, **extension**. Android is deliberately out: this is admin tooling, and the
+checker is the admin's own browser.
+
+Ekşi puts logged-out requests behind a Cloudflare challenge that a real browser passes. A superuser
+SHALL be able to mark a device as checker in the admin; the pull response SHALL tell each device
+whether it is one. Only a checker SHALL reach `/api/sync/checks/`, which SHALL hand out at most 20
+due accounts with their nicks and the pause to keep between them, and SHALL take back, per
+account, the HTTP statuses of `/biri/<nick>` and `/son-entryleri` and the author ids found. The
+server SHALL classify those answers exactly as its own check does, attribute the result to the
+device, skip refused answers, and ignore ids it did not hand out. A checker extension SHALL run
+one batch every 15 minutes and stop at the first refusal.
+
+#### Scenario: Checker answers
+- **WHEN** the checker reports a 200 profile whose entries carry the claimed id, and a 404 for another
+- **THEN** the first is `OK` and the second `MISSING`, both attributed to that device
+
+#### Scenario: Not a checker
+- **WHEN** a device the admin has not marked asks for or reports checks
+- **THEN** it gets 403, and an extension told so stops asking until a pull says otherwise
+
 ### Requirement: Daily aggregates are maintained at ingest
 
 The server SHALL maintain, in the same transaction as each event insert and counting only events

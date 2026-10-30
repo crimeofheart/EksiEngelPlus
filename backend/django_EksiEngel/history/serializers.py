@@ -138,5 +138,31 @@ class PushSerializer(serializers.Serializer):
     gap = serializers.IntegerField(min_value=0, required=False, default=0)
 
 
+# One checker batch: what Ekşi answered the admin's browser about each account.
+MAX_CHECKS = 20
+MAX_AUTHOR_IDS = 100
+
+
+class HttpStatus(serializers.IntegerField):
+    def __init__(self, **kwargs):
+        super().__init__(min_value=0, max_value=599, **kwargs)
+
+
+class CheckResultSerializer(serializers.Serializer):
+    eksi_id = EksiId()
+    nick = serializers.CharField(max_length=96)
+    # 0 when the request failed before Ekşi answered.
+    profile = HttpStatus()
+    # Absent when the profile answer made asking for entries pointless.
+    entries = HttpStatus(required=False, allow_null=True, default=None)
+    author_ids = serializers.ListField(
+        child=EksiId(), max_length=MAX_AUTHOR_IDS, required=False, default=list
+    )
+
+
+class CheckReportSerializer(serializers.Serializer):
+    results = serializers.ListField(child=CheckResultSerializer(), max_length=MAX_CHECKS)
+
+
 class PairClaimSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=16)

@@ -64,6 +64,7 @@ class DeviceInline(admin.TabularInline):
         "last_seen_at",
         "revoked_at",
         "dropped_events",
+        "is_checker",
     )
     readonly_fields = fields
 
@@ -186,8 +187,29 @@ def history_links(eksi_id):
     )
 
 
+@admin.register(Device)
+class DeviceAdmin(admin.ModelAdmin):
+    """Only for marking the admin's own browser as the account checker."""
+
+    list_display = ("id", "label", "client", "version", "account", "last_seen_at", "is_checker")
+    list_filter = ("is_checker", "client")
+    search_fields = ("=id", "label")
+    fields = ("account", "client", "label", "version", "created_at", "last_seen_at", "revoked_at", "is_checker")
+    readonly_fields = tuple(f for f in fields if f != "is_checker")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # A checker's answers can take ids out of the rankings.
+        return request.user.is_superuser
+
+
 @admin.register(AccountCheck)
 class AccountCheckAdmin(ReadOnlyAdmin):
-    list_display = ("eksi_id", "nick", "status", "found_id", "checked_at")
+    list_display = ("eksi_id", "nick", "status", "found_id", "checked_at", "checked_by")
     list_filter = ("status",)
     search_fields = ("=eksi_id", "nick")

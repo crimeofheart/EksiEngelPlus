@@ -33,5 +33,6 @@ urlpatterns = [
     path("devices/", views.DevicesView.as_view(), name="sync_devices"),
     path("devices/<int:device_id>/", views.DeviceRemoveView.as_view(), name="sync_device"),
     path("history/", views.OwnHistoryView.as_view(), name="sync_history"),
+    path("checks/", views.ChecksView.as_view(), name="sync_checks"),
     path("account/", views.AccountView.as_view(), name="sync_account"),
 ]

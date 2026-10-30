@@ -265,6 +265,11 @@ cp backend/setupProductionServer/systemd/eksiengel-history-check.* /etc/systemd/
 systemctl daemon-reload && systemctl enable --now eksiengel-history-check.timer
 ```
 
+Ekşi now challenges logged-out requests, so the timer stops at the first refusal and the admin's
+own browser does the checks instead: in the Django admin, *History → Devices*, tick `is_checker`
+on that browser's device. It picks the flag up on its next sync and checks 20 accounts every 15
+minutes while it runs.
+
 Nothing upstream serves `/static/` — requests for it reach gunicorn — which is why
 WhiteNoise is in `MIDDLEWARE`. Note gunicorn runs `/usr/local/bin/gunicorn` on **system**
 Python, not the project venv, so runtime deps must be installed for both.

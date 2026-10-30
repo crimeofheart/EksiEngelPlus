@@ -1,58 +1,10 @@
 import time
-from datetime import timedelta
 
 from django.core.management.base import BaseCommand
-from django.db.models import Count
 from django.utils import timezone
 
-from ... import constants as c
-from ...accountcheck import Refused, check
-from ...models import AccountCheck, ActorRelation, Task
+from ...accountcheck import Refused, candidates, check, due, record
 from ...stats import latest_nicks
-
-# A settled answer is asked again after this long: accounts get deleted, and a
-# nick can be released and taken by someone else.
-RECHECK_AFTER = timedelta(days=30)
-# An unanswered question is asked again sooner.
-RETRY_ERROR_AFTER = timedelta(hours=1)
-# Targets matter once they could reach a ranking.
-TOP_TARGETS = 200
-
-
-def candidates():
-    """Every reporting actor, then the targets near the top of the rankings."""
-    actors = set(
-        ActorRelation.objects.values_list("actor_eksi_id", flat=True).distinct()
-    )
-    actors |= set(
-        Task.objects.exclude(actor_eksi_id=None).values_list("actor_eksi_id", flat=True)
-    )
-    targets = []
-    for kind in (c.BLOCK, c.MUTE):
-        targets += list(
-            ActorRelation.objects.filter(kind=kind, first_added_at__isnull=False)
-            .values("target_eksi_id")
-            .annotate(n=Count("id"))
-            .order_by("-n")
-            .values_list("target_eksi_id", flat=True)[:TOP_TARGETS]
-        )
-    ordered = sorted(actors) + [t for t in targets if t not in actors]
-    return list(dict.fromkeys(ordered))
-
-
-def due(ids, now):
-    existing = {a.eksi_id: a for a in AccountCheck.objects.filter(eksi_id__in=ids)}
-    out = []
-    for eksi_id in ids:
-        known = existing.get(eksi_id)
-        if known is None:
-            out.append(eksi_id)
-        elif known.status == AccountCheck.ERROR:
-            if now - known.checked_at >= RETRY_ERROR_AFTER:
-                out.append(eksi_id)
-        elif now - known.checked_at >= RECHECK_AFTER:
-            out.append(eksi_id)
-    return out
 
 
 class Command(BaseCommand):
@@ -87,15 +39,7 @@ class Command(BaseCommand):
                 # this id and the rest stay due for the next run.
                 refused = error
                 break
-            AccountCheck.objects.update_or_create(
-                eksi_id=eksi_id,
-                defaults={
-                    "nick": nick,
-                    "status": status,
-                    "found_id": found_id,
-                    "checked_at": timezone.now(),
-                },
-            )
+            record(eksi_id, nick, status, found_id)
             counts[status] = counts.get(status, 0) + 1
         summary = ", ".join(f"{k.lower()} {v}" for k, v in sorted(counts.items())) or (
             "none" if refused else "nothing due"

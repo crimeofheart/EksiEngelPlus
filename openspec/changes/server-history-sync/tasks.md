@@ -96,3 +96,19 @@
 - [x] 9.8 Extension: approval UI, claim warning, device list, pairing guide, cap; tests
 - [x] 9.9 Android: the same, plus resuming the wait when settings reopen and a help section; JVM and instrumented tests
 - [x] 9.10 Deploy: pull, `migrate`, restart `gunicorn-eksiengel`, install and enable `eksiengel-history-check.timer`, run `history_check_accounts` once and `history_rebuild --verify`
+
+## 10. Account checks from the admin's browser
+
+Ekşi now puts every logged-out request behind a Cloudflare JS challenge, so the server timer
+(kept, and stopping at the first refusal) checks nothing. The admin's own browser passes the
+challenge, so it does the checks instead.
+
+- [x] 10.1 Backend: `Device.is_checker` (set in the admin), `AccountCheck.checked_by` (FK Device, null = server timer); migration 0005
+- [x] 10.2 Backend: move `candidates`/`due` from the command into `accountcheck.py`; split `check()` into fetch + `classify(eksi_id, profile_status, entries_status, author_ids)` so both paths share one classification
+- [x] 10.3 Backend: `GET /api/sync/checks/` (checker devices only, else 403) → up to 20 due `{eksi_id, nick}` plus `delay_ms`; `POST /api/sync/checks/` with `{results: [{eksi_id, nick, profile, entries, author_ids (≤100)}]}`, classified server-side; refused statuses skipped; only candidate ids accepted
+- [x] 10.4 Backend: the pull response carries `checker: true|false`, so other installs never poll
+- [x] 10.5 Extension: when `checker`, an alarm every 15 min runs one batch: browser fetch `/biri/<nick>` and `/son-entryleri?nick=` (XHR header), 2 s apart, parse `data-author-id`, stop at the first 403/429/503, post the results; keep the service worker alive during the batch
+- [x] 10.6 Admin: `is_checker` editable on Device; `checked_by` shown on AccountCheck
+- [x] 10.7 Tests: backend views and `classify`; node test for the checker run (parsing ids, stopping on refusal)
+- [x] 10.8 Android: none. This is admin tooling and the checker is the admin's browser; the gap is deliberate
+- [ ] 10.9 Deploy: pull, migrate, restart; mark the admin's browser device as checker

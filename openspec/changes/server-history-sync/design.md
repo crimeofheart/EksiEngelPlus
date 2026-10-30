@@ -348,6 +348,12 @@ ids drop out of every ranking; `ERROR` counts until a retry an hour later, since
 must not empty the rankings. A 403, 429 or 503 on a profile request is Ekşi turning the server away
 (a Cloudflare challenge), not an answer about that id, so the run stops there and records nothing:
 one refused request an hour, and checking resumes on its own once Ekşi lets the server back in.
+Meanwhile the admin's own browser does the asking: a device marked `is_checker` in the admin
+fetches the same two pages every 15 minutes, 20 accounts at a time, and posts back only what
+Ekşi answered -- statuses and author ids. The server classifies them with the same function its
+timer uses, so a checker cannot invent a status, and records which device answered. A stealth
+headless browser on the server was rejected: it would deliberately defeat a block Ekşi chose,
+and the server likely shares the admin's home IP.
 It cannot prove that the reporter *owns* the nick, only that the nick
 is real and matches the id. The admin's per-user page shows the result next to the user's accounts
 (kind, age, devices), which is what judging a suspicious account needs.

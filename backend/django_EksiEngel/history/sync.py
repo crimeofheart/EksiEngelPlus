@@ -208,6 +208,8 @@ def pull(device, cursor, limit=500):
         "tasks": [serialise_task(t, device) for t in tasks],
         "next_cursor": tasks[-1].change_seq if tasks else cursor,
         "has_more": has_more,
+        # Only the admin's browser checks accounts; every other install never asks.
+        "checker": device.is_checker,
     }
 
 

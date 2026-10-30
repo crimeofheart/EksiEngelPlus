@@ -9,11 +9,17 @@ from api.authentication import SharedAPIKeyAuthentication
 from api.views import CsrfExemptSessionAuthentication
 
 from . import constants as c
-from . import stats, sync
+from . import accountcheck, stats, sync
 from .authentication import DeviceTokenAuthentication, IsDevice
 from .ingest import NewEvent, ingest
 from .models import Account, AdminAccess, Event
-from .serializers import EnrollSerializer, PairClaimSerializer, PushSerializer
+from .serializers import (
+    MAX_CHECKS,
+    CheckReportSerializer,
+    EnrollSerializer,
+    PairClaimSerializer,
+    PushSerializer,
+)
 from .stats import _istanbul_today as istanbul_today
 from .throttling import IPScopedRateThrottle
 
@@ -299,6 +305,54 @@ class OwnHistoryView(DeviceView):
                 "next_before": rows[-1]["id"] if len(rows) == limit else None,
             }
         )
+
+
+class ChecksView(DeviceView):
+    """Account checks asked by the admin's browser, which Ekşi's challenge lets through.
+
+    GET hands out the next due accounts; POST takes back what Ekşi answered, and the
+    server classifies it the way its own timer would. Only a device the admin marked
+    as checker gets in.
+    """
+
+    # The pause the browser keeps between accounts, as the server's timer does.
+    DELAY_MS = 2000
+
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if not self.device.is_checker:
+            self.permission_denied(request, message="not a checker")
+
+    def get(self, request):
+        ids = accountcheck.due(accountcheck.candidates(), timezone.now())[:MAX_CHECKS]
+        nicks = stats.latest_nicks(ids)
+        return Response(
+            {
+                "accounts": [
+                    {"eksi_id": i, "nick": nicks[i]} for i in ids if nicks.get(i)
+                ],
+                "delay_ms": self.DELAY_MS,
+            }
+        )
+
+    def post(self, request):
+        data = CheckReportSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        wanted = set(accountcheck.candidates())
+        recorded = 0
+        for r in data.validated_data["results"]:
+            if r["eksi_id"] not in wanted:
+                continue
+            try:
+                status_, found_id = accountcheck.classify(
+                    r["eksi_id"], r["profile"], r["entries"], set(r["author_ids"])
+                )
+            except accountcheck.Refused:
+                # Not an answer about this account; it stays due.
+                continue
+            accountcheck.record(r["eksi_id"], r["nick"], status_, found_id, self.device)
+            recorded += 1
+        return Response({"recorded": recorded})
 
 
 class AccountView(DeviceView):

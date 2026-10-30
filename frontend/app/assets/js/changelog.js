@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.6.3": {
+    date: "2026-10-30",
     app: [],
     extension: [
       "Kullanılmayan bildirim (notifications) izni kaldırıldı."

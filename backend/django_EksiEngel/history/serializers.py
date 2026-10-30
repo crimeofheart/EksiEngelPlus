@@ -162,6 +162,8 @@ class CheckResultSerializer(serializers.Serializer):
 
 class CheckReportSerializer(serializers.Serializer):
     results = serializers.ListField(child=CheckResultSerializer(), max_length=MAX_CHECKS)
+    # Set when Ekşi turned the browser away and the batch stopped there.
+    refused = HttpStatus(required=False, allow_null=True, default=None)
 
 
 class PairClaimSerializer(serializers.Serializer):

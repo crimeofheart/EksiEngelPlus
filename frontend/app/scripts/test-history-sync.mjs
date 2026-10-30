@@ -377,10 +377,10 @@ await check('the checker reports what Ekşi answers and stops at the first refus
   await h.flush();
   await h.checkAccounts();
   assert.deepEqual(asked, ['/biri/ben', '/son-entryleri?nick=ben', '/biri/iki-kelime', '/biri/perde']);
-  assert.deepEqual(server.last('POST checks/').body.results, [
+  assert.deepEqual(server.last('POST checks/').body, { results: [
     { eksi_id: 42, nick: 'ben', profile: 200, entries: 200, author_ids: [42] },
     { eksi_id: 5, nick: 'iki kelime', profile: 404 },
-  ]);
+  ], refused: 403 });
   await h.checkAccounts();
   assert.equal(server.count('GET checks/'), 1, 'at most one batch per interval');
   await later(CHECK_INTERVAL_MS, () => h.checkAccounts());

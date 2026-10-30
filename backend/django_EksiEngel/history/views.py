@@ -1,3 +1,5 @@
+import logging
+
 from django.utils import timezone
 from rest_framework import status, views
 from rest_framework.authentication import BasicAuthentication
@@ -22,6 +24,8 @@ from .serializers import (
 )
 from .stats import _istanbul_today as istanbul_today
 from .throttling import IPScopedRateThrottle
+
+logger = logging.getLogger(__name__)
 
 
 class DeviceView(views.APIView):
@@ -352,6 +356,14 @@ class ChecksView(DeviceView):
                 continue
             accountcheck.record(r["eksi_id"], r["nick"], status_, found_id, self.device)
             recorded += 1
+        if data.validated_data["refused"]:
+            # Otherwise a checker Ekşi turns away looks exactly like one that never ran.
+            logger.warning(
+                "checker device %s: Ekşi refused with HTTP %s after %s answer(s)",
+                self.device.pk,
+                data.validated_data["refused"],
+                len(data.validated_data["results"]),
+            )
         return Response({"recorded": recorded})
 
 

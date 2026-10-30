@@ -602,19 +602,23 @@ export class HistorySync {
       this.#state.lastCheckAt = Date.now();
       this.#persist();
       const batch = await this.#call("GET", "checks/");
+      const accounts = batch.accounts || [];
       const results = [];
-      for (const [i, account] of (batch.accounts || []).entries()) {
+      let refused = null;
+      for (const [i, account] of accounts.entries()) {
         if (i) await new Promise(resolve => setTimeout(resolve, batch.delay_ms || 0));
         // Any extension API call resets the MV3 service worker's idle timer.
         await chrome.runtime.getPlatformInfo?.();
         const result = await askEksi(account);
         if (EKSI_REFUSED.has(result.profile)) {
-          log.info("history", `account checks stopped: Ekşi refused with HTTP ${result.profile}`);
+          refused = result.profile;
+          log.info("history", `account checks stopped: Ekşi refused with HTTP ${refused}`);
           break;
         }
         results.push(result);
       }
-      if (results.length) await this.#call("POST", "checks/", { results });
+      // Sent even when nothing was answered, so the server can tell a refused batch from a lost one.
+      if (accounts.length) await this.#call("POST", "checks/", { results, refused });
     } catch (e) {
       // 403: the admin unmarked this browser since the last pull.
       if (e instanceof SyncError && e.status === 403) {

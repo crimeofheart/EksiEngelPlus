@@ -25,6 +25,9 @@ class CheckerTests(LedgerTestCase):
     def report(self, *results):
         return self.browser.post("/api/sync/checks/", {"results": list(results)})
 
+    def report_refused(self, status):
+        return self.browser.post("/api/sync/checks/", {"results": [], "refused": status})
+
     def test_only_a_checker_gets_in(self):
         self.assertFalse(self.browser.pull().json()["checker"])
         self.assertEqual(self.browser.http.get("/api/sync/checks/").status_code, 403)
@@ -66,6 +69,13 @@ class CheckerTests(LedgerTestCase):
         self.assertEqual(
             self.browser.http.get("/api/sync/checks/").json()["accounts"], []
         )
+
+    def test_a_refused_batch_is_reported(self):
+        self.make_checker()
+        with self.assertLogs("history.views", "WARNING") as logs:
+            response = self.report_refused(403)
+        self.assertEqual(response.json(), {"recorded": 0})
+        self.assertIn("refused with HTTP 403 after 0 answer(s)", logs.output[0])
 
     def test_a_refused_answer_leaves_the_account_due(self):
         self.make_checker()

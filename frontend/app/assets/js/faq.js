@@ -19,6 +19,9 @@ let editingRuleId = null;
 
 document.addEventListener('DOMContentLoaded', async function () {
 
+  // Set before anything that can bail out, so the About card never shows a blank version.
+  document.getElementById("aboutVersion").textContent = chrome.runtime.getManifest().version;
+
   // load the current configuration from storage
   await handleConfig();
   console.log("sendData:" + config.sendData);

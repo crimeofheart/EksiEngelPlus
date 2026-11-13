@@ -32,6 +32,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:name=".EksiEngelPlusApp"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:label="EksiEngelPlus"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 

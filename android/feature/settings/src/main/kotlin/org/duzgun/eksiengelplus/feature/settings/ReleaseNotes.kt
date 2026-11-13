@@ -45,6 +45,15 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.6.4" to VersionNotes(
+            app = listOf(
+                "Ayarların en altına \"hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi.",
+                "Uygulama verileri artık yeni telefona taşıma sırasında da kopyalanmıyor; yalnızca yedeklemenin kapalı olması Android 12 ve sonrasında bunu engellemiyordu.",
+            ),
+            extension = listOf(
+                "Ayarlar ve yardım sayfasının sonuna \"Hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi.",
+            ),
+        ),
         "0.6.3" to VersionNotes(
             app = emptyList(),
             extension = listOf(

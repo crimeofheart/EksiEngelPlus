@@ -105,6 +105,11 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<android.widget.Button>(R.id.openReleaseNotes).setOnClickListener {
             startActivity(ReleaseNotesActivity.intent(this, appVersion()))
         }
+        findViewById<android.widget.TextView>(R.id.aboutVersion).text =
+            getString(R.string.settings_about_version, appVersion())
+        findViewById<android.widget.Button>(R.id.aboutContact).setOnClickListener { composeMail() }
+        findViewById<android.widget.Button>(R.id.aboutPrivacy).setOnClickListener { openUrl(PRIVACY_URL) }
+        findViewById<android.widget.Button>(R.id.aboutWebsite).setOnClickListener { openUrl(WEBSITE_URL) }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -610,6 +615,34 @@ class SettingsActivity : AppCompatActivity() {
     private companion object {
         const val PAIR_WINDOW_MS = 10L * 60 * 1000
         const val PAIR_POLL_MS = 3000L
+        const val CONTACT_EMAIL = "eksiengelplus@gmail.com"
+        const val WEBSITE_URL = "https://eksiengelplus.duzgun.org/"
+        const val PRIVACY_URL = "https://eksiengelplus.duzgun.org/privacy/"
+    }
+
+    private fun composeMail() {
+        val intent = android.content.Intent(
+            android.content.Intent.ACTION_SENDTO,
+            android.net.Uri.parse("mailto:"),
+        ).apply {
+            putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf(CONTACT_EMAIL))
+            putExtra(
+                android.content.Intent.EXTRA_SUBJECT,
+                getString(R.string.settings_about_contact_subject, appVersion()),
+            )
+        }
+        launchOrToast(intent)
+    }
+
+    private fun openUrl(url: String) =
+        launchOrToast(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+
+    private fun launchOrToast(intent: android.content.Intent) {
+        try {
+            startActivity(intent)
+        } catch (_: android.content.ActivityNotFoundException) {
+            toast(R.string.settings_about_no_app)
+        }
     }
 
     private fun toast(res: Int) =

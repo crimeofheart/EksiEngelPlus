@@ -19,6 +19,15 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.6.4": {
+    app: [
+      "Ayarların en altına \"hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi.",
+      "Uygulama verileri artık yeni telefona taşıma sırasında da kopyalanmıyor; yalnızca yedeklemenin kapalı olması Android 12 ve sonrasında bunu engellemiyordu."
+    ],
+    extension: [
+      "Ayarlar ve yardım sayfasının sonuna \"Hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi."
+    ]
+  },
   "0.6.3": {
     date: "2026-10-30",
     app: [],

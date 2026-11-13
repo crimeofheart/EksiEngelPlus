@@ -106,6 +106,15 @@
     <string name="settings_group_help">yardım</string>
     <string name="settings_open_release_notes">sürüm notları</string>
 
+    <string name="settings_group_about">hakkında</string>
+    <string name="settings_about_version">EksiEngelPlus sürüm %1$s</string>
+    <string name="settings_about_body">Ekşi Sözlük için toplu engelleme, sessize alma ve takip yönetimi aracı. Ekşi Sözlük ile bir bağı yoktur, bağımsız olarak geliştirilir.</string>
+    <string name="settings_about_contact">iletişim: eksiengelplus@gmail.com</string>
+    <string name="settings_about_privacy">gizlilik politikası</string>
+    <string name="settings_about_website">web sitesi</string>
+    <string name="settings_about_contact_subject">EksiEngelPlus %1$s</string>
+    <string name="settings_about_no_app">bu işlem için uygun bir uygulama bulunamadı</string>
+
     <string name="help_title">kullanım kılavuzu</string>
     <string name="notes_title">sürüm notları</string>
     <string name="notes_version">sürüm %1$s</string>

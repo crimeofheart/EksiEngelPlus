@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.6.4": {
+    date: "2026-11-13",
     app: [
       "Ayarların en altına \"hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi.",
       "Uygulama verileri artık yeni telefona taşıma sırasında da kopyalanmıyor; yalnızca yedeklemenin kapalı olması Android 12 ve sonrasında bunu engellemiyordu."

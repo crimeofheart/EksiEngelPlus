@@ -6,7 +6,7 @@ google chrome: [https://chromewebstore.google.com/detail/eksiengelplus/cakplcekf
 mozilla firefox: [https://addons.mozilla.org/firefox/addon/eksiengelplus buraya tıklayın].
 android firefox: yukarıdaki firefox linkini telefonunuzdaki firefox'tan açın, yeter. ayrı bir sürüm değil, masaüstüyle aynı eklenti. (android'de yalnızca firefox eklenti kurulmasına izin veriyor.)
 android apk: [https://github.com/crimeofheart/EksiEngelPlus/releases releases sayfası].
-[https://github.com/crimeofheart/EksiEngelPlus/issues buradan] hata bildirebilirsiniz (bana mesajla da bildirebilirsiniz).
+[https://github.com/crimeofheart/EksiEngelPlus/issues buradan] ya da eksiengelplus@gmail.com adresinden hata bildirebilirsiniz (bana mesajla da bildirebilirsiniz).
 
 uygulamanın eklentiden farkı, sözlüğü uygulamanın kendi içinde geziyor olmanız. entry'nin yanındaki menüden engelle deyip devam ediyorsunuz, ayrı bir ekrana geçmek gerekmiyor. başlıklar arası yatay kaydırma, aşağı çekip yenileme, bir listede aşağı inip geri döndüğünüzde kaldığınız yerden devam etme ve başlığa uzun basınca çıkan kopyala/paylaş menüsü de var.
 
@@ -41,3 +41,4 @@ kullanım kolaylığı:
 
 github linki: https://github.com/crimeofheart/EksiEngelPlus
 web sitesi: https://eksiengelplus.duzgun.org
+iletişim: eksiengelplus@gmail.com

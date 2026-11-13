@@ -1,0 +1,12 @@
+0.6.4 çıktı. küçük bir sürüm: eklentiye ve uygulamaya "hakkında" bölümü ve bir iletişim adresi eklendi.
+
+eklenti:
+[https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh chrome]
+[https://addons.mozilla.org/firefox/addon/eksiengelplus firefox] (telefondaki firefox'a da bu linkten kuruluyor)
+android apk: [https://github.com/crimeofheart/EksiEngelPlus/releases releases sayfası]
+
+ayarların en altında artık "hakkında" bölümü var: kullandığınız sürüm, iletişim adresi, gizlilik politikası ve web sitesi. soru, öneri ya da hata bildirimi için artık eksiengelplus@gmail.com adresine de yazabilirsiniz.
+
+android tarafında ayrıca: telefon değiştirirken uygulamanın verileri artık yeni telefona taşınmıyor. yedekleme zaten kapalıydı, ama android 12 ve sonrasında telefondan telefona aktarımda veriler yine de kopyalanabiliyordu.
+
+hata bildirimi: [https://github.com/crimeofheart/EksiEngelPlus/issues buradan] ya da eksiengelplus@gmail.com (bana mesajla da bildirebilirsiniz).

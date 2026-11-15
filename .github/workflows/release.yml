@@ -12,6 +12,12 @@ name: Release
 # Store submission is deliberately NOT part of this. Chrome Web Store and AMO
 # uploads stay manual, and Play submission is opt-in via workflow_dispatch, so
 # an extension-only fix never burns a Play review cycle on a bit-identical APK.
+#
+# Only the newest release keeps the binaries. The `prune` job strips the assets
+# off every other release once publishing has succeeded, so the download weight
+# on the repository stays flat instead of growing by ~15 MB per version. Every
+# pruned file is rebuildable from its tag through the workflow_dispatch path
+# above, which is why deleting them is safe.
 
 on:
   push:
@@ -117,6 +123,9 @@ jobs:
           name: extension-zips
           path: frontend/publish/dist/*.zip
           if-no-files-found: error
+          # Only shuttles files from this job to `release`, minutes later. The
+          # 90-day default kept ~200 MB of dead builds in storage.
+          retention-days: 1
 
   android:
     name: Android AAB + APK
@@ -176,6 +185,8 @@ jobs:
           name: android-artifacts
           path: android/out/*
           if-no-files-found: error
+          # Hand-off to `release`, not a download. See extension job.
+          retention-days: 1
 
   release:
     name: Publish GitHub Release
@@ -210,6 +221,72 @@ jobs:
             All assets record the same version.
 
             Full user-facing changelog: [`frontend/app/assets/js/changelog.js`](https://github.com/${{ github.repository }}/blob/${{ needs.verify.outputs.ref }}/frontend/app/assets/js/changelog.js) — the source every surface renders from. Pre-rename releases (1.0.0–3.2.0) are in [`docs/changelog.legacy.json`](https://github.com/${{ github.repository }}/blob/${{ needs.verify.outputs.ref }}/docs/changelog.legacy.json).
+
+  prune:
+    name: Strip assets from older releases
+    needs: [verify, release]
+    runs-on: ubuntu-latest
+
+    steps:
+      # Runs after `release`, so the assets on this tag already exist before
+      # anything is taken away — a failed build never leaves the newest release
+      # empty-handed. Idempotent by construction: a release with no assets and
+      # the marker already in its body is skipped, so re-running the workflow or
+      # rebuilding an old tag costs nothing but API calls.
+      - name: Delete assets on every release except this one
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          KEEP_TAG: ${{ needs.verify.outputs.ref }}
+        run: |
+          set -euo pipefail
+
+          # `gh release view` with no tag is the release GitHub marks as latest.
+          # Kept alongside KEEP_TAG so a workflow_dispatch rebuild of an old tag
+          # cannot empty the release users are actually pointed at.
+          keep_latest="$(gh release view --repo "$REPO" --json tagName --jq .tagName)"
+          echo "keeping $KEEP_TAG (this tag) and ${keep_latest:-<none>} (latest)"
+
+          marker='<!-- assets-pruned -->'
+          read -r -d '' note <<'EOF' || true
+          ---
+
+          **Binary assets have been removed from this release.** The current Chrome and Firefox zips, the AAB, and the APK are on the [latest release](https://github.com/REPO_PLACEHOLDER/releases/latest) — older releases keep source only. To rebuild the files for this tag, run the `Release` workflow manually with this tag as the input.
+          EOF
+          note="${note//REPO_PLACEHOLDER/$REPO}"
+
+          mapfile -t tags < <(gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName')
+
+          for tag in "${tags[@]}"; do
+            if [ "$tag" = "$KEEP_TAG" ] || [ "$tag" = "$keep_latest" ]; then
+              echo "== $tag: kept"
+              continue
+            fi
+            echo "== $tag"
+
+            # Delete first, annotate second: if the asset deletion fails the body
+            # is left untouched, so the note never claims a removal that did not
+            # happen.
+            assets="$(gh release view "$tag" --repo "$REPO" --json assets --jq '.assets[].name')"
+            if [ -n "$assets" ]; then
+              while IFS= read -r asset; do
+                [ -n "$asset" ] || continue
+                echo "   delete $asset"
+                gh release delete-asset "$tag" "$asset" --repo "$REPO" --yes
+              done <<< "$assets"
+            else
+              echo "   no assets"
+            fi
+
+            body="$(gh release view "$tag" --repo "$REPO" --json body --jq '.body')"
+            if printf '%s' "$body" | grep -qF "$marker"; then
+              echo "   already annotated"
+              continue
+            fi
+            printf '%s\n\n%s\n%s\n' "$body" "$marker" "$note" > "$RUNNER_TEMP/body.md"
+            gh release edit "$tag" --repo "$REPO" --notes-file "$RUNNER_TEMP/body.md"
+            echo "   annotated"
+          done
 
   play:
     name: Upload to Play internal track

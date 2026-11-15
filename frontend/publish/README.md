@@ -23,6 +23,12 @@ addons.mozilla.org'a yükle — aynı Firefox zip'i hem masaüstünü hem Firefo
 Android'i karşılıyor. Play'e gönderim ayrı ve isteğe bağlı: `release.yml`'ı
 `workflow_dispatch` ile `submit_to_play` işaretleyerek çalıştır.
 
+Yayından sonraki `prune` işi, **eski sürümlerin dosyalarını siliyor**: dört dosya yalnızca
+en yeni sürümde kalır, geri kalanlar yalnızca kaynak kod taşır ve notları en yeni sürüme
+yönlendirir. Silinen dosya kaybolmuyor — eski bir tag'i `workflow_dispatch` ile yeniden
+çalıştırmak o sürümün dosyalarını yeniden üretiyor. Yani indirmeyi sürüm dondurduktan sonra
+yap, sonraki sürüm çıkınca dosyalar gider.
+
 Zip'leri yayınlamadan yerelde denemek için:
 
 ```bash

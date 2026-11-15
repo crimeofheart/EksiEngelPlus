@@ -183,6 +183,12 @@ Release: both browser zips, the AAB, and the APK. One release means one tag — 
 separate Android tag namespace. Download the assets and upload them to the stores. `release`
 refuses a dirty tree or an existing tag.
 
+**Only the newest release keeps those files.** A `prune` job runs after publishing and strips
+the assets off every older release, rewriting their notes to point at the latest one — so the
+repository carries ~15 MB instead of ~15 MB per version. Nothing is lost: `workflow_dispatch`
+with an old tag rebuilds its assets from the tag. `prune` is idempotent and never touches the
+tag being published or the one GitHub marks latest.
+
 **A version bumped but never tagged** ships nowhere, and neither ordinary path recovers it:
 `release patch` bumps *again* and skips the prepared version, while `release 0.1.7` fails on
 `already at 0.1.7` because a no-op rewrite is refused. Instead:

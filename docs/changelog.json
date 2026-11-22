@@ -2,6 +2,16 @@
   {
     "name": "",
     "notes": [
+      "[Eklenti] Hatalı bir sürüm bulunduğunda eklenti artık güncellenmesi gerektiğini söyleyebiliyor: güncellenene kadar yeni işlem başlatılmıyor, eklenti menüsündeki \"Güncelle\" düğmesi güncellemeyi başlatıyor.",
+      "[Uygulama] Hatalı bir sürüm bulunduğunda uygulama artık güncellenmesi gerektiğini söyleyebiliyor: güncellenene kadar yeni işlem başlatılmıyor, \"güncelle\" en son sürümü indirip kuruyor (Google Play'den kurulduysa Play üzerinden güncelleniyor).",
+      "[Uygulama] Yeni bir sürüm çıktığında uygulama açılırken haber veriyor."
+    ],
+    "pub_date": "2026-11-22",
+    "version": "0.6.5"
+  },
+  {
+    "name": "",
+    "notes": [
       "[Eklenti] Ayarlar ve yardım sayfasının sonuna \"Hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi.",
       "[Uygulama] Ayarların en altına \"hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi.",
       "[Uygulama] Uygulama verileri artık yeni telefona taşıma sırasında da kopyalanmıyor; yalnızca yedeklemenin kapalı olması Android 12 ve sonrasında bunu engellemiyordu."

@@ -20,6 +20,7 @@
 // make the two clients look like they had diverged.
 export const releaseNotes = {
   "0.6.5": {
+    date: "2026-11-22",
     app: [
       "Hatalı bir sürüm bulunduğunda uygulama artık güncellenmesi gerektiğini söyleyebiliyor: güncellenene kadar yeni işlem başlatılmıyor, \"güncelle\" en son sürümü indirip kuruyor (Google Play'den kurulduysa Play üzerinden güncelleniyor).",
       "Yeni bir sürüm çıktığında uygulama açılırken haber veriyor."

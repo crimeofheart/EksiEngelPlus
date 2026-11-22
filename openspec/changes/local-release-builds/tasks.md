@@ -16,4 +16,4 @@
 - [x] 3.1 `/download/eksiengelplus.apk` redirect with tests; landing page and Ekşi first entry link to it.
 - [x] 3.2 Upload the 0.6.4 APK to the server; delete the assets left on GitHub Releases.
 - [x] 3.3 CLAUDE.md release, store and signing sections.
-- [ ] 3.4 Deploy the backend and confirm the redirect serves 0.6.4.
+- [x] 3.4 Deploy the backend and confirm the redirect serves 0.6.4.

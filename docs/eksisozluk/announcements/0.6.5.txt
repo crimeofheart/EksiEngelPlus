@@ -1,0 +1,12 @@
+0.6.5 çıktı. küçük ama önemli bir sürüm: hatalı bir sürüm çıkarsa eklenti ve uygulama artık güncellenmesi gerektiğini söyleyebiliyor.
+
+eklenti:
+[https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh chrome]
+[https://addons.mozilla.org/firefox/addon/eksiengelplus firefox] (telefondaki firefox'a da bu linkten kuruluyor)
+android apk: [https://eksiengelplus.duzgun.org/download/eksiengelplus.apk buradan indirin]
+
+hatalı bir sürüm bulunduğunda o sürüm artık yeni işlem başlatmıyor ve güncellenmesi gerektiğini söylüyor. eklentide menüdeki "güncelle" düğmesi güncellemeyi başlatıyor, uygulamada "güncelle" en son sürümü indirip kuruyor. sunucuya ulaşılamazsa hiçbir şey engellenmiyor.
+
+android tarafında ayrıca: yeni bir sürüm çıktığında uygulama açılırken haber veriyor. 0.6.4 ve öncesinde bu bildirim olmadığı için bu sürümü bir kereliğine yukarıdaki linkten elle kurmanız gerekiyor, sonrakileri uygulama kendisi haber verecek.
+
+hata bildirimi: [https://github.com/crimeofheart/EksiEngelPlus/issues buradan] ya da eksiengelplus@gmail.com (bana mesajla da bildirebilirsiniz).

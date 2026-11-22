@@ -12,7 +12,7 @@ uygulamanın eklentiden farkı, sözlüğü uygulamanın kendi içinde geziyor o
 
 toplu işlemler arka planda çalışıyor: uygulamayı kapatsanız da devam ediyor, duraklatıp devam ettirebiliyor ya da istediğiniz an durdurabiliyorsunuz, sözlüğün dakikadaki istek sınırının altında kalacak şekilde kendini yavaşlatıyor. yarıda kalırsa kaldığı yerden sürüyor.
 
-önemli not: android uygulaması şimdilik yalnızca (bkz: apk) olarak dağıtılıyor, google play'de yok. kurmak için telefonunuzda bilinmeyen kaynaklardan yükleme iznini açmanız gerekiyor. telefonda uygulama istemiyorsanız firefox eklentisi aynı işi görüyor. ios sürümü de (henüz) yok.
+önemli not: android uygulaması şimdilik yalnızca (bkz: apk) olarak dağıtılıyor, google play'de yok. kurmak için telefonunuzda bilinmeyen kaynaklardan yükleme iznini açmanız gerekiyor. yeni bir sürüm çıktığında uygulama açılırken haber veriyor. telefonda uygulama istemiyorsanız firefox eklentisi aynı işi görüyor. ios sürümü de (henüz) yok.
 
 ~~~ana özellikler~~~
 toplu işlemler:

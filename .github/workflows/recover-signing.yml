@@ -1,0 +1,40 @@
+name: Recover signing secrets (one-off)
+
+# Temporary. Android release builds move to the maintainer's machine, and the
+# upload key's alias and passwords exist only as repository secrets, which
+# GitHub never shows again. This hands them back encrypted to the maintainer's
+# age key (the chezmoi recipient), so only that key can read the artifact.
+# Deleted, with its run and artifact, as soon as the secrets are recovered.
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Encrypt the signing secrets to the maintainer's age key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y -qq age >/dev/null
+          umask 077
+          dir="$(mktemp -d)"
+          printf '%s' "$KEYSTORE" | base64 -d > "$dir/upload.jks"
+          printf 'keyAlias=%s\nkeyPassword=%s\nstorePassword=%s\n' "$ALIAS" "$KEY_PASSWORD" "$STORE_PASSWORD" > "$dir/signing.properties"
+          tar -C "$dir" -cf - upload.jks signing.properties \
+            | age -r age1ddwc5zrjm75pw8l2wz9440f4y6psrpn9p7n397w02nfl092ruqgsj6zpza -o "$RUNNER_TEMP/signing.tar.age"
+          rm -rf "$dir"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: signing
+          path: ${{ runner.temp }}/signing.tar.age
+          if-no-files-found: error
+          retention-days: 1

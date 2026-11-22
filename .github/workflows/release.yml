@@ -1,71 +1,43 @@
 name: Release
 
 # Cut a release by pushing a v* tag from master:
-#   git checkout master && git pull
 #   cd frontend/app && npm run release -- patch
 #   git push origin master --follow-tags
+#   tools/build-release.sh --upload-apk
 #
-# One tag produces three deliverables: the Chrome zip, the Firefox zip, and the
-# Android AAB + APK. There is no separate Android tag namespace — one release
-# means one tag, and all four assets land on the same GitHub Release.
-#
-# Store submission is deliberately NOT part of this. Chrome Web Store and AMO
-# uploads stay manual, and Play submission is opt-in via workflow_dispatch, so
-# an extension-only fix never burns a Play review cycle on a bit-identical APK.
-#
-# Only the newest release keeps the binaries. The `prune` job strips the assets
-# off every other release once publishing has succeeded, so the download weight
-# on the repository stays flat instead of growing by ~15 MB per version. Every
-# pruned file is rebuildable from its tag through the workflow_dispatch path
-# above, which is why deleting them is safe.
+# Nothing is built or attached here. The Chrome and Firefox zips, the AAB and the
+# APK are built and signed on the maintainer's machine (tools/build-release.sh),
+# so the upload key never leaves it, and uploaded to the stores by hand. The APK
+# for sideloading is served from eksiengelplus.duzgun.org/download/, not from
+# GitHub. This workflow only checks the tag and opens a GitHub Release with the
+# notes.
 
 on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing v* tag to build"
-        required: true
-      submit_to_play:
-        description: "Also upload the AAB to the Play internal track"
-        type: boolean
-        default: false
 
 permissions:
   contents: write
 
 jobs:
-  verify:
-    name: Verify tag and version
+  release:
+    name: Verify tag and publish notes
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      ref: ${{ steps.meta.outputs.ref }}
-      signed: ${{ steps.signing.outputs.signed }}
 
     steps:
-      - name: Resolve ref
-        id: ref
-        run: echo "value=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.ref.outputs.value }}
 
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
       # Guards against a tag pushed from the wrong commit: the tag name and the
-      # version baked into the manifests must agree, or the published assets
-      # would not match the release they are attached to.
+      # version recorded in the seven places must agree.
       - name: Verify tag matches package version
-        id: meta
         working-directory: frontend/app
         env:
-          REF: ${{ steps.ref.outputs.value }}
+          REF: ${{ github.ref_name }}
         run: |
           tag_version="${REF#v}"
           pkg_version="$(node -p "require('./package.json').version")"
@@ -74,238 +46,22 @@ jobs:
             exit 1
           fi
           echo "tag $REF matches version $pkg_version"
-          echo "version=$pkg_version" >> "$GITHUB_OUTPUT"
-          echo "ref=$REF" >> "$GITHUB_OUTPUT"
 
-      # Covers all seven locations, android/version.json included.
       - name: Check version consistency and manifest validity
         working-directory: frontend/app
         run: npm run check
 
-      - name: Detect Android signing availability
-        id: signing
-        env:
-          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-        run: |
-          if [ -n "$KEYSTORE" ]; then
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::ANDROID_KEYSTORE_B64 is not set — the Android artifact will be an unsigned debug build"
-          fi
-
-      - name: Play submission requires signing
-        if: inputs.submit_to_play && steps.signing.outputs.signed != 'true'
-        run: |
-          echo "::error::Play submission was requested but no signing secrets are configured. Refusing to upload an unsigned artifact."
-          exit 1
-
-  extension:
-    name: Chrome + Firefox zips
-    needs: verify
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.verify.outputs.ref }}
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-
-      - name: Build Chrome and Firefox zips
-        working-directory: frontend/app
-        run: npm run package
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: extension-zips
-          path: frontend/publish/dist/*.zip
-          if-no-files-found: error
-          # Only shuttles files from this job to `release`, minutes later. The
-          # 90-day default kept ~200 MB of dead builds in storage.
-          retention-days: 1
-
-  android:
-    name: Android AAB + APK
-    needs: verify
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: android
-
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.verify.outputs.ref }}
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      - name: Decode keystore
-        if: needs.verify.outputs.signed == 'true'
-        env:
-          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-        run: echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
-
-      # Signed when the secrets exist; otherwise a debug build, so that an
-      # unconfigured keystore can never block an extension release. The Play
-      # step above fails hard rather than ever shipping this fallback.
-      - name: Build
-        env:
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-        run: |
-          # The AAB is the Play flavor and the APK the github flavor
-          # (openspec change app-update-gate): Play forbids an app updating
-          # itself, so only the sideloaded APK may install its own updates.
-          if [ "${{ needs.verify.outputs.signed }}" = "true" ]; then
-            ./gradlew :app:bundlePlayRelease :app:assembleGithubRelease
-          else
-            echo "No signing secrets — building unsigned debug artifacts."
-            ./gradlew :app:bundlePlayDebug :app:assembleGithubDebug
-          fi
-
-      - name: Collect artifacts
-        run: |
-          mkdir -p out
-          version="${{ needs.verify.outputs.version }}"
-          suffix=""
-          [ "${{ needs.verify.outputs.signed }}" = "true" ] || suffix="-unsigned"
-          find app/build/outputs -name "*.aab" -exec cp {} "out/eksiengelplus-${version}${suffix}.aab" \;
-          find app/build/outputs -name "*.apk" -exec cp {} "out/eksiengelplus-${version}${suffix}.apk" \;
-          ls -la out
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: android-artifacts
-          path: android/out/*
-          if-no-files-found: error
-          # Hand-off to `release`, not a download. See extension job.
-          retention-days: 1
-
-  release:
-    name: Publish GitHub Release
-    needs: [verify, extension, android]
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/download-artifact@v7
-        with:
-          path: assets
-          merge-multiple: true
-
-      - run: ls -la assets
-
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ needs.verify.outputs.ref }}
-          files: assets/*
-          fail_on_unmatched_files: true
+          tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           body: |
-            Store-ready builds for `${{ needs.verify.outputs.ref }}`.
+            Release `${{ github.ref_name }}`. Builds are made locally and published to the stores; nothing is attached here.
 
-            | Asset | Load into |
+            | Platform | Install from |
             | --- | --- |
-            | `*-chrome.zip` | Chrome Web Store |
-            | `*-firefox.zip` | addons.mozilla.org |
-            | `*.aab` | Google Play |
-            | `*.apk` | Sideload; installs its own updates from the signed update policy |
+            | Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/eksiengelplus/cakplcekfmnpelnchanlpoieoiodepdh) |
+            | Firefox (desktop and Android) | [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/eksiengelplus) |
+            | Android app | [APK](https://eksiengelplus.duzgun.org/download/eksiengelplus.apk) — newest build |
 
-            Both browser archives contain identical files; only `manifest.json` differs.
-            All assets record the same version.
-
-            Full user-facing changelog: [`frontend/app/assets/js/changelog.js`](https://github.com/${{ github.repository }}/blob/${{ needs.verify.outputs.ref }}/frontend/app/assets/js/changelog.js) — the source every surface renders from. Pre-rename releases (1.0.0–3.2.0) are in [`docs/changelog.legacy.json`](https://github.com/${{ github.repository }}/blob/${{ needs.verify.outputs.ref }}/docs/changelog.legacy.json).
-
-  prune:
-    name: Strip assets from older releases
-    needs: [verify, release]
-    runs-on: ubuntu-latest
-
-    steps:
-      # Runs after `release`, so the assets on this tag already exist before
-      # anything is taken away — a failed build never leaves the newest release
-      # empty-handed. Idempotent by construction: a release with no assets and
-      # the marker already in its body is skipped, so re-running the workflow or
-      # rebuilding an old tag costs nothing but API calls.
-      - name: Delete assets on every release except this one
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          KEEP_TAG: ${{ needs.verify.outputs.ref }}
-        run: |
-          set -euo pipefail
-
-          # `gh release view` with no tag is the release GitHub marks as latest.
-          # Kept alongside KEEP_TAG so a workflow_dispatch rebuild of an old tag
-          # cannot empty the release users are actually pointed at.
-          keep_latest="$(gh release view --repo "$REPO" --json tagName --jq .tagName)"
-          echo "keeping $KEEP_TAG (this tag) and ${keep_latest:-<none>} (latest)"
-
-          marker='<!-- assets-pruned -->'
-          read -r -d '' note <<'EOF' || true
-          ---
-
-          **Binary assets have been removed from this release.** The current Chrome and Firefox zips, the AAB, and the APK are on the [latest release](https://github.com/REPO_PLACEHOLDER/releases/latest) — older releases keep source only. To rebuild the files for this tag, run the `Release` workflow manually with this tag as the input.
-          EOF
-          note="${note//REPO_PLACEHOLDER/$REPO}"
-
-          mapfile -t tags < <(gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName')
-
-          for tag in "${tags[@]}"; do
-            if [ "$tag" = "$KEEP_TAG" ] || [ "$tag" = "$keep_latest" ]; then
-              echo "== $tag: kept"
-              continue
-            fi
-            echo "== $tag"
-
-            # Delete first, annotate second: if the asset deletion fails the body
-            # is left untouched, so the note never claims a removal that did not
-            # happen.
-            assets="$(gh release view "$tag" --repo "$REPO" --json assets --jq '.assets[].name')"
-            if [ -n "$assets" ]; then
-              while IFS= read -r asset; do
-                [ -n "$asset" ] || continue
-                echo "   delete $asset"
-                gh release delete-asset "$tag" "$asset" --repo "$REPO" --yes
-              done <<< "$assets"
-            else
-              echo "   no assets"
-            fi
-
-            body="$(gh release view "$tag" --repo "$REPO" --json body --jq '.body')"
-            if printf '%s' "$body" | grep -qF "$marker"; then
-              echo "   already annotated"
-              continue
-            fi
-            printf '%s\n\n%s\n%s\n' "$body" "$marker" "$note" > "$RUNNER_TEMP/body.md"
-            gh release edit "$tag" --repo "$REPO" --notes-file "$RUNNER_TEMP/body.md"
-            echo "   annotated"
-          done
-
-  play:
-    name: Upload to Play internal track
-    needs: [verify, release]
-    if: inputs.submit_to_play && needs.verify.outputs.signed == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/download-artifact@v7
-        with:
-          name: android-artifacts
-          path: assets
-
-      - uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: org.duzgun.eksiengelplus
-          releaseFiles: assets/*.aab
-          track: internal
+            Full user-facing changelog: [`frontend/app/assets/js/changelog.js`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/frontend/app/assets/js/changelog.js). Pre-rename releases (1.0.0–3.2.0) are in [`docs/changelog.legacy.json`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/changelog.legacy.json).

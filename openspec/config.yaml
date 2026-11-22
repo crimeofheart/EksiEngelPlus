@@ -8,7 +8,9 @@ context: |
     1. frontend/app/  — Chrome MV3 extension (browser zip)
     2. frontend/app/  — Firefox MV3 extension (same source, different manifest)
     3. android/       — native Android app (planned; AAB + APK)
-  A single `v*` git tag must publish all three artifacts.
+  A single `v*` git tag marks a release of all three. The artifacts are built and
+  signed locally (tools/build-release.sh) and uploaded to the stores by hand; CI
+  attaches nothing to GitHub Releases.
 
   Backend: backend/django_EksiEngel/ — Django 4.1 + DRF + Postgres, telemetry only.
   Deployed on a bare VPS (nginx → gunicorn). No Docker, no backend CI.

@@ -153,9 +153,10 @@ npm run version:patch   # or :minor / :major — bump everywhere, no commit
 `package` writes `eksiengelplus-<version>-{chrome,firefox}.zip`, excluding `package*.json`,
 `scripts/`, and the manifest variants. Output is gitignored.
 
-**`package` is extension-only and stays that way.** The APK and AAB are CI products —
-extension work needs no JDK and no Android SDK, and `frontend/app` keeps zero dependencies.
-Reading `android/version.json` is a plain JSON read, never a Gradle invocation.
+**`package` is extension-only and stays that way.** The AAB and APK are built by
+`tools/build-release.sh`, outside `frontend/app` — extension work needs no JDK and no Android
+SDK, and `frontend/app` keeps zero dependencies. Reading `android/version.json` is a plain
+JSON read, never a Gradle invocation.
 
 `android/version.json` has a top-level `version` field precisely so `versionsIn()` and
 `rewriteVersion()` in `ext.mjs` consume it with no special casing.
@@ -177,18 +178,29 @@ Work happens directly on `master`; there is no long-lived branch.
 cd frontend/app
 npm run release -- patch          # bump + commit "chore: release v0.1.3" + tag
 git push origin master --follow-tags
+cd ../.. && tools/build-release.sh --upload-apk
 ```
 
-The tag triggers `.github/workflows/release.yml`, producing **four assets** on one GitHub
-Release: both browser zips, the AAB, and the APK. One release means one tag — there is no
-separate Android tag namespace. Download the assets and upload them to the stores. `release`
-refuses a dirty tree or an existing tag.
+**Every artifact is built on this machine, never in CI**, so the upload key never leaves it.
+`tools/build-release.sh` refuses unless the tree is clean and HEAD is the tag, then writes
+four files and `SHA256SUMS` to `frontend/publish/dist/`: both browser zips, the AAB (`play`
+flavor) and the APK (`github` flavor). It refuses either Android file unless its certificate
+is the pinned upload certificate (`UPLOAD_CERT`). `--upload-apk` puts the APK on
+`eksiengelplus.duzgun.org/download/` (the website's download link, and the APK's own
+"yeni sürüm var" offer, follow it) and commits the policy record — push that commit.
+`--test` builds the working tree without the checks and never uploads.
 
-**Only the newest release keeps those files.** A `prune` job runs after publishing and strips
-the assets off every older release, rewriting their notes to point at the latest one — so the
-repository carries ~15 MB instead of ~15 MB per version. Nothing is lost: `workflow_dispatch`
-with an old tag rebuilds its assets from the tag. `prune` is idempotent and never touches the
-tag being published or the one GitHub marks latest.
+The tag still triggers `.github/workflows/release.yml`, which only checks the tag against
+the seven versions and opens a GitHub Release with notes — **no files are attached**, and
+none of the old releases carry any. One release means one tag — there is no separate
+Android tag namespace. `release` refuses a dirty tree or an existing tag.
+
+**Signing.** The upload keystore is `~/.android/eksiengelplus-upload.jks`; its alias and
+passwords are `eksiengelplus.*` in `~/.gradle/gradle.properties`, which
+`android/app/build.gradle.kts` reads. Both are age-encrypted in chezmoi — `chezmoi apply`
+restores them on a new machine. Losing them means no update can ever install over an
+existing sideloaded APK (Play can reset an upload key; Android cannot accept a new
+signature). The `ANDROID_*` repository secrets are no longer used by any workflow.
 
 **A version bumped but never tagged** ships nowhere, and neither ordinary path recovers it:
 `release patch` bumps *again* and skips the prepared version, while `release 0.1.7` fails on
@@ -203,19 +215,15 @@ to rewrite and an empty commit is not a release note.
 
 ### Store submission
 
-CI publishes *artifacts*, not store listings, and the three stores cannot go live in step —
-Chrome review takes hours to days, AMO minutes to days, and Play adds review plus a
-12-tester × 14-day gate on new accounts.
+All three store uploads are manual, from `frontend/publish/dist/`, and the stores cannot go
+live in step — Chrome review takes hours to days, AMO minutes to days, and Play adds review
+plus a 12-tester × 14-day gate on new accounts.
 
-Chrome and AMO uploads are manual. **Play submission is opt-in**: run `release.yml` via
-`workflow_dispatch` with `submit_to_play` set, so an extension-only fix never burns a Play
-review cycle on a bit-identical APK. That path fails hard if signing secrets are absent
-rather than uploading an unsigned artifact.
-
-Secrets for a signed build: `ANDROID_KEYSTORE_B64`, `ANDROID_KEY_ALIAS`,
-`ANDROID_KEY_PASSWORD`, `ANDROID_STORE_PASSWORD`, plus `PLAY_SERVICE_ACCOUNT_JSON` to upload.
-When `ANDROID_KEYSTORE_B64` is unset the Android job degrades to an unsigned debug build and
-the release still publishes — an unconfigured keystore must never block an extension release.
+Google Play takes the **`.aab`**, not the `.apk` (Play has required bundles for new apps since
+2021). Skip the Play upload for an extension-only release: a bit-identical app burns a review
+cycle for nothing. With Play App Signing, Google re-signs Play installs with its own key, so a
+Play install and a sideloaded APK cannot update over each other — that is expected; each
+updates from its own channel (see "Forcing an update").
 
 ### Forcing an update
 
@@ -227,7 +235,7 @@ PAUSED. The minimum never goes down on a device; a revocation can be lifted. No 
 an unreachable server, blocks nothing.
 
 ```bash
-tools/set-min-version.sh --release v0.6.5 --min 0.6.5   # upload 0.6.5's APK, block everything older
+tools/set-min-version.sh --min 0.6.5                    # block everything older, on every channel
 tools/set-min-version.sh --min-chrome 0.6.5             # one channel: github, play, chrome, firefox
 tools/set-min-version.sh --revoke 0.6.5                 # stop one bad build everywhere; --unrevoke lifts it
 tools/set-min-version.sh --message "…" --message-en "…" # text on the update screen (Turkish first)
@@ -243,12 +251,13 @@ warns when the `github` minimum is above the APK the policy names.
   version is `major*10000 + minor*100 + patch`, the Android `versionCode`.
 - **Flavors.** `github` downloads the policy's APK, checks its SHA-256 and opens the
   installer (`REQUEST_INSTALL_PACKAGES`, FileProvider). `play` uses Play in-app updates and
-  must never carry that permission — Play forbids self-updating. `release.yml` builds
-  `bundlePlayRelease` + `assembleGithubRelease`; locally `assembleGithubDebug` is the phone build.
+  must never carry that permission — Play forbids self-updating. `tools/build-release.sh`
+  builds `bundlePlayRelease` + `assembleGithubRelease`; `assembleGithubDebug` is the phone build.
 - **Hosting.** Django serves `RELEASE_DIR` (`/var/lib/eksiengelplus/release`, outside the
   checkout so `git pull --ff-only` keeps working); the tool writes it with
-  `ssh proxmox1 pct exec 110`. APKs are hosted there, not linked from GitHub: `prune` deletes
-  old release assets, which would break the Update button at the next tag.
+  `ssh proxmox1 pct exec 110`. The APK lives only there (`--apk`, or `build-release.sh
+  --upload-apk`); `/download/eksiengelplus.apk` redirects to the newest one, and the landing
+  page and the Ekşi first entry link to that.
 - **Keys.** `~/.android/eksiengelplus-policy-key.pem` signs; `-backup.pem` (`--backup-key`)
   is the offline spare. Public halves are in `gate/AppPolicy.kt` and `updateGate.js`; the
   tool refuses any other key. Lose both private keys and no policy can ever be signed again —

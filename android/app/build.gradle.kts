@@ -67,21 +67,30 @@ android {
     }
 
     /**
-     * Release signing is configured only when CI has decoded a keystore. Locally,
-     * and on a release run with no secrets set, the config is absent and Gradle
-     * produces an unsigned artifact -- which is why release.yml falls back to a
-     * debug build rather than shipping something Play would reject anyway.
+     * Release builds are made and signed on the maintainer's machine
+     * (tools/build-release.sh), never in CI, so the upload key stays there. Its
+     * location and passwords come from ~/.gradle/gradle.properties
+     * (`eksiengelplus.storeFile`, `.storePassword`, `.keyAlias`, `.keyPassword`;
+     * age-encrypted in chezmoi), with the old ANDROID_* environment variables as a
+     * fallback. Without them the config is absent and a release build comes out
+     * unsigned, which build-release.sh refuses.
+     *
+     * Every release must carry the same certificate: the sideloaded APK installs
+     * its own updates over itself, which Android allows only under one key.
      */
-    val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    fun signing(property: String, env: String): String? =
+        (findProperty("eksiengelplus.$property") as String?)?.takeIf { it.isNotBlank() } ?: System.getenv(env)
+
+    val keystorePath = signing("storeFile", "ANDROID_KEYSTORE_PATH")
     val hasKeystore = !keystorePath.isNullOrBlank() && file(keystorePath).exists()
 
     if (hasKeystore) {
         signingConfigs {
             create("upload") {
                 storeFile = file(keystorePath!!)
-                storePassword = System.getenv("ANDROID_STORE_PASSWORD")
-                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+                storePassword = signing("storePassword", "ANDROID_STORE_PASSWORD")
+                keyAlias = signing("keyAlias", "ANDROID_KEY_ALIAS")
+                keyPassword = signing("keyPassword", "ANDROID_KEY_PASSWORD")
             }
         }
     }

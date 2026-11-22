@@ -15,10 +15,10 @@
 #   --revoke V          stop build V on every channel (repeatable)
 #   --unrevoke V        lift a revocation (repeatable)
 #   --latest V          newest Android build, for the non-blocking "update available"
-#   --apk FILE          upload FILE (eksiengelplus-x.y.z.apk) for the APK's Update
-#                       button; its SHA-256 goes into the signed policy, and its
-#                       version becomes --latest unless one is given
-#   --release TAG       the same with the APK downloaded from GitHub Release TAG
+#   --apk FILE          upload FILE (eksiengelplus-x.y.z.apk, from tools/build-release.sh)
+#                       for the APK's Update button and the website's download link;
+#                       its SHA-256 goes into the signed policy, and its version
+#                       becomes --latest unless one is given
 #   --no-apk            drop the APK and latest version from the policy
 #   --message TEXT      text for the update screen (Turkish; the apps are Turkish)
 #   --message-LANG TEXT the same in another language, e.g. --message-en "..."
@@ -57,12 +57,6 @@ while [[ $# -gt 0 ]]; do
         --clear-message) args+=(--clear-message x); shift ;;
         --no-apk) args+=(--no-apk x); shift ;;
         --backup-key) key="${EKSIENGEL_POLICY_BACKUP_KEY:-$HOME/.android/eksiengelplus-policy-key-backup.pem}"; key_index=1; shift ;;
-        --release)
-            [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
-            gh release download "$2" --repo crimeofheart/EksiEngelPlus --pattern 'eksiengelplus-*.apk' --dir "$work/release"
-            apk="$(find "$work/release" -name 'eksiengelplus-*.apk' | head -1)"
-            [[ -n "$apk" ]] || { echo "release $2 has no APK (older releases are pruned)" >&2; exit 2; }
-            shift 2 ;;
         --apk) [[ $# -ge 2 && -f "$2" ]] || { echo "no such file: ${2:-}" >&2; exit 2; }
                apk="$2"; shift 2 ;;
         --*) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }

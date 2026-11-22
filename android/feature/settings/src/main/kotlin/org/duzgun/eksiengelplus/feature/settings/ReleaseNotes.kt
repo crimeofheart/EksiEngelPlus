@@ -45,6 +45,15 @@ object ReleaseNotes {
     )
 
     private val notes: Map<String, VersionNotes> = mapOf(
+        "0.6.5" to VersionNotes(
+            app = listOf(
+                "Hatalı bir sürüm bulunduğunda uygulama artık güncellenmesi gerektiğini söyleyebiliyor: güncellenene kadar yeni işlem başlatılmıyor, \"güncelle\" en son sürümü indirip kuruyor (Google Play'den kurulduysa Play üzerinden güncelleniyor).",
+                "Yeni bir sürüm çıktığında uygulama açılırken haber veriyor.",
+            ),
+            extension = listOf(
+                "Hatalı bir sürüm bulunduğunda eklenti artık güncellenmesi gerektiğini söyleyebiliyor: güncellenene kadar yeni işlem başlatılmıyor, eklenti menüsündeki \"Güncelle\" düğmesi güncellemeyi başlatıyor.",
+            ),
+        ),
         "0.6.4" to VersionNotes(
             app = listOf(
                 "Ayarların en altına \"hakkında\" bölümü eklendi: sürüm, iletişim adresi (eksiengelplus@gmail.com), gizlilik politikası ve web sitesi.",

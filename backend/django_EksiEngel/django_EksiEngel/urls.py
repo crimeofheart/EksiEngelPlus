@@ -29,6 +29,7 @@ urlpatterns = [
     # The signed update policy both clients check, and the APK it names. Written
     # only by tools/set-min-version.sh, into RELEASE_DIR (api/update_policy.py).
     path('policy/app-v1.json', update_policy.policy, name='update_policy'),
+    path('download/eksiengelplus.apk', update_policy.latest_apk, name='latest_apk'),
     path('download/<str:name>', update_policy.download, name='update_download'),
     # History sync (device token) and admin-only stats over the history ledger.
     path("api/sync/", include("history.urls_sync")),

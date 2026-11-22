@@ -536,6 +536,7 @@ function cmdRelease(spec) {
   }
 
   console.log("push with:  git push origin HEAD --follow-tags");
+  console.log("then build: tools/build-release.sh --upload-apk   (from the repository root)");
 }
 
 // ------------------------------------------------------------------- main

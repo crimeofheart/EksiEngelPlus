@@ -60,3 +60,14 @@ class UpdatePolicyTests(SimpleTestCase):
         ):
             with self.subTest(name=name):
                 self.assertEqual(self.client.get(f"/download/{name}").status_code, 404)
+
+    def test_stable_link_redirects_to_the_newest_apk(self):
+        for version in ("0.6.4", "0.10.0", "0.9.12"):
+            (self.root / "download" / f"eksiengelplus-{version}.apk").write_bytes(b"x")
+        (self.root / "download" / "notes.txt").write_text("x")
+        response = self.client.get("/download/eksiengelplus.apk")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/download/eksiengelplus-0.10.0.apk")
+
+    def test_stable_link_without_any_apk_is_404(self):
+        self.assertEqual(self.client.get("/download/eksiengelplus.apk").status_code, 404)

@@ -15,12 +15,12 @@ import re
 from pathlib import Path
 
 from django.conf import settings
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.views.decorators.http import require_safe
 
 # The only names tools/set-min-version.sh uploads. Matching the whole name keeps
 # the route from ever resolving anything else under RELEASE_DIR.
-APK_NAME = re.compile(r"eksiengelplus-\d+\.\d+\.\d+\.apk")
+APK_NAME = re.compile(r"eksiengelplus-(\d+)\.(\d+)\.(\d+)\.apk")
 
 
 def _release_dir() -> Path:
@@ -55,3 +55,28 @@ def download(request, name):
         filename=name,
         content_type="application/vnd.android.package-archive",
     )
+
+
+@require_safe
+def latest_apk(request):
+    """The newest APK uploaded, under one address that never changes.
+
+    The landing page and the Ekşi entry link here rather than to a version: the
+    APK is no longer attached to GitHub Releases, and a versioned link would go
+    stale at every release. A redirect, not the file, so the browser saves it
+    under its real name.
+    """
+    try:
+        names = [entry.name for entry in (_release_dir() / "download").iterdir()]
+    except OSError:
+        raise Http404
+    versions = [
+        (tuple(int(part) for part in match.groups()), name)
+        for name in names
+        if (match := APK_NAME.fullmatch(name))
+    ]
+    if not versions:
+        raise Http404("no APK published")
+    response = HttpResponseRedirect(f"/download/{max(versions)[1]}")
+    response["Cache-Control"] = "no-cache"
+    return response

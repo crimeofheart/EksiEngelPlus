@@ -24,5 +24,5 @@
 ## 4. Release
 
 - [x] 4.1 CLAUDE.md "Forcing an update"; changelog entry for both platforms.
-- [ ] 4.2 Deploy the backend, create `RELEASE_DIR`, publish a first policy with no minimum, and read it back from both clients.
-- [ ] 4.3 Back up both keys (age-encrypted in chezmoi).
+- [x] 4.2 Deploy the backend, create `RELEASE_DIR`, publish a first policy with no minimum, and read it back from both clients.
+- [x] 4.3 Back up both keys (age-encrypted in chezmoi).

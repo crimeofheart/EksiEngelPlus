@@ -20,6 +20,7 @@ cannot import each other:
 | --- | --- | --- |
 | `assets/js/changelog.js` | `ReleaseNotes.kt` | `ReleaseNotesTest` reads the JS and fails on drift |
 | `config.js` defaults, `utils.js` predicates | `Config.kt`, `DateFilter.kt` | `ConfigTest`, field-for-field, with `config.js` line refs in the comments |
+| `assets/js/updateGate.js` | `gate/AppPolicy.kt`, `gate/Gate.kt` | `test-update-gate.mjs` fails when the built-in policy keys differ; both tests verify `backend/policy/app-v1.json` |
 
 Mirrored code carries a comment naming its counterpart. When you change one side, change
 the other in the same commit — a mirror that is only correct half the time is worse than
@@ -216,6 +217,43 @@ Secrets for a signed build: `ANDROID_KEYSTORE_B64`, `ANDROID_KEY_ALIAS`,
 When `ANDROID_KEYSTORE_B64` is unset the Android job degrades to an unsigned debug build and
 the release still publishes — an unconfigured keystore must never block an extension release.
 
+### Forcing an update
+
+Both clients obey a signed update policy at `https://eksiengelplus.duzgun.org/policy/app-v1.json`
+(openspec change `app-update-gate`, ported from OpenOTT/SportGuide TV). A build below its
+channel's minimum, or listed as revoked, starts no operation and shows only the update
+screen (Android) or a Güncelle box in the popup (extension); a queued Android run parks as
+PAUSED. The minimum never goes down on a device; a revocation can be lifted. No policy, or
+an unreachable server, blocks nothing.
+
+```bash
+tools/set-min-version.sh --release v0.6.5 --min 0.6.5   # upload 0.6.5's APK, block everything older
+tools/set-min-version.sh --min-chrome 0.6.5             # one channel: github, play, chrome, firefox
+tools/set-min-version.sh --revoke 0.6.5                 # stop one bad build everywhere; --unrevoke lifts it
+tools/set-min-version.sh --message "…" --message-en "…" # text on the update screen (Turkish first)
+tools/set-min-version.sh --dry-run …                    # sign and write locally only
+```
+
+Then commit `backend/policy/app-v1.json`: the tool merges every run from it. **Raise a store
+channel only once that store serves the version** — a Chrome/Firefox minimum raised during
+review blocks users with nothing to install, and Play gets only 7 days of grace. The tool
+warns when the `github` minimum is above the APK the policy names.
+
+- **Channels and codes.** `github` (sideloaded APK), `play`, `chrome`, `firefox`; every
+  version is `major*10000 + minor*100 + patch`, the Android `versionCode`.
+- **Flavors.** `github` downloads the policy's APK, checks its SHA-256 and opens the
+  installer (`REQUEST_INSTALL_PACKAGES`, FileProvider). `play` uses Play in-app updates and
+  must never carry that permission — Play forbids self-updating. `release.yml` builds
+  `bundlePlayRelease` + `assembleGithubRelease`; locally `assembleGithubDebug` is the phone build.
+- **Hosting.** Django serves `RELEASE_DIR` (`/var/lib/eksiengelplus/release`, outside the
+  checkout so `git pull --ff-only` keeps working); the tool writes it with
+  `ssh proxmox1 pct exec 110`. APKs are hosted there, not linked from GitHub: `prune` deletes
+  old release assets, which would break the Update button at the next tag.
+- **Keys.** `~/.android/eksiengelplus-policy-key.pem` signs; `-backup.pem` (`--backup-key`)
+  is the offline spare. Public halves are in `gate/AppPolicy.kt` and `updateGate.js`; the
+  tool refuses any other key. Lose both private keys and no policy can ever be signed again —
+  the last one stays in force.
+
 ### Ekşi Sözlük entries
 
 Every published version gets two entries in the `eksiengelplus` başlık on Ekşi Sözlük:
@@ -257,8 +295,11 @@ Remaining work is tracked in `openspec/changes/`.
 
 ```bash
 cd android
-JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew :app:assembleDebug
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk ./gradlew :app:assembleGithubDebug
 ```
+
+Two flavors since the update gate: `github` (the sideloaded APK, the one to put on a phone —
+`app/build/outputs/apk/github/debug/`) and `play` (the AAB). See "Forcing an update".
 
 Gradle needs **JDK 17** — AGP does not support newer JDKs, so set `JAVA_HOME` explicitly if
 the system default differs.

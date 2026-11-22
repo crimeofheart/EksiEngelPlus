@@ -263,6 +263,7 @@ function backgroundHarness(fetch, extra = {}) {
     historySync: { isEnabled: async () => false, rememberNicks() {}, trackTask() {}, currentTaskId: null,
       ...extra.historySync },
     commHandler: extra.commHandler,
+    updateGate: { refresh: async () => false, decision: async () => ({ blocks: false }), ...extra.updateGate },
   });
   scope.programController._performActionWithRetry = (...args) => handler.performAction(...args);
   vm.runInContext(declaration('background.js', 'async function processHandler'), scope);
@@ -284,6 +285,19 @@ for (const explicit of [null, 'ENGEL_KALDIR_VE_TAKIP_ET', 'SESSIZDEN_CIKAR_VE_TA
     assert.deepEqual(finished[0].slice(2, 5), [1, 2, 2]);
   });
 }
+await check('a build the update policy stopped ends the run before any Ekşi request', async () => {
+  let calls = 0;
+  const errors = [];
+  const { scope, finished } = backgroundHarness(async () => { calls++; return response('{"result":true}'); }, {
+    updateGate: { decision: async () => ({ blocks: true, kind: 'required', message: 'güncelleyin' }) },
+  });
+  scope.notificationHandler = new Proxy({ finishError: (...args) => errors.push(args) }, { get: (o, k) => o[k] || (() => {}) });
+  await scope.processHandler(enums.BanSource.SINGLE, enums.BanMode.BAN, null, 'u1', 1, enums.TargetType.USER);
+  assert.equal(calls, 0);
+  assert.equal(finished.length, 0);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0][2], 'güncelleyin');
+});
 await check('bounded background rate-limit retry honors delay and counts exhausted target', async () => {
   let calls = 0;
   const { scope, sleeps, finished } = backgroundHarness(async () => { calls++; return response('', 429, '2'); });

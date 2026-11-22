@@ -559,6 +559,7 @@ switch (command) {
     execFileSync(process.execPath, [path.join(APP_DIR, "scripts/test-history-sync.mjs")], { stdio: "inherit" });
     execFileSync(process.execPath, [path.join(APP_DIR, "scripts/test-url-handler.mjs")], { stdio: "inherit" });
     execFileSync(process.execPath, [path.join(APP_DIR, "scripts/test-eksi-fetch.mjs")], { stdio: "inherit" });
+    execFileSync(process.execPath, [path.join(APP_DIR, "scripts/test-update-gate.mjs")], { stdio: "inherit" });
     break;
   case "changelog":
     cmdChangelog();

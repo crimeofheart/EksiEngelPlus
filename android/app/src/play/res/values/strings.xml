@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Update gate strings only the play flavor uses: the Play build hands updates to Google Play (gate/Updater.kt). -->
+<resources>
+    <string name="gate_opening_store">Google Play açılıyor…</string>
+</resources>

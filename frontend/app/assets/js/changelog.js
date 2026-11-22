@@ -19,6 +19,15 @@
 // the other got the fix -- that is the same release note, and hiding it would
 // make the two clients look like they had diverged.
 export const releaseNotes = {
+  "0.6.5": {
+    app: [
+      "Hatalı bir sürüm bulunduğunda uygulama artık güncellenmesi gerektiğini söyleyebiliyor: güncellenene kadar yeni işlem başlatılmıyor, \"güncelle\" en son sürümü indirip kuruyor (Google Play'den kurulduysa Play üzerinden güncelleniyor).",
+      "Yeni bir sürüm çıktığında uygulama açılırken haber veriyor."
+    ],
+    extension: [
+      "Hatalı bir sürüm bulunduğunda eklenti artık güncellenmesi gerektiğini söyleyebiliyor: güncellenene kadar yeni işlem başlatılmıyor, eklenti menüsündeki \"Güncelle\" düğmesi güncellemeyi başlatıyor."
+    ]
+  },
   "0.6.4": {
     date: "2026-11-13",
     app: [

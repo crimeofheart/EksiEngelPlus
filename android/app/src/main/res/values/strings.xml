@@ -13,4 +13,19 @@
     <string name="copied">kopyalandı.</string>
     <!-- The system clipboard refused the write; never previewed by the platform. -->
     <string name="copy_failed">kopyalanamadı — panoya yazılamıyor.</string>
+    <!-- Update gate (gate/GateActivity.kt, openspec change app-update-gate). -->
+    <string name="gate_required_title">güncelleme gerekli</string>
+    <string name="gate_revoked_title">bu sürüm durduruldu</string>
+    <string name="gate_available_title">yeni sürüm var</string>
+    <string name="gate_required_text">bu EksiEngelPlus sürümü artık desteklenmiyor. işlemlere devam etmek için uygulamayı güncelleyin.</string>
+    <string name="gate_revoked_text">bu EksiEngelPlus sürümünde bir sorun bulundu ve kullanımı durduruldu. işlemlere devam etmek için uygulamayı güncelleyin.</string>
+    <string name="gate_available_text">EksiEngelPlus\'ın yeni bir sürümü yayımlandı.</string>
+    <string name="gate_update">güncelle</string>
+    <string name="gate_check_again">tekrar dene</string>
+    <string name="gate_close">kapat</string>
+    <string name="gate_later">sonra</string>
+    <string name="gate_checking">kontrol ediliyor…</string>
+    <string name="gate_still_required">hâlâ güncelleme gerekiyor.</string>
+    <string name="gate_update_snackbar">yeni sürüm var</string>
+    <string name="gate_operation_refused">güncelleme gerekli: işlem başlatılmadı.</string>
 </resources>

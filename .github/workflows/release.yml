@@ -163,11 +163,14 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: |
+          # The AAB is the Play flavor and the APK the github flavor
+          # (openspec change app-update-gate): Play forbids an app updating
+          # itself, so only the sideloaded APK may install its own updates.
           if [ "${{ needs.verify.outputs.signed }}" = "true" ]; then
-            ./gradlew :app:bundleRelease :app:assembleRelease
+            ./gradlew :app:bundlePlayRelease :app:assembleGithubRelease
           else
             echo "No signing secrets — building unsigned debug artifacts."
-            ./gradlew :app:bundleDebug :app:assembleDebug
+            ./gradlew :app:bundlePlayDebug :app:assembleGithubDebug
           fi
 
       - name: Collect artifacts
@@ -215,7 +218,7 @@ jobs:
             | `*-chrome.zip` | Chrome Web Store |
             | `*-firefox.zip` | addons.mozilla.org |
             | `*.aab` | Google Play |
-            | `*.apk` | Sideload / testing |
+            | `*.apk` | Sideload; installs its own updates from the signed update policy |
 
             Both browser archives contain identical files; only `manifest.json` differs.
             All assets record the same version.

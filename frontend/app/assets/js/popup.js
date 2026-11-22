@@ -10,6 +10,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.connect) {
 
 import * as enums from './enums.js';
 import { commHandler } from './commHandler.js';
+import { updateGate, startUpdate } from './updateGate.js';
 
 commHandler.sendAnalyticsData({ click_type: enums.ClickType.EXTENSION_ICON });
 
@@ -33,3 +34,22 @@ const handleOpenFaq = () => {
 
 document.getElementById('openNotification')?.addEventListener('click', handleOpenNotification);
 document.getElementById('openFaq')?.addEventListener('click', handleOpenFaq);
+
+/**
+ * A build the update policy stopped says so here, where every session starts,
+ * rather than only when an operation is refused. Güncelle asks the browser for
+ * the update and falls back to the store page (startUpdate).
+ */
+const showUpdateGate = async () => {
+  await updateGate.refresh();
+  const decision = await updateGate.decision();
+  const box = document.getElementById('updateGate');
+  if (!box || !decision.blocks) return;
+  document.getElementById('updateGateMessage').textContent = decision.message;
+  box.hidden = false;
+  document.getElementById('updateGateButton')?.addEventListener('click', async () => {
+    const how = await startUpdate();
+    if (how === 'downloading') updateStatus('Güncelleme indiriliyor, eklenti birazdan yeniden başlayacak.', false, 0);
+  });
+};
+showUpdateGate();

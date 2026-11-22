@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The update gate's screen (gate/GateActivity.kt): the maintainer's message and
+     the only three things a blocked build may do. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="32dp">
+
+        <ImageView
+            android:layout_width="72dp" android:layout_height="72dp"
+            android:layout_marginBottom="24dp"
+            android:importantForAccessibility="no"
+            android:src="@mipmap/ic_launcher"/>
+
+        <TextView android:id="@+id/gateTitle"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="22sp" android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView android:id="@+id/gateMessage"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:textSize="16sp"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView android:id="@+id/gateStatus"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:textSize="14sp"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"/>
+
+        <Button android:id="@+id/gateUpdate"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/gate_update"/>
+
+        <Button android:id="@+id/gateCheck"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/gate_check_again"/>
+
+        <Button android:id="@+id/gateClose"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/gate_close"/>
+
+    </LinearLayout>
+</ScrollView>

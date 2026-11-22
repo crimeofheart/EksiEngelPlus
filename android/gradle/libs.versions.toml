@@ -21,6 +21,7 @@ swiperefreshlayout = "1.1.0"
 webkit = "1.14.0"
 work = "2.10.0"
 hiltWork = "1.2.0"
+playAppUpdate = "2.1.0"
 junit = "4.13.2"
 truth = "1.4.4"
 turbine = "1.2.0"
@@ -75,6 +76,7 @@ work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work"
 work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "hiltWork" }
 hilt-work-compiler = { module = "androidx.hilt:hilt-compiler", version.ref = "hiltWork" }
+play-app-update = { module = "com.google.android.play:app-update-ktx", version.ref = "playAppUpdate" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }

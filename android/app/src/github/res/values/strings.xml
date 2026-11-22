@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Update gate strings only the github flavor uses: the APK build installs its own updates (gate/Updater.kt). -->
+<resources>
+    <string name="gate_downloading">indiriliyor… %d%%</string>
+    <string name="gate_download_invalid">indirilen dosya doğrulanamadı ve silindi. tekrar deneyin.</string>
+    <string name="gate_download_failed">indirilemedi: %s</string>
+    <string name="gate_allow_install">güncellemeyi kurabilmek için EksiEngelPlus\'a uygulama yükleme izni verin, sonra tekrar güncelle\'ye dokunun.</string>
+    <string name="gate_installer_failed">yükleyici açılamadı.</string>
+</resources>

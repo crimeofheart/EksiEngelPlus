@@ -62,6 +62,8 @@ android {
         targetSdk = 36
         versionName = productVersion
         versionCode = productVersionCode
+        // The signed update policy both clients obey (gate/UpdateGate.kt).
+        buildConfigField("String", "POLICY_URL", "\"https://eksiengelplus.duzgun.org/policy/app-v1.json\"")
     }
 
     /**
@@ -87,6 +89,28 @@ android {
     buildFeatures {
         viewBinding = false
         buildConfig = true
+    }
+
+    /**
+     * Where the build is distributed decides how it updates (openspec change
+     * app-update-gate). Google Play forbids an app updating itself and restricts
+     * REQUEST_INSTALL_PACKAGES, so the AAB (play) leaves updates to Play, while
+     * the sideloaded APK (github) downloads and installs the APK the signed update
+     * policy names. Same applicationId and code otherwise; the policy has a
+     * section per flavor. release.yml builds bundlePlayRelease and
+     * assembleGithubRelease.
+     */
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+            isDefault = true
+            buildConfigField("boolean", "SELF_UPDATE", "true")
+        }
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SELF_UPDATE", "false")
+        }
     }
 
     // The telemetry key and endpoint now live in :ops:runtime's BuildConfig, next
@@ -128,6 +152,10 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.work.runtime)
     implementation(libs.kotlin.serialization.json)
+    // The update gate fetches its policy and the APK with its own client.
+    implementation(libs.okhttp)
+    // Play's in-app update, on the Play build only (gate/Updater.kt in src/play).
+    "playImplementation"(libs.play.app.update)
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.google.android.material:material:1.12.0")

@@ -58,6 +58,7 @@ class OperationWorker @AssistedInject constructor(
     private val identityRepository: org.duzgun.eksiengelplus.datastore.IdentityRepository,
     private val scrape: org.duzgun.eksiengelplus.eksi.client.ScrapeClient,
     private val visibility: AppVisibility,
+    private val runGate: java.util.Optional<RunGate>,
 ) : CoroutineWorker(appContext, params) {
 
     /*
@@ -438,6 +439,25 @@ class OperationWorker @AssistedInject constructor(
         }.getOrNull() ?: return Result.failure()
 
         notifier.ensureChannels()
+
+        /*
+         * A build the update policy stopped starts nothing (RunGate).
+         *
+         * Checked here, per run, because a queued run or a continuation can start
+         * long after the policy changed, with no screen open to refuse it. The run
+         * is parked as PAUSED, the state a user pause leaves, so the resume bar
+         * offers it once the updated build is installed; it also keeps holding the
+         * queue, which is what a pause does.
+         */
+        if (runGate.isPresent && runGate.get().blocks()) {
+            recordState(OperationState.PAUSED)
+            notifier.alert(
+                "Güncelleme gerekli",
+                "İşlem duraklatıldı. Devam etmek için EksiEngelPlus'ı güncelleyin.",
+            )
+            return Result.success()
+        }
+
         setForeground(getForegroundInfo())
 
         /*

@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.shortcuts import render, redirect
 
+from api import update_policy
 from api.release_info import landing_context
 
 
@@ -25,6 +26,10 @@ urlpatterns = [
     path('privacy/', privacy_page, name='privacy'),
     # Landing page at root
     path('', landing_page, name='landing'),
+    # The signed update policy both clients check, and the APK it names. Written
+    # only by tools/set-min-version.sh, into RELEASE_DIR (api/update_policy.py).
+    path('policy/app-v1.json', update_policy.policy, name='update_policy'),
+    path('download/<str:name>', update_policy.download, name='update_download'),
     # History sync (device token) and admin-only stats over the history ledger.
     path("api/sync/", include("history.urls_sync")),
     path("api/stats/", include("history.urls_stats")),

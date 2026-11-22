@@ -206,7 +206,7 @@ jobs:
       # Instrumented Room tests need a device; not run here. connectedDebugAndroidTest
       # is executed locally against an emulator before release.
       - name: Assemble debug APK
-        run: ./gradlew :app:assembleDebug
+        run: ./gradlew :app:assembleGithubDebug
 
       # Room writes exported schemas into the tree. A schema change that is not
       # committed means a migration was not authored, which only surfaces as a
@@ -223,6 +223,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: eksiengelplus-${{ needs.verify.outputs.version }}${{ needs.verify.outputs.suffix }}-android-debug
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/github/debug/*.apk
           if-no-files-found: error
           retention-days: 14

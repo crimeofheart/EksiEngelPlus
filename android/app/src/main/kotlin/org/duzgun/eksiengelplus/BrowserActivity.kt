@@ -25,6 +25,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.duzgun.eksiengelplus.datastore.ConfigRepository
 import org.duzgun.eksiengelplus.feature.lists.ListsActivity
+import org.duzgun.eksiengelplus.gate.GateActivity
+import org.duzgun.eksiengelplus.gate.GateDecision
+import org.duzgun.eksiengelplus.gate.UpdateGate
 import org.duzgun.eksiengelplus.datastore.EksiConfig
 import org.duzgun.eksiengelplus.ops.engine.OperationRequest
 import org.duzgun.eksiengelplus.ops.runtime.OperationReconciler
@@ -52,6 +55,10 @@ class BrowserActivity : AppCompatActivity() {
     @Inject lateinit var reconciler: OperationReconciler
     @Inject lateinit var db: org.duzgun.eksiengelplus.database.EksiDatabase
     @Inject lateinit var identityRepository: org.duzgun.eksiengelplus.datastore.IdentityRepository
+    @Inject lateinit var updateGate: UpdateGate
+
+    /** The "yeni sürüm var" offer is made once per launch, not on every resume. */
+    private var updateOffered = false
 
     private lateinit var web: WebView
     private lateinit var webRefresh: SwipeRefreshLayout
@@ -93,6 +100,45 @@ class BrowserActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         if (webAlive) bridge.push(web, "appPaused", "{}")
+    }
+
+    /**
+     * The update gate (gate/UpdateGate.kt), asked on every resume.
+     *
+     * The stored decision first, so a build that is already blocked never shows
+     * the browser; then a fresh policy when the last check is hours old. A
+     * blocked build gets only the update screen, and a newer allowed one is
+     * offered without getting in the way.
+     */
+    override fun onResume() {
+        super.onResume()
+        applyUpdateGate()
+        lifecycleScope.launch {
+            if (updateGate.refresh()) applyUpdateGate()
+        }
+    }
+
+    private fun applyUpdateGate() {
+        when (val decision = updateGate.decision()) {
+            is GateDecision.UpdateRequired, is GateDecision.Revoked -> startActivity(GateActivity.intent(this))
+            is GateDecision.UpdateAvailable -> if (!updateOffered) {
+                updateOffered = true
+                com.google.android.material.snackbar.Snackbar
+                    .make(web, R.string.gate_update_snackbar, com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                    .setAction(R.string.gate_update) { startActivity(GateActivity.intent(this, optional = true)) }
+                    .show()
+            }
+            GateDecision.Allow -> Unit
+        }
+    }
+
+    /** Refuses to queue or resume anything on a blocked build, and says why. */
+    private fun refusedByUpdateGate(): Boolean {
+        if (!updateGate.blocks()) return false
+        android.widget.Toast.makeText(this, getString(R.string.gate_operation_refused), android.widget.Toast.LENGTH_LONG)
+            .show()
+        startActivity(GateActivity.intent(this))
+        return true
     }
 
     /** False once the WebView has been destroyed; nothing may be pushed into it after. */
@@ -380,6 +426,7 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     private fun resumeOffered() {
+        if (refusedByUpdateGate()) return
         val parked = offered
         val id = offeredId
         when {
@@ -467,6 +514,7 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     private fun enqueue(request: OperationRequest) {
+        if (refusedByUpdateGate()) return
         // Suspending now: the request is recorded before the work is scheduled,
         // because WorkManager's 10 KB input-data cap cannot hold a long target list.
         lifecycleScope.launch {

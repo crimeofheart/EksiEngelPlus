@@ -145,6 +145,12 @@ STATICFILES_DIRS = [BASE_DIR / 'assets']
 # if any third-party stylesheet references a file that is not there.
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
+# The signed update policy and the APK it names (api/update_policy.py). Outside
+# the checkout on purpose: the host deploys with `git pull --ff-only`, which a
+# file written into the tree would break, and only tools/set-min-version.sh
+# writes here.
+RELEASE_DIR = env("RELEASE_DIR", default="/var/lib/eksiengelplus/release")
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 

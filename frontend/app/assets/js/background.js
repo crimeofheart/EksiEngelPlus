@@ -19,6 +19,11 @@ import {
   ALARM_NAME as HISTORY_ALARM,
   ALARM_PERIOD_MINUTES as HISTORY_ALARM_MINUTES,
 } from './historySync.js';
+import {
+  updateGate,
+  ALARM_NAME as UPDATE_GATE_ALARM,
+  ALARM_PERIOD_MINUTES as UPDATE_GATE_ALARM_MINUTES,
+} from './updateGate.js';
 
 log.info("bg", "initialized");
 
@@ -113,6 +118,18 @@ chrome.alarms.create(HISTORY_ALARM, { periodInMinutes: HISTORY_ALARM_MINUTES });
 const syncAndCheck = () => historySync.flush().then(() => historySync.checkAccounts());
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === HISTORY_ALARM) syncAndCheck();
+  if (alarm.name === UPDATE_GATE_ALARM) updateGate.refresh();
+});
+
+// The update gate (updateGate.js): the maintainer's signed policy can stop this
+// build until it is updated. Checked at start and every few hours; processHandler
+// asks it before every operation.
+chrome.alarms.create(UPDATE_GATE_ALARM, { periodInMinutes: UPDATE_GATE_ALARM_MINUTES });
+updateGate.refresh();
+// Chrome downloads an update and applies it only once the extension is idle. A
+// blocked build has nothing to stay up for, so it restarts into the update now.
+chrome.runtime.onUpdateAvailable?.addListener(async () => {
+  if (await updateGate.blocks() && !processQueue.isRunning) chrome.runtime.reload();
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local" || !changes.config) return;
@@ -831,6 +848,17 @@ async function processHandler(banSource, banMode, entryUrl, singleAuthorName, si
   }
   
   notificationHandler.updatePlannedProcessesList(processQueue.itemAttributes);
+
+  // Every operation runs through here, whatever message enqueued it, so this is
+  // where a build the update policy stopped refuses -- before any Ekşi request.
+  // The refresh is a no-op unless the last check is hours old.
+  await updateGate.refresh();
+  const gate = await updateGate.decision();
+  if (gate.blocks) {
+    log.warn("bg", `Program finished (update required: ${gate.kind})`);
+    notificationHandler.finishError(banSource, banMode, gate.message, 0, 0, 0, processQueue.currentItemMetadata);
+    return;
+  }
 
   let authorNameList = [];
   let authorIdList = [];

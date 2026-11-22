@@ -53,6 +53,12 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+        <!-- The update gate's screen (gate/GateActivity.kt). Its own task affinity is
+             not needed: kapat finishes the whole task. -->
+        <activity android:name=".gate.GateActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
         <activity android:name=".BrowserActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

@@ -2,15 +2,19 @@ name: Check
 
 # Validates every deliverable on each push to master and on any PR into it.
 #
-# Three jobs:
+# Four jobs:
 #   verify     — version lockstep across all seven locations. Unfiltered: a drift
 #                between frontend/app and android/ is invisible to a path filter,
 #                because the drifting commit may touch only one side.
 #   extension  — Chrome and Firefox zips, uploaded as two separate downloads.
 #   android    — debug APK, lint, unit tests.
+#   backend    — Django tests against a throwaway Postgres. Filtered on the files
+#                it reads: the backend tree, plus android/version.json and
+#                docs/changelog.json, which api/release_info.py turns into the
+#                landing page's version and release notes.
 #
-# Only the two build jobs are path-filtered, via a `changes` job rather than
-# workflow-level `paths`, so `verify` still runs when neither tree is touched.
+# Only the three build/test jobs are path-filtered, via a `changes` job rather
+# than workflow-level `paths`, so `verify` still runs when no tree is touched.
 
 on:
   push:
@@ -81,6 +85,7 @@ jobs:
     outputs:
       extension: ${{ steps.filter.outputs.extension }}
       android: ${{ steps.filter.outputs.android }}
+      backend: ${{ steps.filter.outputs.backend }}
     steps:
       # Full history so the diff base is always reachable.
       - uses: actions/checkout@v7
@@ -118,10 +123,14 @@ jobs:
 
           touched "^frontend/app/|$self" && ext=true || ext=false
           touched "^android/|$self" && droid=true || droid=false
+          # api/release_info.py reads both of these, so a release or a changelog
+          # edit is a backend change even when no Python moved.
+          touched "^backend/|^android/version\.json$|^docs/changelog\.json$|$self" && be=true || be=false
 
-          echo "extension=$ext | android=$droid"
+          echo "extension=$ext | android=$droid | backend=$be"
           echo "extension=$ext" >> "$GITHUB_OUTPUT"
           echo "android=$droid" >> "$GITHUB_OUTPUT"
+          echo "backend=$be" >> "$GITHUB_OUTPUT"
 
   extension:
     name: Chrome + Firefox zips
@@ -166,6 +175,53 @@ jobs:
           path: frontend/publish/dist/*-firefox.zip
           if-no-files-found: error
           retention-days: 14
+
+  backend:
+    name: Django tests
+    needs: [verify, changes]
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/django_EksiEngel
+
+    # The suite runs against Postgres, not SQLite: a migration declares a
+    # covering index (models.Index(..., include=...)) that SQLite cannot create,
+    # and skipping migrations instead would test a schema that exists nowhere.
+    # The credentials are the defaults django_EksiEngel/settings_test.py supplies.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: eksiengel_test
+          POSTGRES_USER: eksiengel_test
+          POSTGRES_PASSWORD: eksiengel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eksiengel_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Django 4.1 supports Python 3.8-3.11; the runner's default 3.12+ does not.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install test dependencies
+        working-directory: backend
+        run: pip install -r requirements-dev.txt
+
+      # Covers api/test_release_info.py and api/test_update_policy.py, which the
+      # store-facing pages depend on, plus the 12 other modules.
+      - name: Run the suite
+        run: python manage.py test --settings=django_EksiEngel.settings_test
 
   android:
     name: Android debug build

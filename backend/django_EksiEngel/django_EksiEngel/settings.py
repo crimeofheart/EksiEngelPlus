@@ -96,8 +96,11 @@ DATABASES = {
         'NAME': env("DATABASE_NAME"),
         'USER': env("DATABASE_USER"),
         'PASSWORD': env("DATABASE_PASS"),
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+        # Overridable so the test suite can reach a throwaway Postgres (a
+        # container on another port) without editing this file. Production
+        # sets neither and keeps talking to the local server.
+        'HOST': env("DATABASE_HOST", default="127.0.0.1"),
+        'PORT': env("DATABASE_PORT", default="5432"),
     }
 }
 

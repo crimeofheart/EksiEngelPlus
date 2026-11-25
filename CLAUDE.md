@@ -353,6 +353,41 @@ process restarts. `backend/setupProductionServer/readme.txt` is the original bui
 is wrong about both nginx and the unit name; `PROJECT_OVERVIEW.md` → "Deploying the backend"
 says when `collectstatic` and `migrate` are also needed (a template-only change needs neither).
 
+## Backend tests
+
+The Django suite needs **Python 3.11** (Django 4.1.3 does not import on 3.14) and a real
+**Postgres**, not SQLite: `history/migrations/0002_trust_and_person_relations.py` creates a
+covering index with `models.Index(..., include=(...))` and backfills with `RunSQL`, and SQLite
+supports neither. `settings_test.py` exists so the throwaway database differs from production
+in one place only.
+
+```bash
+cd backend
+uv venv --python 3.11 .venv                                     # backend/.venv is gitignored
+uv pip install -r requirements-dev.txt
+podman run -d --name eksitest-pg -e POSTGRES_PASSWORD=test \
+  -e POSTGRES_USER=eksiengel_test -e POSTGRES_DB=eksiengel_test -p 55432:5432 \
+  docker.io/library/postgres:16-alpine
+cd django_EksiEngel
+DATABASE_PORT=55432 DATABASE_PASS=test \
+  ../.venv/bin/python manage.py test --settings=django_EksiEngel.settings_test
+```
+
+`requirements-dev.txt` is a pin-per-package copy of `requirements.txt` with
+`psycopg2-binary` in place of source `psycopg2` (the source build wants `pg_config`, which is
+not installed); nothing checks that the two files agree except review, so bump them together.
+`settings_test.py` also pins `SHARED_API_KEY=testkey`, which the sync/history tests hardcode.
+
+The suite takes ~30 s and 167 tests. `test_ten_thousand_target_report` is timing-based — its
+upper bound is 30 s because `history/ingest.py` refreshes actor relations one statement per
+author, which is 13 s against a container round trip; a lower bound still asserts the query
+count does not grow quadratically.
+
+`.github/workflows/check.yml` runs the same suite in its `backend` job against a
+`postgres:16` service, selected only when a push or PR touches `backend/`,
+`android/version.json` or `docs/changelog.json` — the last two because the landing page
+derives its version and release notes from them.
+
 ## Spec-driven changes
 
 Non-trivial work is specced with [OpenSpec](https://github.com/Fission-AI/OpenSpec) first.
@@ -369,4 +404,5 @@ artifact inherits — including that `frontend/app/` runtime code stays untouche
 work.
 
 `.github/workflows/check.yml` runs `check` + `package` on every push to `master` and every PR
-into it, uploading the two zips as separate artifacts.
+into it, uploading the two zips as separate artifacts, plus the Android build/lint and the
+Django suite in the `backend` job.

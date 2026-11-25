@@ -36,6 +36,8 @@ context_portal/
 
 # virtual env
 **/VENV_Django_4_1_EksiEngel
+# backend test venv (see backend/requirements-dev.txt)
+backend/.venv/
 
 # py cache
 **/__pycache__
